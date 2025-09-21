@@ -1,0 +1,17 @@
+✅ Successfully connected to wandb!
+📊 Project: NLP
+🏢 Entity: galavny-tel-aviv-university
+🆔 Run ID: 0zy8cp8v
+🔗 Run URL: https://wandb.ai/galavny-tel-aviv-university/NLP/runs/0zy8cp8v
+Step 0: loss=1.0231, accuracy=0.0008
+Step 1: loss=0.9381, accuracy=0.1031
+Step 2: loss=0.8771, accuracy=0.1959
+Step 3: loss=0.7248, accuracy=0.2770
+Step 4: loss=0.6771, accuracy=0.3467
+Step 5: loss=0.6487, accuracy=0.4485
+Step 6: loss=0.5182, accuracy=0.5499
+Step 7: loss=0.4242, accuracy=0.6360
+Step 8: loss=0.3238, accuracy=0.7005
+Step 9: loss=0.2437, accuracy=0.8069
+📈 Test metrics logged successfully!
+🎯 Test completed - check your wandb dashboard!
