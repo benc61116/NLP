@@ -192,15 +192,14 @@ pip install -r requirements.txt
 # Download datasets
 python scripts/download_datasets.py
 
-# Optional: Setup shared results directory if using NFS
-mkdir -p /shared/nlp_results
+# No additional setup needed
 ```
 
 **Coordination Protocol**:
 1. **W&B Monitoring**: Monitor all experiment progress via W&B dashboard
 2. **Tmux Sessions**: Run experiments in persistent tmux sessions
 3. **Manual Phase Transitions**: Start next phase when previous completes (visible in W&B)
-4. **Shared Storage**: Save results to shared NFS for cross-VM access
+4. **Git Repository**: All code, configs, and results tracked via git commits
 
 ## Phase-Based Execution Scripts
 
@@ -579,7 +578,7 @@ CRITICAL REQUIREMENTS:
 - **Extract base model representations**: Run original pre-trained Llama-2-1.3B on validation sets (no fine-tuning)
 - Profile memory usage and training time
 
-Output all results to W&B and save checkpoints to shared storage for VM3 analysis.
+Output all results to W&B and save checkpoints locally for later analysis phases.
 ```
 
 ### 3-VM Distribution
@@ -588,7 +587,7 @@ Output all results to W&B and save checkpoints to shared storage for VM3 analysi
 - Run: `python scripts/orchestrator.py --phase training --vm 1 --tasks mrpc_full_finetune,mrpc_lora,rte_full_finetune,rte_lora`
 - Handles MRPC and RTE full fine-tuning and LoRA experiments across all seeds
 - High memory requirements for full model updates on both classification tasks
-- Saves checkpoints to shared NFS for later analysis
+- Saves checkpoints locally and logs all results to W&B
 
 **Execution Strategy**:
 - Starts immediately (no dependencies)
@@ -668,7 +667,7 @@ CRITICAL VALIDATION:
 - Compare convergence speed vs full fine-tuning
 - Validate that merged model produces identical outputs
 
-Save all LoRA adapters and base model for deployment testing on VM3.
+Save all LoRA adapters locally and log all results to W&B for later analysis phases.
 ```
 
 ### 3-VM Distribution
