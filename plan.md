@@ -380,10 +380,8 @@ CONTEXT:
 - Tracking: Weights & Biases (project: "NLP", entity: "galavny-tel-aviv-university")
 
 REQUIREMENTS:
-1. Create requirements.txt with all dependencies and exact versions (already provided)
-2. Create scripts/download_datasets.py for downloading all four datasets
-3. Implement data loading utilities for all four tasks
-4. Create sanity check scripts that verify:
+1. Implement data loading utilities for all four tasks
+2. Create sanity check scripts that verify:
    - Model can overfit 10 examples from each dataset
    - Gradient flow is correct for both full fine-tuning and LoRA
    - W&B logging works correctly
@@ -403,7 +401,46 @@ TECHNICAL SPECIFICATIONS:
 - Minimal setup: `pip install -r requirements.txt` + `python scripts/download_datasets.py`
 
 Focus on creating the phase-organized execution scripts and data loading utilities rather than complex setup procedures.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Load a small sample from each dataset (10 examples per task)
+2. Run a quick sanity check (1 epoch overfitting test)
+3. Verify W&B logging works correctly
+4. Check that all results are saved to W&B dashboard
+5. Validate reproducibility with fixed seeds
 ```
+
+### Step 1 Validation Instructions
+
+**How to validate this step is working correctly**:
+
+1. **Check Dataset Loading**:
+   ```bash
+   python -c "from datasets import load_from_disk; print(load_from_disk('data/mrpc')['train'][0])"
+   ```
+   Should display a sample MRPC example without errors.
+
+2. **Verify W&B Connection**:
+   - Check that W&B dashboard shows new runs under project "NLP"
+   - Confirm entity "galavny-tel-aviv-university" is accessible
+   - Verify metrics are being logged in real-time
+
+3. **Test Sanity Checks**:
+   - Run the 10-example overfitting test for each task
+   - Should achieve 100% accuracy within 50 epochs
+   - Check that loss decreases monotonically
+
+4. **Validate Reproducibility**:
+   - Run same configuration twice with same seed
+   - Results should be identical (within numerical precision)
+   - Check that random state is properly controlled
+
+**Red Flags to Watch For**:
+- Dataset loading errors or missing files
+- W&B authentication failures
+- Models not overfitting on small samples
+- Non-reproducible results across identical runs
 
 ### 3-VM Distribution
 
@@ -489,7 +526,47 @@ STATISTICAL RIGOR:
 - Implement McNemar's test for pairwise comparisons
 
 Output comprehensive baseline_results.json with all metrics and statistical tests.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Run majority class baseline on 100 examples from each task
+2. Run zero-shot Llama-2 on 10 examples per task
+3. Verify all baseline results are logged to W&B
+4. Check that statistical tests produce reasonable p-values
+5. Validate that confidence intervals are computed correctly
 ```
+
+### Step 2 Validation Instructions
+
+**How to validate baseline experiments are working correctly**:
+
+1. **Check Baseline Results**:
+   ```bash
+   # Should see baseline runs in W&B dashboard
+   # Majority class accuracy should match expected values (~50% for MRPC, ~68% for RTE)
+   ```
+
+2. **Verify Zero-Shot Performance**:
+   - SST-2: Should achieve 80-85% accuracy (strong pre-training signal)
+   - MRPC: Should achieve 60-70% accuracy  
+   - RTE: Should achieve 55-65% accuracy
+   - SQuAD v2: Should achieve 20-30% EM (harder for pre-trained model)
+
+3. **Statistical Test Validation**:
+   - McNemar's test should produce p-values < 0.05 for meaningful differences
+   - Bootstrap confidence intervals should be reasonable (not too wide)
+   - Multiple seeds should show consistent patterns
+
+4. **W&B Dashboard Check**:
+   - All baseline experiments appear with clear naming
+   - Metrics are logged correctly per task
+   - Run groups link related experiments
+
+**Red Flags to Watch For**:
+- Baseline performance wildly different from expected ranges
+- Statistical tests failing or producing NaN values
+- Missing W&B logs or incomplete metric tracking
+- Confidence intervals that are unreasonably wide or narrow
 
 ### Statistical Design
 
@@ -579,7 +656,51 @@ CRITICAL REQUIREMENTS:
 - Profile memory usage and training time
 
 Output all results to W&B and save checkpoints locally for later analysis phases.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Run full fine-tuning on one task (SST-2) for 1 epoch with 100 examples
+2. Monitor training metrics in W&B (loss, accuracy, learning rate)
+3. Extract and save representations for a few validation examples
+4. Verify checkpoints are saved and can be loaded correctly
+5. Check that gradient statistics and memory usage are logged
 ```
+
+### Step 3 Validation Instructions
+
+**How to validate full fine-tuning experiments are working correctly**:
+
+1. **Training Progress Monitoring**:
+   ```bash
+   # Check W&B dashboard for:
+   # - Training/validation loss curves
+   # - Accuracy metrics per task
+   # - Learning rate schedules
+   # - Gradient norms and statistics
+   ```
+
+2. **Performance Validation**:
+   - **MRPC**: Should reach 85-90% accuracy (close to SOTA)
+   - **SST-2**: Should reach 90-93% accuracy 
+   - **RTE**: Should reach 65-75% accuracy
+   - **SQuAD v2**: Should reach 75-85% F1 score
+
+3. **Representation Extraction Check**:
+   - Verify representations are saved every 100 steps
+   - Check file sizes are reasonable (not empty or corrupted)
+   - Test loading saved representations works correctly
+
+4. **Checkpoint Validation**:
+   - Saved models can be loaded without errors
+   - Model outputs are consistent after loading
+   - Training can resume from checkpoints correctly
+
+**Red Flags to Watch For**:
+- Training loss not decreasing or unstable
+- Performance much lower than expected ranges
+- Missing or corrupted representation files
+- Checkpoint loading failures
+- Memory errors or GPU OOM issues
 
 ### 3-VM Distribution
 
@@ -668,7 +789,48 @@ CRITICAL VALIDATION:
 - Validate that merged model produces identical outputs
 
 Save all LoRA adapters locally and log all results to W&B for later analysis phases.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Run LoRA training on one task (SST-2) for 1 epoch with 100 examples
+2. Verify only LoRA parameters update (base model frozen)
+3. Test adapter merging and equivalence with separate loading
+4. Monitor LoRA-specific metrics in W&B (adapter weights, rank utilization)
+5. Validate parameter efficiency (should be ~0.3% of full model)
 ```
+
+### Step 4 Validation Instructions
+
+**How to validate LoRA experiments are working correctly**:
+
+1. **LoRA Parameter Verification**:
+   ```bash
+   # Check that only LoRA parameters have gradients
+   # Base model parameters should remain frozen
+   # Trainable parameters should be ~0.3% of total
+   ```
+
+2. **Performance Validation**:
+   - **Performance Gap**: LoRA should be within 3% of full fine-tuning performance
+   - **Training Speed**: LoRA should train faster than full fine-tuning
+   - **Memory Usage**: LoRA should use significantly less memory
+
+3. **Adapter Functionality Check**:
+   - Test adapter loading/unloading works correctly
+   - Verify merged model produces identical outputs to adapter model
+   - Check adapter weight magnitudes are reasonable (not zero or huge)
+
+4. **W&B LoRA Metrics**:
+   - Adapter weight distributions logged correctly
+   - Rank utilization metrics tracked
+   - Training efficiency metrics (speed, memory) compared to full FT
+
+**Red Flags to Watch For**:
+- Base model parameters updating (should be frozen)
+- LoRA performance significantly worse than full fine-tuning
+- Adapter merging producing different outputs
+- Unreasonable adapter weight values (all zeros or exploding)
+- Missing LoRA-specific metrics in W&B
 
 ### 3-VM Distribution
 
@@ -791,7 +953,49 @@ CRITICAL ANALYSES:
 - Identify "critical" layers with highest drift for each task type
 
 Output comprehensive drift_analysis_results.json and all visualization figures.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Load base model and extract representations on 50 examples from one task
+2. Load one fine-tuned model and extract representations on same examples
+3. Compute CKA and cosine similarity for a few layers
+4. Generate a simple drift visualization plot
+5. Verify all drift metrics are logged to W&B with clear naming
 ```
+
+### Step 5 Validation Instructions
+
+**How to validate drift analysis is working correctly**:
+
+1. **Representation Loading Check**:
+   ```bash
+   # Test loading base model representations
+   # Test loading fine-tuned model representations  
+   # Verify dimensions match and no NaN values
+   ```
+
+2. **CKA Computation Validation**:
+   - **CKA values**: Should be between 0 and 1
+   - **Drift values**: Should be between 0 and 1 (1 - CKA)
+   - **Layer patterns**: Early layers should have less drift than later layers
+   - **LoRA vs Full FT**: LoRA should show consistently lower drift values
+
+3. **Statistical Analysis Check**:
+   - Permutation tests should produce meaningful p-values
+   - Confidence intervals should be computed correctly
+   - Effect sizes (Cohen's d) should be reasonable
+
+4. **Visualization Validation**:
+   - Drift evolution plots show clear trends over training steps
+   - Layer-wise heatmaps display interpretable patterns
+   - Per-task drift comparisons are clearly visible
+
+**Red Flags to Watch For**:
+- CKA values outside [0,1] range or all NaN
+- Drift patterns that don't make sense (e.g., drift decreasing during training)
+- LoRA showing higher drift than full fine-tuning across all layers
+- Missing or corrupted representation files
+- Statistical tests producing unreasonable results
 
 ### 3-VM Distribution
 
@@ -919,7 +1123,49 @@ STATISTICAL REQUIREMENTS:
 - Create performance regression models
 
 Generate deployment_benchmark_results.json with all metrics and recommendations.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Load baseline Llama-2 model in vLLM and run inference on 10 examples
+2. Load one merged LoRA model and test inference equivalence
+3. Load 2-adapter configuration and test adapter switching
+4. Measure basic throughput and latency metrics
+5. Verify all benchmarking results are logged to W&B
 ```
+
+### Step 6 Validation Instructions
+
+**How to validate deployment benchmarking is working correctly**:
+
+1. **vLLM Setup Check**:
+   ```bash
+   # Test basic vLLM functionality
+   python -c "from vllm import LLM; model = LLM('meta-llama/Llama-2-1.3b-hf'); print('vLLM working')"
+   ```
+
+2. **Model Loading Validation**:
+   - **Baseline Model**: Original Llama-2 loads without errors
+   - **Merged Models**: LoRA-merged models load and produce outputs
+   - **Multi-Adapter**: 2-adapter and 4-adapter configurations work
+   - **Equivalence**: Merged and adapter models produce same outputs
+
+3. **Performance Metrics Check**:
+   - **Throughput**: Measured in tokens/second across batch sizes
+   - **Latency**: P95 latency values are reasonable (not extreme outliers)
+   - **Memory**: GPU memory usage tracked correctly
+   - **Overhead**: Multi-adapter overhead quantified vs merged models
+
+4. **Benchmarking Results Validation**:
+   - Results show expected patterns (overhead increases with more adapters)
+   - Statistical significance tests work correctly
+   - Performance regression models fit the data well
+
+**Red Flags to Watch For**:
+- vLLM setup failures or model loading errors
+- Merged and adapter models producing different outputs
+- Unreasonable performance metrics (negative latency, impossible throughput)
+- Multi-adapter setup not working correctly
+- Missing benchmarking data in W&B
 
 ### 3-VM Distribution
 
@@ -1031,7 +1277,51 @@ VISUALIZATION REQUIREMENTS:
 - Publication-ready LaTeX tables
 
 Generate analysis/final_analysis_report.json with all statistical tests, p-values, effect sizes, and conclusions.
+
+VALIDATION REQUIREMENT:
+Before completing this step, run a short demo to ensure everything works:
+1. Load results from W&B for one task and compute performance gap
+2. Test hypothesis testing functions with dummy data
+3. Generate a sample results table and visualization
+4. Verify statistical test p-values are computed correctly
+5. Check that final report contains all required sections and metrics
 ```
+
+### Step 7 Validation Instructions
+
+**How to validate statistical analysis is working correctly**:
+
+1. **Data Aggregation Check**:
+   ```bash
+   # Verify all experimental results can be loaded from W&B
+   # Check that data aggregation across seeds works correctly
+   # Validate that missing data is handled appropriately
+   ```
+
+2. **Hypothesis Testing Validation**:
+   - **Performance Gap**: Mean gap should be ≤3% if hypothesis holds
+   - **Statistical Significance**: P-values should be meaningful and interpretable
+   - **Effect Sizes**: Cohen's d values should indicate practical significance
+   - **Multiple Comparisons**: Bonferroni correction applied correctly
+
+3. **Results Table Validation**:
+   - All tasks and methods included in master results table
+   - Confidence intervals computed correctly for all metrics
+   - Drift reduction percentages calculated properly
+   - Deployment overhead values match benchmarking results
+
+4. **Final Report Check**:
+   - **Hypothesis Conclusion**: Clear accept/reject decision with supporting evidence
+   - **Cross-Task Analysis**: Patterns consistent across different task types
+   - **Practical Implications**: Real-world deployment recommendations included
+   - **Limitations**: Honest assessment of study limitations
+
+**Red Flags to Watch For**:
+- Statistical tests producing unreasonable p-values (all 0 or all 1)
+- Confidence intervals that are impossibly narrow or wide
+- Inconsistent results across different tasks without explanation
+- Missing data that breaks the analysis pipeline
+- Conclusions that don't match the actual statistical results
 
 ### Statistical Software Stack
 
