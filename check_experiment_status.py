@@ -84,12 +84,13 @@ def check_wandb_status():
     try:
         # Set up W&B
         os.environ.setdefault('WANDB_PROJECT', 'NLP')
-        os.environ.setdefault('WANDB_ENTITY', 'galavny-tel-aviv-university')
+        default_entity = os.environ.get('WANDB_ENTITY', 'galavny-tel-aviv-university')
+        os.environ.setdefault('WANDB_ENTITY', default_entity)
         
         api = wandb.Api()
-        project_name = f"{wandb.api.default_entity or 'galavny-tel-aviv-university'}/NLP"
+        project_name = f"{wandb.api.default_entity or default_entity}/NLP"
         
-        runs = list(api.runs(project_name, limit=20))  # Get recent 20 runs
+        runs = list(api.runs(project_name))[:20]  # Get recent 20 runs
         status['wandb_accessible'] = True
         status['recent_runs'] = runs
         
@@ -160,8 +161,9 @@ def check_performance_expectations():
     
     try:
         api = wandb.Api()
-        project_name = f"{wandb.api.default_entity or 'galavny-tel-aviv-university'}/NLP"
-        runs = api.runs(project_name, limit=50)
+        default_entity = os.environ.get('WANDB_ENTITY', 'galavny-tel-aviv-university')
+        project_name = f"{wandb.api.default_entity or default_entity}/NLP"
+        runs = list(api.runs(project_name))[:50]
         
         # Group runs by task
         task_results = {}

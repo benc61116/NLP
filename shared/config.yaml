@@ -118,7 +118,7 @@ infrastructure:
 # Weights & Biases Configuration
 wandb:
   project: "NLP"
-  entity: "galavny-tel-aviv-university"
+  entity: "${WANDB_ENTITY:-galavny-tel-aviv-university}"
   save_code: true
   log_model: "all"        # Log model checkpoints
   watch_model: true       # Watch gradients and parameters

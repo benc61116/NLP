@@ -281,8 +281,9 @@ class RedFlagMonitor:
             api = wandb.Api()
             
             # Try to access the project
-            project_name = f"{wandb.api.default_entity or 'galavny-tel-aviv-university'}/NLP"
-            runs = api.runs(project_name)
+            default_entity = os.environ.get('WANDB_ENTITY', 'galavny-tel-aviv-university')
+            project_name = f"{wandb.api.default_entity or default_entity}/NLP"
+            runs = list(api.runs(project_name))
             
             # Count runs in different states
             recent_runs = []
@@ -360,8 +361,9 @@ class RedFlagMonitor:
         if runs_data is None:
             try:
                 api = wandb.Api()
-                project_name = f"{wandb.api.default_entity or 'galavny-tel-aviv-university'}/NLP"
-                runs = api.runs(project_name)
+                default_entity = os.environ.get('WANDB_ENTITY', 'galavny-tel-aviv-university')
+                project_name = f"{wandb.api.default_entity or default_entity}/NLP"
+                runs = list(api.runs(project_name))
                 runs_data = []
                 for run in runs:
                     if len(runs_data) >= 20:
@@ -414,7 +416,8 @@ def main():
     
     # Set up environment
     os.environ.setdefault('WANDB_PROJECT', 'NLP')
-    os.environ.setdefault('WANDB_ENTITY', 'galavny-tel-aviv-university')
+    default_entity = os.environ.get('WANDB_ENTITY', 'galavny-tel-aviv-university')
+    os.environ.setdefault('WANDB_ENTITY', default_entity)
     
     # Initialize monitor
     monitor = RedFlagMonitor()

@@ -334,12 +334,14 @@ class MetricsCalculator:
 class BaselineResultsTracker:
     """Track and aggregate results across all baseline experiments."""
     
-    def __init__(self, output_dir: str = "/home/galavny13/workspace/NLP/results"):
+    def __init__(self, output_dir: str = None):
         """Initialize results tracker.
         
         Args:
-            output_dir: Directory to save results
+            output_dir: Directory to save results. If None, uses current working directory + "/results"
         """
+        if output_dir is None:
+            output_dir = os.path.join(os.getcwd(), "results")
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.results = {}
