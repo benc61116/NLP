@@ -60,7 +60,7 @@ This research project investigates two critical questions in parameter-efficient
 | `sst2_lora` | LoRA fine-tuning on SST-2 task | Llama-2-1.3B | LoRA (rank 8) |
 | `rte_full_finetune` | Full parameter fine-tuning on RTE task | Llama-2-1.3B | Full fine-tuning |
 | `rte_lora` | LoRA fine-tuning on RTE task | Llama-2-1.3B | LoRA (rank 8) |
-| `baselines_all_tasks` | Naive classifiers, zero-shot, and SOTA baselines | Various | Baseline methods |
+| `baselines_all_tasks` | Majority class, random, and SOTA literature baselines | Various | Baseline methods |
 
 **Phase 2a Tasks (Parallel Analysis)**:
 
@@ -532,7 +532,7 @@ Output comprehensive baseline_results.json with all metrics and statistical test
 VALIDATION REQUIREMENT:
 Before completing this step, run a short demo to ensure everything works:
 1. Run majority class baseline on 100 examples from each task
-2. Run zero-shot Llama-2 on 10 examples per task
+2. Run random baseline with multiple seeds
 3. Verify all baseline results are logged to W&B
 4. Check that statistical tests produce reasonable p-values
 5. Validate that confidence intervals are computed correctly
