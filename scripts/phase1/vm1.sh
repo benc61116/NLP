@@ -1,8 +1,8 @@
 #!/bin/bash
-# Phase 1 - VM1: MRPC + RTE Full Fine-tuning Experiments
+# Phase 1 - VM1: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA (Balanced Load)
 set -e  # Exit on error
 
-echo "Starting Phase 1 on VM1: MRPC + RTE Full Fine-tuning..."
+echo "Starting Phase 1 on VM1: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA..."
 
 # Setup environment
 export WANDB_PROJECT=NLP
@@ -35,7 +35,18 @@ fi
 
 echo "✅ Validation demo passed! Starting full experiments..."
 
-# MRPC full fine-tuning with multiple seeds
+# SQuAD v2 full fine-tuning with multiple seeds (HEAVY LOAD)
+echo "Running SQuAD v2 full fine-tuning experiments..."
+for seed in 42 1337 2024; do
+    echo "  Running SQuAD v2 full fine-tuning with seed $seed..."
+    python experiments/full_finetune.py --task squad_v2 --mode single --seed $seed 2>&1 | tee logs/phase1/vm1/squad_v2_full_seed${seed}.log
+done
+
+# SQuAD v2 hyperparameter search
+echo "Running SQuAD v2 hyperparameter sweep..."
+python experiments/full_finetune.py --task squad_v2 --mode sweep 2>&1 | tee logs/phase1/vm1/squad_v2_sweep.log
+
+# MRPC full fine-tuning with multiple seeds (LIGHT LOAD)
 echo "Running MRPC full fine-tuning experiments..."
 for seed in 42 1337 2024; do
     echo "  Running MRPC full fine-tuning with seed $seed..."
@@ -46,19 +57,21 @@ done
 echo "Running MRPC hyperparameter sweep..."
 python experiments/full_finetune.py --task mrpc --mode sweep 2>&1 | tee logs/phase1/vm1/mrpc_sweep.log
 
-# RTE full fine-tuning with multiple seeds
-echo "Running RTE full fine-tuning experiments..."
+# MRPC LoRA fine-tuning with multiple seeds (LIGHT LOAD)
+echo "Running MRPC LoRA fine-tuning experiments..."
 for seed in 42 1337 2024; do
-    echo "  Running RTE full fine-tuning with seed $seed..."
-    python experiments/full_finetune.py --task rte --mode single --seed $seed 2>&1 | tee logs/phase1/vm1/rte_full_seed${seed}.log
+    echo "  Running MRPC LoRA fine-tuning with seed $seed..."
+    python experiments/lora_finetune.py --task mrpc --mode single --seed $seed 2>&1 | tee logs/phase1/vm1/mrpc_lora_seed${seed}.log
 done
 
-# RTE hyperparameter search
-echo "Running RTE hyperparameter sweep..."
-python experiments/full_finetune.py --task rte --mode sweep 2>&1 | tee logs/phase1/vm1/rte_sweep.log
+# MRPC LoRA hyperparameter search
+echo "Running MRPC LoRA hyperparameter sweep..."
+python experiments/lora_finetune.py --task mrpc --mode sweep 2>&1 | tee logs/phase1/vm1/mrpc_lora_sweep.log
 
-echo "✅ Phase 1 VM1 complete: MRPC + RTE full fine-tuning finished"
-echo "  - 6 full fine-tuning runs completed (3 seeds × 2 tasks)"
-echo "  - 2 hyperparameter sweeps completed"
+echo "✅ Phase 1 VM1 complete: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA finished"
+echo "  - 3 SQuAD v2 full fine-tuning runs completed (1 heavy task)"
+echo "  - 3 MRPC full fine-tuning runs completed (1 light task)"
+echo "  - 3 MRPC LoRA fine-tuning runs completed (1 light task)"
+echo "  - 3 hyperparameter sweeps completed"
 echo "  - All representations extracted and saved"
 echo "  - Checkpoints saved for analysis phases"

@@ -1,8 +1,8 @@
 #!/bin/bash
-# Phase 1 - VM3: SST-2 Full Fine-tuning + Baseline Experiments
+# Phase 1 - VM3: RTE Full FT + RTE LoRA + Baseline Experiments (Balanced Load)
 set -e  # Exit on error
 
-echo "Starting Phase 1 on VM3: SST-2 Full Fine-tuning + Baselines..."
+echo "Starting Phase 1 on VM3: RTE Full FT + RTE LoRA + Baselines..."
 
 # Setup environment
 export WANDB_PROJECT=NLP
@@ -43,18 +43,29 @@ if [ ${PIPESTATUS[0]} -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ Baseline experiments completed! Starting SST-2 full fine-tuning..."
+echo "✅ Baseline experiments completed! Starting RTE fine-tuning..."
 
-# SST-2 full fine-tuning with multiple seeds
-echo "Running SST-2 full fine-tuning experiments..."
+# RTE full fine-tuning with multiple seeds (LIGHT LOAD)
+echo "Running RTE full fine-tuning experiments..."
 for seed in 42 1337 2024; do
-    echo "  Running SST-2 full fine-tuning with seed $seed..."
-    python experiments/full_finetune.py --task sst2 --mode single --seed $seed 2>&1 | tee logs/phase1/vm3/sst2_full_seed${seed}.log
+    echo "  Running RTE full fine-tuning with seed $seed..."
+    python experiments/full_finetune.py --task rte --mode single --seed $seed 2>&1 | tee logs/phase1/vm3/rte_full_seed${seed}.log
 done
 
-# SST-2 hyperparameter search
-echo "Running SST-2 hyperparameter sweep..."
-python experiments/full_finetune.py --task sst2 --mode sweep 2>&1 | tee logs/phase1/vm3/sst2_sweep.log
+# RTE hyperparameter search
+echo "Running RTE hyperparameter sweep..."
+python experiments/full_finetune.py --task rte --mode sweep 2>&1 | tee logs/phase1/vm3/rte_sweep.log
+
+# RTE LoRA fine-tuning with multiple seeds (LIGHT LOAD)
+echo "Running RTE LoRA fine-tuning experiments..."
+for seed in 42 1337 2024; do
+    echo "  Running RTE LoRA fine-tuning with seed $seed..."
+    python experiments/lora_finetune.py --task rte --mode single --seed $seed 2>&1 | tee logs/phase1/vm3/rte_lora_seed${seed}.log
+done
+
+# RTE LoRA hyperparameter search
+echo "Running RTE LoRA hyperparameter sweep..."
+python experiments/lora_finetune.py --task rte --mode sweep 2>&1 | tee logs/phase1/vm3/rte_lora_sweep.log
 
 # Extract base model representations for all tasks (for later drift analysis)
 echo "Extracting base model representations for all tasks..."
@@ -160,9 +171,10 @@ print(f'  Memory Available: {memory.available / 1024**3:.1f} GB')
 print(f'  Memory Used: {memory.used / 1024**3:.1f} GB ({memory.percent}%)')
 " 2>&1 | tee logs/phase1/vm3/resource_analysis.log
 
-echo "✅ Phase 1 VM3 complete: SST-2 full fine-tuning + baselines finished"
+echo "✅ Phase 1 VM3 complete: RTE Full FT + RTE LoRA + baselines finished"
 echo "  - All baseline experiments completed for 4 tasks"
-echo "  - 3 SST-2 full fine-tuning runs completed (3 seeds)"
-echo "  - 1 SST-2 hyperparameter sweep completed"
+echo "  - 3 RTE full fine-tuning runs completed (1 light task)"
+echo "  - 3 RTE LoRA fine-tuning runs completed (1 light task)"
+echo "  - 2 hyperparameter sweeps completed"
 echo "  - Base model representations extracted for all tasks"
 echo "  - System monitoring and resource analysis completed"

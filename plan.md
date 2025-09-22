@@ -90,14 +90,14 @@ This research project investigates two critical questions in parameter-efficient
 **Optimal Distribution Philosophy**: Maximize parallel utilization by eliminating dependencies and splitting work by tasks/methods, similar to distributed pre-training then fine-tuning approach.
 
 **Phase 1 - Training (All VMs start immediately in parallel)**:
-- **VM1 (MRPC + RTE Experiments)**: Full fine-tuning + LoRA experiments for MRPC and RTE tasks across all seeds
-- **VM2 (SQuAD Experiments)**: Full fine-tuning + LoRA experiments for SQuAD v2 task across all seeds  
-- **VM3 (SST-2 + Baselines)**: Full fine-tuning + LoRA experiments for SST-2 task + all baseline experiments for all four tasks
+- **VM1 (SQuAD + MRPC Mix)**: SQuAD v2 full fine-tuning + MRPC full fine-tuning + MRPC LoRA (1 heavy + 2 light tasks)
+- **VM2 (SQuAD + SST-2 Mix)**: SQuAD v2 LoRA + SST-2 full fine-tuning + SST-2 LoRA (1 heavy + 2 medium tasks)
+- **VM3 (RTE + Baselines)**: RTE full fine-tuning + RTE LoRA + all baseline experiments for all four tasks (2 light + baselines)
 
 **Phase 2a - Parallel Analysis (All VMs start immediately after Phase 1)**:
-- **VM1 (Classification Drift Analysis)**: Representational drift analysis for MRPC, SST-2, and RTE tasks
-- **VM2 (QA Drift + Deployment)**: Representational drift analysis for SQuAD v2 + vLLM deployment benchmarking
-- **VM3 (Correlation Analysis)**: Performance-drift correlation studies and analysis preparation
+- **VM1 (MRPC + RTE Analysis)**: Representational drift analysis for MRPC and RTE tasks + correlation analysis prep
+- **VM2 (SQuAD Analysis + Deployment)**: Representational drift analysis for SQuAD v2 + vLLM deployment benchmarking  
+- **VM3 (SST-2 Analysis + Visualization)**: Representational drift analysis for SST-2 + visualization preparation
 
 **Phase 2b - Final Synthesis (Single VM after Phase 2a)**:  
 - **VM1 (Statistical Synthesis)**: Final statistical analysis, hypothesis testing, visualization, and report generation
@@ -609,9 +609,9 @@ Before completing this step, run a short demo to ensure everything works:
 You are implementing full fine-tuning experiments for Llama-2-1.3B on MRPC, SQuAD v2, SST-2, and RTE. This serves as the primary comparison point for LoRA experiments.
 
 CONTEXT:
-- Running in parallel with other training (baselines and SST-2 on VM3, LoRA on same VMs for different tasks)  
-- Model: meta-llama/Llama-2-1.3b-hf
-- Hardware: VM1 for MRPC + RTE, VM2 for SQuAD v2, VM3 for SST-2 (task-based splitting)
+- Running in parallel with other training (balanced load: VM1 SQuAD+MRPC, VM2 SQuAD+SST-2, VM3 RTE+baselines)
+- Model: meta-llama/Llama-2-1.3b-hf  
+- Hardware: Load-balanced task splitting for optimal parallel execution
 - Objective: Establish full fine-tuning performance and representation changes across all four tasks
 
 EXPERIMENTAL DESIGN:
@@ -1441,13 +1441,13 @@ This implementation plan provides a comprehensive roadmap for rigorously compari
 
 **True Parallel Execution**:
 - **Phase 1 (Training)**: All 3 VMs start immediately with no dependencies
-  - VM1: MRPC + RTE full fine-tuning + LoRA
-  - VM2: SQuAD v2 full fine-tuning + LoRA  
-  - VM3: SST-2 full fine-tuning + LoRA + baseline experiments for all four tasks
+  - VM1: SQuAD v2 full fine-tuning + MRPC full fine-tuning + MRPC LoRA
+  - VM2: SQuAD v2 LoRA + SST-2 full fine-tuning + SST-2 LoRA
+  - VM3: RTE full fine-tuning + RTE LoRA + baseline experiments for all four tasks
 - **Phase 2a (Parallel Analysis)**: All 3 VMs start immediately after Phase 1
-  - VM1: Classification drift analysis (MRPC, SST-2, RTE)
-  - VM2: QA drift analysis (SQuAD v2) + deployment benchmarking
-  - VM3: Correlation analysis and visualization preparation
+  - VM1: MRPC + RTE drift analysis + correlation analysis prep
+  - VM2: SQuAD v2 drift analysis + deployment benchmarking  
+  - VM3: SST-2 drift analysis + visualization preparation
 - **Phase 2b (Final Synthesis)**: Single VM after Phase 2a (cost optimization)
   - VM1: Statistical analysis, hypothesis testing, and report generation
   - VM2 & VM3: Idle (can be shut down)
