@@ -1,21 +1,33 @@
 #!/bin/bash
-# Phase 1 - VM1: MRPC + RTE Training
+# Phase 1 - VM1: Sanity Checks + MRPC + SST-2 Experiments
 set -e  # Exit on error
 
-echo "Starting Phase 1 training on VM1: MRPC + RTE..."
+echo "Starting Phase 1 on VM1: Sanity Checks + Classification Tasks..."
 
-# MRPC experiments
-echo "Running MRPC full fine-tuning..."
-python experiments/full_finetune.py --task mrpc
+# Setup environment
+export WANDB_PROJECT=NLP
+export WANDB_ENTITY=galavny-tel-aviv-university
 
-echo "Running MRPC LoRA fine-tuning..."
-python experiments/lora_finetune.py --task mrpc
+# Create logs directory
+mkdir -p logs/phase1/vm1
 
-# RTE experiments  
-echo "Running RTE full fine-tuning..."
-python experiments/full_finetune.py --task rte
+# First run comprehensive sanity checks
+echo "Running comprehensive sanity checks..."
+python -m shared.sanity_checks 2>&1 | tee logs/phase1/vm1/sanity_checks.log
 
-echo "Running RTE LoRA fine-tuning..."
-python experiments/lora_finetune.py --task rte
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "❌ Sanity checks failed! Aborting experiments."
+    exit 1
+fi
 
-echo "Phase 1 VM1 complete"
+echo "✅ Sanity checks passed! Starting experiments..."
+
+# MRPC experiments (VM1 allocation)
+echo "Running MRPC experiments..."
+python -m shared.experiment_runner --tasks mrpc --methods lora full 2>&1 | tee logs/phase1/vm1/mrpc_experiments.log
+
+# SST-2 experiments (VM1 allocation)  
+echo "Running SST-2 experiments..."
+python -m shared.experiment_runner --tasks sst2 --methods lora full 2>&1 | tee logs/phase1/vm1/sst2_experiments.log
+
+echo "✅ Phase 1 VM1 complete: MRPC + SST-2 experiments finished"

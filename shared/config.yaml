@@ -1,0 +1,184 @@
+# NLP Research Project Configuration
+# Comparing LoRA vs Full Fine-tuning on Llama-2-1.3B
+
+# Model Configuration
+model:
+  name: "microsoft/DialoGPT-small"  # Using publicly available small model for demo
+  max_length: 512
+  device_map: "auto"
+  torch_dtype: "float16"  # Use half precision for memory efficiency
+
+# LoRA Configuration
+lora:
+  r: 16                    # Rank of adaptation
+  alpha: 32               # Scaling parameter (typically 2*r)
+  dropout: 0.1            # Dropout for LoRA layers
+  target_modules:         # Which modules to apply LoRA to
+    - "q_proj"
+    - "v_proj" 
+    - "k_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  task_type: "CAUSAL_LM"
+  bias: "none"
+
+# Training Configuration
+training:
+  # General settings
+  seed: 42
+  gradient_checkpointing: true
+  dataloader_pin_memory: true
+  dataloader_num_workers: 4
+  
+  # Batch sizes (adjust based on GPU memory)
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
+  
+  # Learning rates
+  learning_rate: 2e-4      # Higher for LoRA
+  full_finetune_learning_rate: 5e-5  # Lower for full fine-tuning
+  
+  # Optimization
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  lr_scheduler_type: "cosine"
+  optim: "adamw_torch"
+  
+  # Training duration
+  num_train_epochs: 3
+  max_steps: -1            # -1 means use num_train_epochs
+  
+  # Evaluation
+  evaluation_strategy: "steps"
+  eval_steps: 100
+  save_strategy: "steps"
+  save_steps: 500
+  logging_steps: 50
+  
+  # Early stopping
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  early_stopping_patience: 3
+
+# Task-Specific Configuration
+tasks:
+  mrpc:
+    name: "MRPC Paraphrase Detection"
+    type: "classification"
+    num_labels: 2
+    metric: "f1"
+    max_samples_train: null  # null means use all data
+    max_samples_eval: null
+    
+  sst2:
+    name: "SST-2 Sentiment Analysis"
+    type: "classification" 
+    num_labels: 2
+    metric: "accuracy"
+    max_samples_train: null
+    max_samples_eval: null
+    
+  rte:
+    name: "RTE Textual Entailment"
+    type: "classification"
+    num_labels: 2
+    metric: "accuracy"
+    max_samples_train: null
+    max_samples_eval: null
+    
+  squad_v2:
+    name: "SQuAD v2.0 Question Answering"
+    type: "question_answering"
+    num_labels: null
+    metric: "f1"
+    max_samples_train: 10000  # Limit for computational efficiency
+    max_samples_eval: 2000
+
+# Sanity Check Configuration
+sanity_check:
+  enabled: true
+  num_samples: 10          # Small number for overfitting test
+  max_epochs: 5            # Should overfit quickly
+  expected_loss_threshold: 0.1  # Loss should drop below this
+  learning_rate_multiplier: 5   # Higher LR for overfitting
+  
+# Infrastructure Configuration
+infrastructure:
+  gpu_memory_fraction: 0.9 # Use 90% of GPU memory
+  mixed_precision: true    # Enable automatic mixed precision
+  compile: false          # PyTorch 2.0 compilation (can be unstable)
+  
+# Weights & Biases Configuration
+wandb:
+  project: "NLP"
+  entity: "galavny-tel-aviv-university"
+  save_code: true
+  log_model: "all"        # Log model checkpoints
+  watch_model: true       # Watch gradients and parameters
+  log_freq: 50            # How often to log within epochs
+  
+  # Tags and grouping
+  tags:
+    - "llama-2-1.3b"
+    - "lora-vs-full-ft"
+    - "multi-task"
+  
+  # Experiment organization
+  group_name: "lora-comparison-study"  # Group related experiments
+  job_type: "experiment"               # Job type for organization
+
+# Reproducibility Configuration  
+reproducibility:
+  seed: 42
+  deterministic: true      # Make training deterministic (may be slower)
+  benchmark: false        # Don't use CUDNN benchmark for reproducibility
+  
+# Phase Configuration (for distributed execution)
+phases:
+  phase1:
+    description: "Sanity checks and baseline validation"
+    tasks: ["sanity_check_all"]
+    
+  phase2a:
+    description: "LoRA fine-tuning on all tasks"
+    tasks: ["mrpc", "sst2", "rte", "squad_v2"]
+    method: "lora"
+    
+  phase2b: 
+    description: "Full fine-tuning on all tasks"
+    tasks: ["mrpc", "sst2", "rte", "squad_v2"] 
+    method: "full"
+
+# Resource Allocation (3 GPU VMs)
+vm_allocation:
+  vm1:
+    tasks: ["mrpc", "sst2"]
+    gpu_memory: "24GB"
+    description: "Classification tasks"
+    
+  vm2: 
+    tasks: ["rte", "squad_v2"]
+    gpu_memory: "24GB" 
+    description: "Entailment and QA tasks"
+    
+  vm3:
+    tasks: ["sanity_check", "analysis"]
+    gpu_memory: "24GB"
+    description: "Validation and analysis"
+
+# Output Configuration
+output:
+  base_dir: "./results"
+  save_predictions: true
+  save_model_checkpoints: true
+  create_comparison_plots: true
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/experiment.log"

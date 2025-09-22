@@ -1,15 +1,18 @@
 #!/bin/bash
-# Phase 2a - VM2: QA Drift Analysis + Deployment Benchmarking
+# Phase 2a - VM2: Full Fine-tuning for All Tasks
 set -e  # Exit on error
 
-echo "Starting Phase 2a analysis on VM2: QA Drift + Deployment..."
+echo "Starting Phase 2a on VM2: Full Fine-tuning for All Tasks..."
 
-# Drift analysis for QA task
-echo "Running drift analysis for QA task (SQuAD v2)..."
-python experiments/drift_analysis.py --tasks squad_v2
+# Setup environment
+export WANDB_PROJECT=NLP
+export WANDB_ENTITY=galavny-tel-aviv-university
 
-# Deployment benchmarking
-echo "Running deployment benchmarking..."
-python experiments/deployment_bench.py
+# Create logs directory
+mkdir -p logs/phase2a/vm2
 
-echo "Phase 2a VM2 complete"
+# Run all tasks with full fine-tuning method
+echo "Running full fine-tuning experiments for all tasks..."
+python -m shared.experiment_runner --tasks mrpc sst2 rte squad_v2 --methods full --skip-sanity-checks 2>&1 | tee logs/phase2a/vm2/full_all_tasks.log
+
+echo "✅ Phase 2a VM2 complete: Full fine-tuning experiments for all tasks finished"
