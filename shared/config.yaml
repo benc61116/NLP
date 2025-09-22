@@ -3,24 +3,21 @@
 
 # Model Configuration
 model:
-  name: "microsoft/DialoGPT-small"  # Using publicly available small model for demo
+  name: "meta-llama/Llama-2-1.3b-hf"  # Target model for full fine-tuning experiments
   max_length: 512
   device_map: "auto"
-  torch_dtype: "float16"  # Use half precision for memory efficiency
+  torch_dtype: "bfloat16"  # Use bfloat16 for better training stability
+  classification_max_length: 512
+  qa_max_length: 768
 
 # LoRA Configuration
 lora:
-  r: 16                    # Rank of adaptation
-  alpha: 32               # Scaling parameter (typically 2*r)
-  dropout: 0.1            # Dropout for LoRA layers
+  r: 8                     # Rank of adaptation (as specified in requirements)
+  alpha: 16               # Scaling parameter (alpha/r = 2)
+  dropout: 0.05           # Dropout for LoRA layers
   target_modules:         # Which modules to apply LoRA to
     - "q_proj"
     - "v_proj" 
-    - "k_proj"
-    - "o_proj"
-    - "gate_proj"
-    - "up_proj"
-    - "down_proj"
   task_type: "CAUSAL_LM"
   bias: "none"
 
@@ -37,9 +34,11 @@ training:
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 4
   
-  # Learning rates
+  # Learning rates (as specified in requirements)
   learning_rate: 2e-4      # Higher for LoRA
-  full_finetune_learning_rate: 5e-5  # Lower for full fine-tuning
+  full_finetune_learning_rate_classification: [1e-5, 2e-5]  # Classification tasks (MRPC, SST-2, RTE)
+  full_finetune_learning_rate_qa: [5e-6, 1e-5]  # QA tasks (SQuAD v2)
+  full_finetune_learning_rate: 2e-5  # Default full fine-tuning LR
   
   # Optimization
   weight_decay: 0.01
@@ -57,6 +56,10 @@ training:
   save_strategy: "steps"
   save_steps: 500
   logging_steps: 50
+  
+  # Representation extraction settings
+  extract_representations_every_steps: 100
+  save_final_representations: true
   
   # Early stopping
   load_best_model_at_end: true

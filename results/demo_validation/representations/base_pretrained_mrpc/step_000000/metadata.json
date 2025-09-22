@@ -1,0 +1,26 @@
+{
+  "step": 0,
+  "task_name": "mrpc",
+  "method": "base_pretrained",
+  "timestamp": "2025-09-22T19:28:53.775452",
+  "num_samples": 100,
+  "layer_names": [
+    "layer_0",
+    "layer_1",
+    "layer_2"
+  ],
+  "tensor_shapes": {
+    "layer_0": [
+      100,
+      512
+    ],
+    "layer_1": [
+      100,
+      512
+    ],
+    "layer_2": [
+      100,
+      512
+    ]
+  }
+}

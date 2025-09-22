@@ -538,6 +538,232 @@ def get_majority_class(labels: List[int]) -> int:
     return counter.most_common(1)[0][0]
 
 
+def compute_classification_metrics(eval_pred, primary_metric: str = "accuracy"):
+    """Compute classification metrics for transformers trainer.
+    
+    Args:
+        eval_pred: EvalPrediction from transformers trainer
+        primary_metric: Primary metric to optimize
+        
+    Returns:
+        Dictionary of metrics
+    """
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    
+    accuracy = accuracy_score(labels, predictions)
+    f1_macro = f1_score(labels, predictions, average='macro', zero_division=0)
+    f1_micro = f1_score(labels, predictions, average='micro', zero_division=0)
+    
+    # For binary classification, also calculate binary F1
+    if len(np.unique(labels)) == 2:
+        f1_binary = f1_score(labels, predictions, average='binary', zero_division=0)
+    else:
+        f1_binary = f1_macro
+    
+    metrics = {
+        'accuracy': accuracy,
+        'f1_macro': f1_macro,
+        'f1_micro': f1_micro,
+        'f1_binary': f1_binary,
+    }
+    
+    # Add primary metric
+    if primary_metric == "f1":
+        metrics['f1'] = f1_binary
+    elif primary_metric == "accuracy":
+        metrics['accuracy'] = accuracy
+    
+    return metrics
+
+
+def compute_qa_metrics(eval_pred):
+    """Compute QA metrics for transformers trainer.
+    
+    Args:
+        eval_pred: EvalPrediction from transformers trainer
+        
+    Returns:
+        Dictionary of metrics
+    """
+    predictions, labels = eval_pred
+    
+    # For QA, this is simplified - in a full implementation,
+    # you'd need to decode predictions to text and compare with answers
+    start_predictions = np.argmax(predictions[0], axis=1)
+    end_predictions = np.argmax(predictions[1], axis=1)
+    
+    start_labels = labels[0]
+    end_labels = labels[1]
+    
+    # Simplified exact match (both start and end correct)
+    exact_match = np.mean((start_predictions == start_labels) & (end_predictions == end_labels))
+    
+    # Simplified F1 (average of start and end accuracy)
+    start_acc = np.mean(start_predictions == start_labels)
+    end_acc = np.mean(end_predictions == end_labels)
+    f1 = (start_acc + end_acc) / 2
+    
+    return {
+        'exact_match': exact_match,
+        'f1': f1,
+        'start_accuracy': start_acc,
+        'end_accuracy': end_acc
+    }
+
+
+class TrainingMetricsTracker:
+    """Track training metrics and dynamics during fine-tuning."""
+    
+    def __init__(self, task_name: str, method: str):
+        self.task_name = task_name
+        self.method = method
+        self.training_history = {
+            'train_loss': [],
+            'eval_loss': [],
+            'learning_rate': [],
+            'epoch': [],
+            'step': []
+        }
+        self.gradient_history = []
+        self.memory_history = []
+    
+    def log_training_step(self, step: int, epoch: float, train_loss: float, 
+                         learning_rate: float, eval_loss: Optional[float] = None):
+        """Log training step metrics."""
+        self.training_history['step'].append(step)
+        self.training_history['epoch'].append(epoch)
+        self.training_history['train_loss'].append(train_loss)
+        self.training_history['learning_rate'].append(learning_rate)
+        
+        if eval_loss is not None:
+            self.training_history['eval_loss'].append(eval_loss)
+    
+    def log_gradient_stats(self, step: int, gradient_stats: Dict[str, float]):
+        """Log gradient statistics."""
+        gradient_entry = {'step': step, **gradient_stats}
+        self.gradient_history.append(gradient_entry)
+    
+    def log_memory_stats(self, step: int, memory_stats: Dict[str, float]):
+        """Log memory usage statistics."""
+        memory_entry = {'step': step, **memory_stats}
+        self.memory_history.append(memory_entry)
+    
+    def get_training_summary(self) -> Dict[str, Any]:
+        """Get summary of training dynamics."""
+        if not self.training_history['train_loss']:
+            return {}
+        
+        return {
+            'task_name': self.task_name,
+            'method': self.method,
+            'total_steps': len(self.training_history['train_loss']),
+            'final_train_loss': self.training_history['train_loss'][-1],
+            'final_eval_loss': self.training_history['eval_loss'][-1] if self.training_history['eval_loss'] else None,
+            'min_train_loss': min(self.training_history['train_loss']),
+            'min_eval_loss': min(self.training_history['eval_loss']) if self.training_history['eval_loss'] else None,
+            'convergence_step': self._find_convergence_step(),
+            'training_stability': self._compute_training_stability()
+        }
+    
+    def _find_convergence_step(self, patience: int = 5, threshold: float = 0.01) -> Optional[int]:
+        """Find step where training converged."""
+        if len(self.training_history['train_loss']) < patience:
+            return None
+        
+        for i in range(patience, len(self.training_history['train_loss'])):
+            recent_losses = self.training_history['train_loss'][i-patience:i]
+            if max(recent_losses) - min(recent_losses) < threshold:
+                return self.training_history['step'][i]
+        
+        return None
+    
+    def _compute_training_stability(self) -> float:
+        """Compute training stability metric."""
+        if len(self.training_history['train_loss']) < 2:
+            return 0.0
+        
+        losses = np.array(self.training_history['train_loss'])
+        # Compute normalized standard deviation of loss changes
+        loss_changes = np.abs(np.diff(losses))
+        if len(loss_changes) == 0:
+            return 1.0
+        
+        stability = 1.0 - (np.std(loss_changes) / np.mean(losses))
+        return max(0.0, min(1.0, stability))
+
+
+class RepresentationMetrics:
+    """Metrics for analyzing representation changes during training."""
+    
+    def __init__(self):
+        pass
+    
+    @staticmethod
+    def compute_cosine_similarity(repr_a: np.ndarray, repr_b: np.ndarray) -> float:
+        """Compute cosine similarity between two representations."""
+        # Flatten if needed
+        if repr_a.ndim > 2:
+            repr_a = repr_a.reshape(repr_a.shape[0], -1)
+        if repr_b.ndim > 2:
+            repr_b = repr_b.reshape(repr_b.shape[0], -1)
+        
+        # Compute mean cosine similarity across samples
+        similarities = []
+        for i in range(min(len(repr_a), len(repr_b))):
+            a_norm = np.linalg.norm(repr_a[i])
+            b_norm = np.linalg.norm(repr_b[i])
+            
+            if a_norm == 0 or b_norm == 0:
+                similarities.append(0.0)
+            else:
+                sim = np.dot(repr_a[i], repr_b[i]) / (a_norm * b_norm)
+                similarities.append(sim)
+        
+        return np.mean(similarities) if similarities else 0.0
+    
+    @staticmethod
+    def compute_centered_kernel_alignment(repr_a: np.ndarray, repr_b: np.ndarray) -> float:
+        """Compute Centered Kernel Alignment (CKA) between representations."""
+        # Flatten if needed
+        if repr_a.ndim > 2:
+            repr_a = repr_a.reshape(repr_a.shape[0], -1)
+        if repr_b.ndim > 2:
+            repr_b = repr_b.reshape(repr_b.shape[0], -1)
+        
+        # Center the matrices
+        repr_a_centered = repr_a - np.mean(repr_a, axis=0, keepdims=True)
+        repr_b_centered = repr_b - np.mean(repr_b, axis=0, keepdims=True)
+        
+        # Compute CKA
+        numerator = np.trace(repr_b_centered.T @ repr_a_centered @ repr_a_centered.T @ repr_b_centered)
+        
+        norm_a = np.trace(repr_a_centered.T @ repr_a_centered)
+        norm_b = np.trace(repr_b_centered.T @ repr_b_centered)
+        
+        denominator = np.sqrt(norm_a * norm_b)
+        
+        if denominator == 0:
+            return 0.0
+        
+        return numerator / (denominator ** 2)
+    
+    @staticmethod
+    def compute_representation_drift(base_repr: np.ndarray, 
+                                   finetuned_repr: np.ndarray,
+                                   method: str = "cka") -> float:
+        """Compute representation drift between base and fine-tuned models."""
+        if method == "cka":
+            similarity = RepresentationMetrics.compute_centered_kernel_alignment(base_repr, finetuned_repr)
+        elif method == "cosine":
+            similarity = RepresentationMetrics.compute_cosine_similarity(base_repr, finetuned_repr)
+        else:
+            raise ValueError(f"Unknown method: {method}")
+        
+        # Drift is 1 - similarity (higher drift = more change)
+        return 1.0 - similarity
+
+
 if __name__ == "__main__":
     # Demo and testing
     print("Testing metrics module...")
@@ -564,5 +790,23 @@ if __name__ == "__main__":
         predictions, true_labels, "test_task", "test_baseline"
     )
     print(f"Comprehensive metrics: {comprehensive}")
+    
+    # Test trainer metrics
+    import torch
+    eval_pred_cls = (torch.randn(8, 2), torch.tensor([0, 1, 0, 1, 1, 0, 1, 0]))
+    cls_metrics = compute_classification_metrics(eval_pred_cls, "accuracy")
+    print(f"Trainer classification metrics: {cls_metrics}")
+    
+    # Test representation metrics
+    repr_a = np.random.randn(100, 512)
+    repr_b = np.random.randn(100, 512) + 0.1 * repr_a  # Similar to repr_a
+    
+    cosine_sim = RepresentationMetrics.compute_cosine_similarity(repr_a, repr_b)
+    cka_sim = RepresentationMetrics.compute_centered_kernel_alignment(repr_a, repr_b)
+    drift = RepresentationMetrics.compute_representation_drift(repr_a, repr_b, "cka")
+    
+    print(f"Cosine similarity: {cosine_sim:.4f}")
+    print(f"CKA similarity: {cka_sim:.4f}")
+    print(f"Representation drift: {drift:.4f}")
     
     print("✓ Metrics module validation complete!")

@@ -1,0 +1,21 @@
+🚨 RED FLAGS MONITORING REPORT
+============================================================
+Generated: 2025-09-22 19:29:06.478652
+
+Summary: 4 red flags, 0 warnings
+
+🚨 CRITICAL ISSUES (RED FLAGS)
+----------------------------------------
+  🚨 Cannot load checkpoint results/demo_validation/full_ft_squad_v2_seed2024/final_model: 'Tensor' object has no attribute 'keys'
+  🚨 Cannot load checkpoint results/demo_validation/full_ft_rte_seed1337/final_model: 'Tensor' object has no attribute 'keys'
+  🚨 Cannot load checkpoint results/demo_validation/full_ft_sst2_seed42/final_model: 'Tensor' object has no attribute 'keys'
+  🚨 All tested checkpoints (3) failed to load
+
+📋 MONITORING CHECKLIST
+----------------------------------------
+✓ Training loss stability
+✓ Performance expectations
+✓ Representation file integrity
+✓ Checkpoint loading
+✓ Memory and OOM issues
+✓ W&B connectivity
