@@ -1,0 +1,192 @@
+You are an expert NLP research engineer and strategic project planner. Your task is to create a comprehensive, step-by-step implementation plan for the research project "LoRA Under the Microscope: Drift, Deployment and Sparsity."
+
+<persistence>
+- You are an agent - please keep going until the plan is completely developed, before ending your turn.
+- Only terminate when you have created a thorough, actionable plan that addresses all project requirements and grading criteria.
+- Never stop at uncertainty — research or deduce the most reasonable approach based on research best practices and continue.
+- Do not ask for clarification on implementation details — make informed assumptions and document them clearly.
+</persistence>
+
+<tool_preambles>
+- Begin by clearly restating the research objectives and their significance within NLP research.
+- Outline your structured approach for breaking down this complex project into manageable steps optimized for 3-VM parallel execution.
+- As you develop each step, explain the scientific rationale and experimental design principles.
+- Conclude with a summary of the complete implementation roadmap that ensures rigorous methodology and reproducible results.
+</tool_preambles>
+
+<prompt_formatting>
+CRITICAL: For every step in the plan, you MUST provide the agent prompt in a proper code block using triple backticks (```). This is essential for the human to copy and use these prompts directly. Format each agent prompt like this:
+
+```
+[Complete agent prompt with full context and instructions]
+```
+
+Never provide prompts as plain text - they must always be in code blocks for easy copying.
+</prompt_formatting>
+
+## PROJECT CONTEXT
+
+**Research Questions & Significance:**
+This project addresses two critical, under-explored questions in efficient fine-tuning research:
+1. **Representational Drift Analysis**: Does LoRA truly preserve model internal representations better than full fine-tuning, or does it introduce equivalent representational changes? This question is significant because it impacts our understanding of continual learning and catastrophic forgetting in parameter-efficient methods.
+2. **Deployment Efficiency Trade-offs**: What is the real-world latency penalty when deploying multiple LoRA adapters side-by-side versus merging them? This directly impacts production deployment decisions for multi-task systems.
+
+**Technical Specifications:**
+- **Target Model**: Llama-2-1.3B (1.3 billion parameters, fits in student-cluster GPU memory)
+- **Evaluation Tasks**: GLUE-MRPC (sentence-pair classification) and SQuAD v2 (question-answering)
+- **Training Approaches**: (a) Full fine-tuning vs (b) LoRA with rank 8
+- **Drift Metrics**: Centered-kernel alignment (CKA) and layer-wise cosine similarity on 1000 validation examples across all transformer layers
+- **Deployment Metrics**: vLLM inference engine measuring tokens/second, 95th-percentile latency, GPU memory usage at batch sizes 1-16
+- **Success Criteria**: LoRA must achieve ≤3% accuracy drop AND either ≥20% less representational drift OR ≤30% inference overhead
+
+**Infrastructure Constraints:**
+- **Available Resources**: Exactly 3 GPU VMs for parallel execution
+- **Experiment Tracking**: Weights & Biases (wandb)
+  - Project: "NLP"
+  - Entity: "galavny-tel-aviv-university"
+  - Dashboard: https://wandb.ai/galavny-tel-aviv-university/NLP
+  - Environment: `WANDB_PROJECT=NLP`, `WANDB_ENTITY=galavny-tel-aviv-university`
+
+<context_gathering>
+Goal: Create a scientifically rigorous plan that maximizes 3-VM parallel utilization while adhering to research methodology best practices.
+
+Method:
+- Design experiments following gold-standard practices: proper train/validation/test splits, baseline comparisons, statistical significance testing
+- Structure steps to enable independent execution across exactly 3 VMs with load balancing
+- Include comprehensive sanity checks (overfitting small samples) and reproducibility safeguards
+- Plan robust experimental design with appropriate controls and multiple random seeds
+
+Critical Requirements:
+- All experiments must be reproducible with detailed environment specifications
+- Include meaningful baseline comparisons (naive classifiers, current SOTA methods)
+- Account for all sources of randomness (seeds, prompt effects, decoding schemes)
+- Implement proper statistical validation across multiple runs
+</context_gathering>
+
+## GRADING CRITERIA ALIGNMENT
+
+**Research Question Quality (5pt):**
+- Ensure the plan addresses clear, original, and significant research questions relevant to parameter-efficient fine-tuning
+- Questions must be concise, well-motivated, and positioned within current NLP research gaps
+
+**Ambitiousness and Effort (5pt):**
+- Design methodology that demonstrates intellectual risk-taking and innovation
+- Push boundaries while maintaining scientific rigor
+- Include novel analysis approaches (e.g., layer-wise drift analysis, comprehensive deployment benchmarking)
+
+**Methodology (25pt):**
+- **Experimental Design**: Proper train/val/test splits, no data leakage, appropriate model selection
+- **Baseline Comparisons**: Include naive majority vote classifier and current literature baselines
+- **Hyperparameter Selection**: Sensible, well-justified hyperparameter choices with systematic tuning
+- **Randomness Control**: Multiple random seeds, statistical significance testing, confidence intervals
+- **Sanity Checks**: Verify model can overfit small data samples before full training
+- **Reproducibility**: Exact environment specifications, code availability, deterministic execution
+
+**Results and Discussion (25pt):**
+- **Comprehensive Analysis**: Present both positive and negative results with thorough interpretation
+- **Statistical Rigor**: Include error bars, significance tests, effect sizes
+- **Clear Presentation**: Easy-to-understand tables, plots, and result summaries
+- **Dataset Statistics**: Full characterization of data splits, label distributions, sample examples
+- **Methodological Figures**: Clear algorithmic diagrams and result visualizations
+
+<code_editing_rules>
+<guiding_principles>
+- Scientific Rigor: Every experiment must follow gold-standard methodology with proper controls
+- Statistical Validity: Include multiple runs, significance testing, and confidence intervals
+- Reproducibility: Detailed environment specs, deterministic execution, accessible code/data
+- Efficiency: Maximize 3-VM parallel utilization while maintaining experimental integrity
+</guiding_principles>
+
+<experimental_standards>
+- Use PyTorch 2.x with proper distributed training setup across 3 VMs
+- Implement comprehensive logging for debugging and reproducibility
+- Include automatic sanity checks (small-sample overfitting) before full experiments
+- Use wandb sweeps for systematic hyperparameter optimization
+- Implement proper model checkpointing with automatic resumption on failures
+- Design statistical analysis pipelines for significance testing and effect size calculation
+</experimental_standards>
+</code_editing_rules>
+
+## CRITICAL IMPLEMENTATION CONSIDERATIONS
+
+**3-VM Distributed Architecture:**
+- **VM1**: Full fine-tuning experiments + baseline model training
+- **VM2**: LoRA training experiments + hyperparameter optimization  
+- **VM3**: Evaluation pipeline + representational analysis + deployment benchmarking
+- Design fault tolerance and dynamic load balancing across the 3 VMs
+- Implement proper synchronization points for dependent experiments
+
+**Experimental Rigor:**
+- **Sanity Checks**: Verify models can overfit 10-sample datasets before full training
+- **Multiple Seeds**: Run all experiments with at least 3 different random seeds
+- **Baseline Comparisons**: Include majority vote, random, and current SOTA baselines
+- **Statistical Testing**: Implement paired t-tests, effect size calculations, confidence intervals
+- **Data Integrity**: Verify no train/val/test leakage, proper stratification, balanced splits
+
+**Reproducibility Requirements:**
+- **Environment Specification**: Exact Python versions, library versions, CUDA versions
+- **Deterministic Execution**: Fixed seeds for all random number generators
+- **Code Versioning**: Git commit hashes, exact model configurations
+- **Data Provenance**: Dataset versions, preprocessing steps, filtering criteria
+- **Hardware Documentation**: GPU types, memory specifications, driver versions
+
+## DELIVERABLE SPECIFICATION
+
+Create a `plan.md` file with the following structure optimized for scientific rigor:
+
+```markdown
+# LoRA Research Implementation Plan
+
+## Research Questions & Significance
+[Clear problem statement with scientific motivation]
+
+## 3-VM Resource Allocation
+[Specific VM assignments and load balancing strategy]
+
+## Step 1: Environment Setup & Sanity Checks
+### Agent Prompt
+```
+[Complete setup instructions with reproducibility requirements - MUST be in code block]
+```
+### 3-VM Distribution
+[How setup tasks are distributed across VMs]
+### Sanity Check Protocol
+[Small-sample overfitting verification procedures]
+### Success Criteria
+[Environment validation and baseline functionality tests]
+
+## Step 2: Baseline Establishment
+### Agent Prompt
+```
+[Baseline model training with proper experimental controls - MUST be in code block]
+```
+### Statistical Design
+[Multiple seeds, significance testing, effect size calculation]
+### Baseline Comparisons
+[Naive classifiers and literature SOTA implementations]
+
+[Continue for all experimental steps...]
+
+## Statistical Analysis Pipeline
+[Comprehensive significance testing and effect size analysis]
+
+## Reproducibility Checklist
+[Complete environment specification and validation procedures]
+```
+
+**MANDATORY FORMATTING REQUIREMENTS:**
+- Every "Agent Prompt" section MUST contain the prompt in triple backticks (```)
+- These code blocks must be copy-pasteable for direct use with specialized agents
+- Include complete context and background in each prompt since agents work independently
+- Each prompt should be self-contained with all necessary project context
+
+**Final Instructions:**
+- Ensure each step follows rigorous experimental methodology with proper controls
+- Design for maximum efficiency across exactly 3 GPU VMs with clear load distribution
+- Include comprehensive statistical validation and reproducibility measures
+- Implement thorough sanity checking and baseline comparison protocols
+- Create detailed protocols for handling experimental failures and edge cases
+- Focus exclusively on research methodology and results - exclude paper writing considerations
+- **CRITICAL**: Format ALL agent prompts in proper code blocks using triple backticks
+
+Generate a meticulous, scientifically rigorous plan that demonstrates the highest standards of experimental design while efficiently leveraging 3-VM distributed computing architecture.
