@@ -15,20 +15,57 @@ This research project investigates two critical questions in parameter-efficient
 
 **Hypotheses**: We hypothesize that LoRA (rank 8) will achieve ≤3% accuracy drop compared to full fine-tuning AND either ≥20% less representational drift OR ≤30% inference overhead. Both confirming and refuting these hypotheses constitute valid scientific contributions.
 
+## Execution Strategy Overview
+
+### Phase Structure and Dependencies
+
+**Two-Phase Execution Design**:
+- **Phase 1 (Training)**: All 3 VMs start simultaneously with **zero dependencies**
+- **Phase 2 (Analysis)**: All 3 VMs start simultaneously after Phase 1 completes
+
+**Why This Structure**:
+- **Phase 1**: Training experiments can run completely independently - each VM works on different tasks/methods
+- **Phase 2**: Analysis requires trained models and saved representations from Phase 1, so must wait
+- **Within Each Phase**: No dependencies between VMs, enabling true parallel execution
+
+### Task Definitions
+
+**Phase 1 Tasks (Training)**:
+- `mrpc_full_finetune`: Full parameter fine-tuning of Llama-2-1.3B on MRPC task
+- `mrpc_lora`: LoRA fine-tuning (rank 8) of Llama-2-1.3B on MRPC task  
+- `squad_full_finetune`: Full parameter fine-tuning of Llama-2-1.3B on SQuAD v2 task
+- `squad_lora`: LoRA fine-tuning (rank 8) of Llama-2-1.3B on SQuAD v2 task
+- `baselines_all_tasks`: Naive classifiers, zero-shot, and SOTA baselines for both MRPC and SQuAD
+
+**Phase 2 Tasks (Analysis)**:
+- `drift_analysis`: Representational drift analysis using CKA and cosine similarity
+- `deployment_bench`: vLLM deployment overhead benchmarking with multiple adapters
+- `statistical_analysis`: Final statistical tests, hypothesis validation, and visualization
+
+**Dependencies Summary**:
+- ✅ **Phase 1**: No dependencies - all VMs start immediately
+- ⏳ **Phase 2**: Depends on Phase 1 completion (needs trained models and saved representations)
+- ✅ **Within Phases**: No dependencies between VMs
+
 ## 3-VM Resource Allocation Strategy
 
-**Optimal Distribution Philosophy**: Maximize parallel utilization while respecting experimental dependencies and ensuring reproducibility.
+**Optimal Distribution Philosophy**: Maximize parallel utilization by eliminating dependencies and splitting work by tasks/methods, similar to distributed pre-training then fine-tuning approach.
 
-**VM Allocation**:
-- **VM1 (Baseline & Full Fine-tuning)**: Handles all baseline experiments (naive classifiers, SOTA baselines) and full fine-tuning runs. This VM requires the most memory for full model updates.
-- **VM2 (LoRA Experiments)**: Dedicated to all LoRA training experiments across different tasks and seeds. Memory-efficient, allowing more parallel runs.
-- **VM3 (Analysis & Deployment)**: Performs representational drift analysis, deployment benchmarking, and statistical analysis. Requires different software stack (vLLM).
+**Phase 1 - Training (All VMs start immediately in parallel)**:
+- **VM1 (MRPC Experiments)**: Full fine-tuning + LoRA experiments for MRPC task across all seeds
+- **VM2 (SQuAD Experiments)**: Full fine-tuning + LoRA experiments for SQuAD v2 task across all seeds  
+- **VM3 (Baselines + Setup)**: All baseline experiments (naive, zero-shot, SOTA) for both tasks
+
+**Phase 2 - Analysis (Parallel execution after training)**:
+- **VM1 (Drift Analysis)**: Representational drift analysis (CKA, cosine similarity) for both tasks
+- **VM2 (Deployment Benchmarking)**: vLLM benchmarking and deployment overhead analysis
+- **VM3 (Statistical Analysis)**: Final statistical analysis, hypothesis testing, and visualization
 
 **Justification**: This allocation ensures:
-1. No resource contention between full and LoRA fine-tuning
-2. Specialized software environments (VM3 needs vLLM, others need training stack)
-3. Balanced computational load across VMs
-4. Clear separation of concerns for debugging and monitoring
+1. No dependencies in Phase 1 - all VMs start working immediately
+2. Balanced computational load by splitting on tasks rather than methods
+3. True parallel utilization from start to finish
+4. Efficient resource usage with no idle time waiting for dependencies
 
 ## Distributed Coordination Protocol
 
@@ -42,15 +79,19 @@ NLP/
 │   ├── data_utils.py        # Common data loading/preprocessing
 │   ├── metrics.py           # Shared evaluation metrics
 │   └── wandb_utils.py       # W&B initialization and logging
-├── vm1_baseline_full/
-│   ├── run_baselines.py     # Naive/SOTA baseline runners
-│   └── run_full_finetune.py # Full fine-tuning experiments
-├── vm2_lora/
-│   └── run_lora.py          # LoRA training experiments
-├── vm3_analysis/
+├── experiments/
+│   ├── baselines.py         # Naive/SOTA baseline runners
+│   ├── full_finetune.py     # Full fine-tuning experiments
+│   ├── lora_finetune.py     # LoRA training experiments
 │   ├── drift_analysis.py    # CKA and cosine similarity
 │   └── deployment_bench.py  # vLLM benchmarking
-└── orchestrator.py          # Main coordination script
+├── models/                  # Model utilities and wrappers
+├── analysis/                # Analysis and visualization scripts
+└── scripts/                 # Orchestration and utility scripts
+    ├── run_vm1.sh           # VM1 execution script
+    ├── run_vm2.sh           # VM2 execution script
+    ├── run_vm3.sh           # VM3 execution script
+    └── orchestrator.py      # Main coordination script
 ```
 
 **Shared Configuration Management**:
@@ -65,10 +106,15 @@ wandb:
   project: "NLP"
   entity: "galavny-tel-aviv-university"
   
-vm_roles:
-  vm1: ["baselines", "full_finetune"]
-  vm2: ["lora_rank8"]
-  vm3: ["drift_analysis", "deployment_bench"]
+execution_phases:
+  phase1_training:
+    vm1: ["mrpc_full_finetune", "mrpc_lora"]
+    vm2: ["squad_full_finetune", "squad_lora"] 
+    vm3: ["baselines_all_tasks"]
+  phase2_analysis:
+    vm1: ["drift_analysis"]
+    vm2: ["deployment_bench"]
+    vm3: ["statistical_analysis"]
 ```
 
 ### Technical/Operational Perspective
@@ -92,19 +138,74 @@ export HF_HOME=/shared/hf_cache  # Shared model cache
 1. **Git-based Coordination**: All VMs pull latest code before experiments
 2. **W&B Run Groups**: Use `group` parameter to link related experiments
 3. **File-based Checkpoints**: Save to shared NFS for cross-VM access
-4. **Slack/Discord Webhooks**: Real-time notifications on experiment completion
+4. **Status Files**: Create completion markers for experiment dependencies
 
 **Execution Commands**:
 ```bash
-# VM1: Launch baseline experiments
-python orchestrator.py --vm-role vm1 --mode baselines
+# PHASE 1 - Training (All VMs start in parallel, no dependencies)
+# VM1: MRPC experiments
+python scripts/orchestrator.py --phase training --vm 1 --tasks mrpc_full_finetune,mrpc_lora
 
-# VM2: Launch LoRA experiments (waits for baseline completion)
-python orchestrator.py --vm-role vm2 --mode lora --wait-for baseline_complete
+# VM2: SQuAD experiments  
+python scripts/orchestrator.py --phase training --vm 2 --tasks squad_full_finetune,squad_lora
 
-# VM3: Launch analysis (waits for training completion)
-python orchestrator.py --vm-role vm3 --mode analysis --wait-for training_complete
+# VM3: Baseline experiments
+python scripts/orchestrator.py --phase training --vm 3 --tasks baselines_all_tasks
+
+# PHASE 2 - Analysis (Start after Phase 1 completes)
+# VM1: Drift analysis
+python scripts/orchestrator.py --phase analysis --vm 1 --tasks drift_analysis --wait-for training_complete
+
+# VM2: Deployment benchmarking
+python scripts/orchestrator.py --phase analysis --vm 2 --tasks deployment_bench --wait-for training_complete
+
+# VM3: Statistical analysis
+python scripts/orchestrator.py --phase analysis --vm 3 --tasks statistical_analysis --wait-for training_complete
 ```
+
+### CLI-Based Orchestration
+
+**Orchestrator Design**:
+```python
+# scripts/orchestrator.py
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--phase', choices=['training', 'analysis'])
+    parser.add_argument('--vm', type=int, choices=[1, 2, 3])
+    parser.add_argument('--tasks', help='Comma-separated list of tasks')
+    parser.add_argument('--wait-for', help='Wait for completion marker file')
+    
+    args = parser.parse_args()
+    
+    if args.wait_for:
+        wait_for_completion(args.wait_for)
+    
+    # Phase 1 - Training tasks
+    if 'mrpc_full_finetune' in args.tasks:
+        run_experiment('experiments/full_finetune.py', task='mrpc')
+    if 'mrpc_lora' in args.tasks:
+        run_experiment('experiments/lora_finetune.py', task='mrpc')
+    if 'squad_full_finetune' in args.tasks:
+        run_experiment('experiments/full_finetune.py', task='squad')
+    if 'squad_lora' in args.tasks:
+        run_experiment('experiments/lora_finetune.py', task='squad')
+    if 'baselines_all_tasks' in args.tasks:
+        run_experiment('experiments/baselines.py')
+    
+    # Phase 2 - Analysis tasks
+    if 'drift_analysis' in args.tasks:
+        run_experiment('experiments/drift_analysis.py')
+    if 'deployment_bench' in args.tasks:
+        run_experiment('experiments/deployment_bench.py')
+    if 'statistical_analysis' in args.tasks:
+        run_experiment('analysis/statistical_analysis.py')
+```
+
+**Dependency Management**:
+- Uses simple file markers in shared storage: `/shared/nlp_results/.training_complete`
+- Phase 1 has no dependencies - all VMs start immediately  
+- Phase 2 waits for Phase 1 completion marker
+- Each experiment creates completion markers when finished
 
 ## Step 1: Environment Setup & Sanity Checks
 
@@ -130,9 +231,9 @@ REQUIREMENTS:
 
 DELIVERABLES:
 1. requirements.txt with pinned versions for all packages
-2. setup_environment.sh script for reproducible environment creation
-3. data_preparation.py for downloading and preprocessing datasets
-4. sanity_checks.py that runs all validation tests
+2. scripts/setup_environment.sh script for reproducible environment creation
+3. shared/data_preparation.py for downloading and preprocessing datasets
+4. scripts/sanity_checks.py that runs all validation tests
 5. Basic experiment configuration in shared/config.yaml
 
 TECHNICAL SPECIFICATIONS:
@@ -150,8 +251,8 @@ Include detailed logging and error handling. The setup must be idempotent and ha
 
 **Setup Task Distribution**:
 - **All VMs**: Run base environment setup (Python, CUDA, core packages)
-- **VM1 & VM2**: Install training stack (transformers, peft, datasets)
-- **VM3**: Additionally install vLLM and analysis packages (scikit-learn for CKA)
+- **VM1 & VM2**: Install training stack (transformers, peft, datasets) for Phase 1 training
+- **VM3**: Install baseline packages for Phase 1, then vLLM and analysis packages for Phase 2
 
 **Rationale**: Common base ensures consistency while specialized packages reduce overhead. Shared model cache prevents redundant downloads.
 
@@ -215,8 +316,8 @@ REQUIRED BASELINES (all are mandatory):
    - Use published hyperparameters, verify you match reported scores (±2%)
 
 IMPLEMENTATION REQUIREMENTS:
-- Create separate scripts for each baseline type
-- Use consistent evaluation code across all baselines
+- Implement all baselines in experiments/baselines.py with modular functions
+- Use consistent evaluation code in shared/metrics.py across all baselines
 - Log all results to W&B with clear naming convention
 - Implement proper cross-validation for robust estimates
 - Calculate statistical significance between baselines
@@ -268,9 +369,9 @@ Output comprehensive baseline_results.json with all metrics and statistical test
 You are implementing full fine-tuning experiments for Llama-2-1.3B on MRPC and SQuAD v2. This serves as the primary comparison point for LoRA experiments.
 
 CONTEXT:
-- Baselines established: Majority class, random, zero-shot, and SOTA
+- Running in parallel with other training (baselines on VM3, LoRA on same VM for different tasks)  
 - Model: meta-llama/Llama-2-1.3b-hf
-- Hardware: Full access to VM1 with gradient checkpointing if needed
+- Hardware: VM1 for MRPC, VM2 for SQuAD (task-based splitting)
 - Objective: Establish full fine-tuning performance and representation changes
 
 EXPERIMENTAL DESIGN:
@@ -300,8 +401,8 @@ EXPERIMENTAL DESIGN:
    - Save all model outputs for statistical testing
 
 IMPLEMENTATION DETAILS:
-- Implement training script with full configurability
-- Use HuggingFace Trainer with custom callbacks
+- Implement training in experiments/full_finetune.py with full configurability
+- Use HuggingFace Trainer with custom callbacks in models/ directory
 - Implement custom representation extraction callback
 - Create gradient statistics monitoring
 - Ensure deterministic training with fixed seeds
@@ -318,14 +419,16 @@ Output all results to W&B and save checkpoints to shared storage for VM3 analysi
 
 ### 3-VM Distribution
 
-**VM1 Exclusive Tasks**:
-- All full fine-tuning runs (high memory requirement)
-- Hyperparameter sweeps using W&B agents
-- Checkpoint saving to shared NFS
+**VM1 (MRPC Training)**:
+- Run: `python scripts/orchestrator.py --phase training --vm 1 --tasks mrpc_full_finetune,mrpc_lora`
+- Handles MRPC full fine-tuning and LoRA experiments across all seeds
+- High memory requirements for full model updates on MRPC
+- Saves checkpoints to shared NFS for later analysis
 
-**Parallel Execution Strategy**:
-- Run MRPC and SQuAD experiments in parallel (different GPUs if multi-GPU)
-- Sequential seeds to ensure reproducibility
+**Execution Strategy**:
+- Starts immediately (no dependencies)
+- Runs full fine-tuning and LoRA sequentially for MRPC
+- All seeds [42, 1337, 2024] for reproducibility
 - Automatic job queuing for failed runs
 
 ### Training Monitoring
@@ -348,10 +451,10 @@ Output all results to W&B and save checkpoints to shared storage for VM3 analysi
 You are implementing LoRA (Low-Rank Adaptation) experiments with rank 8 for Llama-2-1.3B. Your goal is to match or exceed full fine-tuning performance while dramatically reducing parameter updates.
 
 CONTEXT:
-- Full fine-tuning complete with performance benchmarks established
+- Running in parallel with full fine-tuning (no dependencies)
 - Target: ≤3% accuracy drop compared to full fine-tuning
 - LoRA rank: 8 (fixed as per research protocol)
-- Hardware: VM2 dedicated to LoRA experiments
+- Hardware: VM1 for MRPC, VM2 for SQuAD (task-based splitting)
 
 LORA CONFIGURATION:
 1. ARCHITECTURE SETTINGS:
@@ -380,18 +483,18 @@ LORA CONFIGURATION:
    - Monitor rank utilization (singular value analysis)
 
 IMPLEMENTATION REQUIREMENTS:
-- Use PEFT library for standardized LoRA implementation
-- Implement custom metrics for parameter efficiency:
-  - Trainable parameters: ~0.3% of full model
-  - Memory usage during training
-  - Actual vs theoretical speedup
-- Create LoRA merge testing:
-  - Test merged model equivalence
-  - Benchmark merged vs adapter inference
-- Implement ablation studies:
-  - Different rank values [4, 8, 16] for comparison
-  - Impact of alpha scaling
-  - Module selection impact
+- Implement training in experiments/lora_finetune.py using PEFT library
+- Create parameter efficiency utilities in models/ directory:
+ - Trainable parameters: ~0.3% of full model
+ - Memory usage during training
+ - Actual vs theoretical speedup
+- Create LoRA merge testing utilities:
+ - Test merged model equivalence
+ - Benchmark merged vs adapter inference
+- Implement ablation studies in same script:
+ - Different rank values [4, 8, 16] for comparison
+ - Impact of alpha scaling
+ - Module selection impact
 
 CRITICAL VALIDATION:
 - Verify LoRA updates don't affect base model weights
@@ -404,14 +507,16 @@ Save all LoRA adapters and base model for deployment testing on VM3.
 
 ### 3-VM Distribution
 
-**VM2 Exclusive Tasks**:
-- All LoRA training experiments
-- Ablation studies on rank and module selection
-- Adapter weight analysis
+**VM2 (SQuAD Training)**:
+- Run: `python scripts/orchestrator.py --phase training --vm 2 --tasks squad_full_finetune,squad_lora`
+- Handles SQuAD v2 full fine-tuning and LoRA experiments across all seeds
+- Memory-efficient LoRA allows more parallel configurations
+- Ablation studies on rank and module selection for SQuAD
 
 **Efficiency Optimizations**:
-- Share base model across all LoRA runs (read-only)
-- Parallel training of different configurations
+- Starts immediately (no dependencies)
+- Share base model across all SQuAD runs (read-only)
+- Runs full fine-tuning and LoRA sequentially for SQuAD
 - Automatic checkpoint cleanup (keep only best)
 
 ### LoRA-Specific Validation
@@ -464,8 +569,12 @@ ANALYSIS METHODS:
    - Calculate effect sizes (Cohen's d)
 
 IMPLEMENTATION DETAILS:
+- Implement analysis in experiments/drift_analysis.py
+- Create visualization utilities in analysis/ directory
+- Use shared utilities from shared/ for data loading
+
 ```python
-# CKA Implementation
+# CKA Implementation in experiments/drift_analysis.py
 def linear_cka(X, Y):
     # Center the matrices
     X = X - X.mean(0, keepdims=True)
@@ -507,11 +616,13 @@ Output comprehensive drift_analysis_results.json and all visualization figures.
 
 ### 3-VM Distribution
 
-**VM3 Tasks**:
-- Load saved representations from shared storage
-- Compute all drift metrics
+**VM3 (Baselines + Later Drift Analysis)**:
+- **Phase 1**: `python scripts/orchestrator.py --phase training --vm 3 --tasks baselines_all_tasks`
+- **Phase 2**: `python scripts/orchestrator.py --phase analysis --vm 3 --tasks drift_analysis --wait-for training_complete`
+- Phase 1: Run all baseline experiments (naive, zero-shot, SOTA) for both tasks
+- Phase 2: Load saved representations and compute drift metrics
 - Generate statistical analyses and visualizations
-- No GPU needed (CPU-only analysis)
+- No GPU needed for Phase 2 analysis
 
 ### Analysis Pipeline
 
@@ -561,6 +672,10 @@ BENCHMARKING SCENARIOS:
    - First token latency (critical for interactive use)
 
 4. IMPLEMENTATION PROTOCOL:
+- Implement benchmarking in experiments/deployment_bench.py
+- Use shared configuration from shared/config.yaml
+- Save results to analysis/ directory
+
 ```python
 import vllm
 from vllm import LLM, SamplingParams
@@ -568,12 +683,12 @@ from vllm import LLM, SamplingParams
 # Test configurations
 configs = {
     "baseline": LLM(model="meta-llama/Llama-2-1.3b-hf"),
-    "merged_mrpc": LLM(model="./merged_models/llama2_mrpc"),
+    "merged_mrpc": LLM(model="./checkpoints/merged_models/llama2_mrpc"),
     "multi_adapter": LLM(
         model="meta-llama/Llama-2-1.3b-hf",
         enable_lora=True,
         max_lora_rank=8,
-        lora_modules=["./adapters/mrpc", "./adapters/squad"]
+        lora_modules=["./checkpoints/adapters/mrpc", "./checkpoints/adapters/squad"]
     )
 }
 
@@ -621,8 +736,10 @@ Generate deployment_benchmark_results.json with all metrics and recommendations.
 
 ### 3-VM Distribution
 
-**VM3 Exclusive**:
-- All vLLM benchmarking
+**VM2 (Deployment Benchmarking - Phase 2)**:
+- **Phase 1**: SQuAD training (completed)
+- **Phase 2**: `python scripts/orchestrator.py --phase analysis --vm 2 --tasks deployment_bench --wait-for training_complete`
+- All vLLM benchmarking and deployment overhead analysis
 - Requires different CUDA setup than training
 - Full GPU dedication for accurate measurements
 
@@ -652,8 +769,9 @@ Generate deployment_benchmark_results.json with all metrics and recommendations.
 You are implementing the final statistical analysis pipeline to synthesize all experimental results and test the research hypotheses with rigorous statistical methods.
 
 CONTEXT:
-- All experiments complete with raw results in W&B
+- All experiments complete with raw results in W&B and shared/results/
 - Hypothesis: LoRA achieves ≤3% accuracy drop AND (≥20% less drift OR ≤30% inference overhead)
+- Implement in analysis/statistical_analysis.py
 - Need publication-quality statistical analysis
 
 ANALYSIS COMPONENTS:
@@ -721,7 +839,7 @@ VISUALIZATION REQUIREMENTS:
 - Correlation matrices for all metrics
 - Publication-ready LaTeX tables
 
-Generate final_analysis_report.json with all statistical tests, p-values, effect sizes, and conclusions.
+Generate analysis/final_analysis_report.json with all statistical tests, p-values, effect sizes, and conclusions.
 ```
 
 ### Statistical Software Stack
@@ -830,8 +948,28 @@ python validate_reproducibility.py --full-test
 This implementation plan provides a comprehensive roadmap for rigorously comparing LoRA and full fine-tuning across multiple dimensions:
 
 1. **Scientific Rigor**: Every experiment includes proper baselines, multiple seeds, and statistical validation
-2. **3-VM Optimization**: Tasks distributed based on computational requirements and dependencies
-3. **Reproducibility**: Detailed specifications ensure experiments can be replicated
-4. **Comprehensive Analysis**: Beyond accuracy, we analyze representations and deployment characteristics
+2. **Improved Architecture**: Organized by functionality instead of VM-specific directories
+3. **Flexible Execution**: CLI-based orchestration allows any experiment to run on any VM
+4. **Developer-Friendly**: Single coherent codebase that's easy to develop, debug, and maintain
+5. **Reproducibility**: Detailed specifications ensure experiments can be replicated
+6. **Comprehensive Analysis**: Beyond accuracy, we analyze representations and deployment characteristics
 
-The plan balances ambitious research goals with practical implementation constraints, ensuring high-quality scientific output suitable for publication.
+### Key Execution Strategy
+
+**True Parallel Execution**:
+- **Phase 1 (Training)**: All 3 VMs start immediately with no dependencies
+  - VM1: MRPC full fine-tuning + LoRA
+  - VM2: SQuAD full fine-tuning + LoRA  
+  - VM3: Baseline experiments for both tasks
+- **Phase 2 (Analysis)**: Parallel analysis after training completes
+  - VM1: Representational drift analysis
+  - VM2: Deployment benchmarking with vLLM
+  - VM3: Statistical analysis and visualization
+
+**Efficiency Benefits**:
+- **No Idle Time**: All VMs working from start, no waiting for dependencies
+- **Task-Based Splitting**: Similar to distributed pre-training approach
+- **Resource Optimization**: Balanced computational load across all VMs
+- **Flexible Coordination**: Simple phase-based approach with minimal overhead
+
+The plan balances ambitious research goals with practical implementation constraints, ensuring high-quality scientific output suitable for publication while maximizing compute utilization.
