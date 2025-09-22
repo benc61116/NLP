@@ -2,7 +2,7 @@
 
 This repository contains NLP experiments and models that are tracked using Weights & Biases (wandb).
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Install dependencies:**
    ```bash
@@ -29,7 +29,7 @@ This repository contains NLP experiments and models that are tracked using Weigh
    python test_wandb_connection.py
    ```
 
-## 📊 Experiment Tracking
+## Experiment Tracking
 
 All experiments will automatically be logged to: **https://wandb.ai/galavny-tel-aviv-university/NLP**
 
@@ -57,7 +57,7 @@ wandb.init(
 )
 ```
 
-## 🔧 Environment Variables
+## Environment Variables
 
 The project relies on these environment variables being set:
 - `WANDB_PROJECT=NLP` - Routes experiments to the NLP project
@@ -65,7 +65,7 @@ The project relies on these environment variables being set:
 
 **Note:** These should be added to your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) for persistence across sessions.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 NLP/
@@ -74,7 +74,7 @@ NLP/
 └── README.md                  # This file
 ```
 
-## 🤝 For Collaborators
+## For Collaborators
 
 If you're new to this project:
 
@@ -84,7 +84,7 @@ If you're new to this project:
 4. **Login to wandb** with your account (you'll need access to the `galavny-tel-aviv-university` organization)
 5. **Test your setup** with `python test_wandb_connection.py`
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 - **Not seeing experiments in wandb?** Check your environment variables with `echo $WANDB_PROJECT`
 - **Permission denied?** Make sure you have access to the `galavny-tel-aviv-university` organization
