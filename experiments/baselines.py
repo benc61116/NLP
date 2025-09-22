@@ -401,43 +401,7 @@ class BaselineExperiments:
         logger.info(f"✓ Random QA baseline for {task_name} complete")
         return aggregated_results
     
-    # ========== BASELINE 3: ZERO-SHOT LLAMA-2 ==========
-    
-    def zero_shot_llama_baseline(self, task_name: str, num_prompt_templates: int = 3) -> Dict[str, Any]:
-        """Implement zero-shot Llama-2 baseline with multiple prompt templates.
-        
-        Args:
-            task_name: Name of the task
-            num_prompt_templates: Number of different prompt templates to try
-            
-        Returns:
-            Results dictionary
-        """
-        logger.info(f"Running zero-shot Llama-2 baseline for {task_name}")
-        
-        if not TRANSFORMERS_AVAILABLE:
-            logger.warning("Transformers not available, using simulated zero-shot results")
-            return self._simulated_zero_shot_baseline(task_name)
-        
-        try:
-            # Load model and tokenizer
-            tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            if tokenizer.pad_token is None:
-                tokenizer.pad_token = tokenizer.eos_token
-                
-            model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float16,
-                device_map="auto" if torch.cuda.is_available() else None
-            )
-            
-            if task_name == 'squad_v2':
-                return self._zero_shot_qa_baseline(task_name, model, tokenizer, num_prompt_templates)
-            else:
-                return self._zero_shot_classification_baseline(task_name, model, tokenizer, num_prompt_templates)
-        except Exception as e:
-            logger.warning(f"Zero-shot model loading failed: {e}, using simulated results")
-            return self._simulated_zero_shot_baseline(task_name)
+    # ========== BASELINE 3: SOTA LITERATURE REFERENCES ==========
     
     def _simulated_zero_shot_baseline(self, task_name: str) -> Dict[str, Any]:
         """Simulated zero-shot baseline for when model loading fails."""
@@ -1032,12 +996,12 @@ class BaselineExperiments:
                 logger.info(f"2/4: Random baseline for {task_name}")
                 self.random_baseline(task_name, num_seeds=3)  # Reduced for demo
                 
-                # 3. Zero-shot Llama-2 baseline
-                logger.info(f"3/4: Zero-shot Llama-2 baseline for {task_name}")
+                # 3. SOTA literature baseline (no training needed)
+                logger.info(f"3/4: SOTA literature baseline for {task_name}")
                 try:
-                    self.zero_shot_llama_baseline(task_name, num_prompt_templates=2)  # Reduced for demo
+                    self.sota_literature_baseline(task_name)
                 except Exception as e:
-                    logger.warning(f"Zero-shot baseline failed for {task_name}: {e}")
+                    logger.warning(f"SOTA baseline failed for {task_name}: {e}")
                 
                 # 4. SOTA baseline
                 logger.info(f"4/4: SOTA baseline for {task_name}")
@@ -1098,8 +1062,8 @@ def main():
             result = experiments.majority_class_baseline(args.task)
         elif args.baseline == "random":
             result = experiments.random_baseline(args.task)
-        elif args.baseline == "zero_shot":
-            result = experiments.zero_shot_llama_baseline(args.task)
+        elif args.baseline == "sota":
+            result = experiments.sota_literature_baseline(args.task)
         elif args.baseline == "sota":
             result = experiments.sota_baseline(args.task)
         

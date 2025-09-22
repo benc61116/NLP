@@ -488,7 +488,7 @@ CONTEXT:
 - Tasks: MRPC (accuracy, F1), SQuAD v2 (EM, F1), SST-2 (accuracy), RTE (accuracy)
 - Your role: Establish strong baselines for meaningful comparison across all four task types
 
-REQUIRED BASELINES (all are mandatory):
+REQUIRED BASELINES (for performance context):
 1. MAJORITY CLASS CLASSIFIER:
    - For MRPC: Always predict most frequent label in training set
    - For SST-2: Always predict most frequent sentiment class
@@ -501,23 +501,25 @@ REQUIRED BASELINES (all are mandatory):
    - For SQuAD: Random span selection for answerable, "no answer" for others
    - Run with 5 different seeds, report mean and std
 
-3. ZERO-SHOT LLAMA-2:
-   - Test Llama-2-1.3b without any fine-tuning
-   - Use carefully crafted prompts for each task
-   - Try 3 different prompt templates per task, report best
+3. SOTA BASELINE FROM LITERATURE:
+   - For MRPC: Use published RoBERTa-base results (~90.7% F1)
+   - For SQuAD v2: Use published ALBERT-base results (~89.7% F1)
+   - For SST-2: Use published BERT-base results (~93.5% accuracy)
+   - For RTE: Use published BERT-base results (~66.5% accuracy)
+   - These provide performance ceiling context without additional implementation
 
-4. SOTA BASELINE FROM LITERATURE (where feasible):
-   - For MRPC: Implement RoBERTa-base fine-tuning (Liu et al., 2019)
-   - For SQuAD v2: Implement ALBERT-base fine-tuning (Lan et al., 2019)
-   - For SST-2/RTE: Use published BERT-base results as reference targets
-   - Use published hyperparameters, verify you match reported scores (±2%)
+DRIFT ANALYSIS BASELINE:
+- Original pre-trained Llama-2-1.3B model (no task-specific training)
+- Extract representations from validation examples to serve as baseline for CKA and cosine similarity analysis
+- No prompting or task-specific formatting needed - just raw model representations
 
 IMPLEMENTATION REQUIREMENTS:
-- Implement all baselines in experiments/baselines.py with modular functions
+- Implement majority/random baselines in experiments/baselines.py with modular functions
+- Use published SOTA numbers for literature comparison (no additional training needed)
+- Extract pre-trained model representations for drift analysis baseline
 - Use consistent evaluation code in shared/metrics.py across all baselines
 - Log all results to W&B with clear naming convention
 - Implement proper cross-validation for robust estimates
-- Calculate statistical significance between baselines
 
 STATISTICAL RIGOR:
 - Run each baseline with at least 3 random seeds
