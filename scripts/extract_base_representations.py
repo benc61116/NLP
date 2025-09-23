@@ -10,6 +10,7 @@ import os
 import sys
 import torch
 import logging
+import argparse
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -70,11 +71,27 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
 
 def main():
     """Main function to extract base model representations for all tasks."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Extract base model representations')
+    parser.add_argument('--task', type=str, help='Specific task to process (default: all tasks)')
+    args = parser.parse_args()
+    
     logger.info("Starting base model representation extraction")
     
     # Model configuration
     model_name = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
-    tasks = ['mrpc', 'sst2', 'rte', 'squad_v2']
+    all_tasks = ['mrpc', 'sst2', 'rte', 'squad_v2']
+    
+    # Select tasks to process
+    if args.task:
+        if args.task not in all_tasks:
+            logger.error(f"Unknown task: {args.task}. Available tasks: {all_tasks}")
+            return 1
+        tasks = [args.task]
+        logger.info(f"Processing single task: {args.task}")
+    else:
+        tasks = all_tasks
+        logger.info("Processing all tasks")
     
     # Load tokenizer
     logger.info(f"Loading tokenizer: {model_name}")
