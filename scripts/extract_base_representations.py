@@ -28,6 +28,9 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
     """Extract base model representations for a specific task."""
     logger.info(f"Extracting base representations for {task_name} ({num_samples} samples)")
     
+    # Force GPU memory cleanup before starting
+    torch.cuda.empty_cache()
+    
     try:
         # Prepare validation data
         if task_name == 'squad_v2':
@@ -39,8 +42,12 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
         output_dir = Path('results/base_model_representations')
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create representation extractor
+        # Create memory-optimized representation extractor
         repr_config = RepresentationConfig()
+        # Keep all layers for drift analysis - this is required for the research
+        repr_config.save_layers = list(range(24))  # All 24 layers needed for CKA analysis
+        repr_config.memory_map = True
+        
         extractor = RepresentationExtractor(
             repr_config,
             output_dir,
@@ -58,9 +65,19 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
         
         extractor.set_validation_examples(examples)
         
-        # Extract and save representations
+        # Extract and save representations with aggressive memory management
+        logger.info(f"Starting representation extraction with memory optimization...")
         representations = extractor.extract_representations(model, step=0)
+        
+        # Force memory cleanup after extraction
+        torch.cuda.empty_cache()
+        
+        # Save representations immediately
         extractor.save_representations(representations, step=0)
+        
+        # Clean up representations from memory
+        del representations
+        torch.cuda.empty_cache()
         
         logger.info(f"✅ Base representations extracted for {task_name}")
         return True
@@ -114,8 +131,10 @@ def main():
     # Extract representations for each task
     successful_extractions = 0
     for task_name in tasks:
+        # Use fewer samples for SQuAD v2 due to memory constraints
+        samples = 500 if task_name == 'squad_v2' else 1000
         success = extract_base_representations_for_task(
-            model, tokenizer, data_loader, task_name, num_samples=1000
+            model, tokenizer, data_loader, task_name, num_samples=samples
         )
         if success:
             successful_extractions += 1

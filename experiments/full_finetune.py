@@ -184,7 +184,12 @@ class RepresentationExtractor:
                 input_ids = self.validation_examples['input_ids']
                 attention_mask = self.validation_examples['attention_mask']
                 
-                batch_size = 16  # Process in smaller batches to avoid OOM
+                # Adaptive batch size based on task type
+                if self.task_name == 'squad_v2':
+                    batch_size = 8  # Smaller batches for longer QA sequences
+                else:
+                    batch_size = 16  # Standard batch size for classification
+                    
                 num_samples = input_ids.shape[0]
                 all_layer_outputs = {f'layer_{i}': [] for i in self.config.save_layers}
                 all_final_hidden_states = []
@@ -209,8 +214,9 @@ class RepresentationExtractor:
                     elif hasattr(outputs, 'last_hidden_state'):
                         all_final_hidden_states.append(outputs.last_hidden_state.detach().cpu())
                     
-                    # Clean up GPU memory after each batch
+                    # Aggressive memory cleanup after each batch
                     del batch_input_ids, batch_attention_mask, outputs
+                    torch.cuda.empty_cache()  # Force GPU memory cleanup
                     torch.cuda.empty_cache()
                 
                 # Concatenate all batch results
