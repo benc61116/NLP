@@ -364,7 +364,7 @@ class FullFinetuneExperiment:
         
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=getattr(torch, self.config['model']['torch_dtype']),
+            dtype=getattr(torch, self.config['model']['dtype']),
             device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
             trust_remote_code=True
         )
@@ -459,7 +459,7 @@ class FullFinetuneExperiment:
         model_name = self.config['model']['name']
         base_model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=getattr(torch, self.config['model']['torch_dtype']),
+            dtype=getattr(torch, self.config['model']['dtype']),
             device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
             trust_remote_code=True
         )
@@ -813,9 +813,9 @@ def main():
     # Initialize experiment
     experiment = FullFinetuneExperiment(args.config)
     
-    # Override model to use Llama-2-1.3B for actual experiments
+    # Override model to use TinyLlama for actual experiments
     if args.mode != "demo":
-        experiment.config['model']['name'] = "meta-llama/Llama-2-1.3b-hf"
+        experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
     
     if args.mode == "demo":
         # Run validation demo

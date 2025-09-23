@@ -5,7 +5,7 @@ set -e  # Exit on error
 echo "Starting Phase 1 on VM3: RTE Full FT + RTE LoRA + Baselines..."
 
 # Setup environment
-export WANDB_PROJECT=NLP
+export WANDB_PROJECT=NLP-Phase1-Training
 export WANDB_ENTITY=galavny-tel-aviv-university
 
 # Create logs directory
@@ -16,7 +16,7 @@ echo "Checking HuggingFace authentication for Llama-2..."
 python -c "
 from transformers import AutoTokenizer
 try:
-    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Llama-2-1.3b-hf')
+    tokenizer = AutoTokenizer.from_pretrained('TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T')
     print('✅ HuggingFace authentication successful')
 except Exception as e:
     print(f'❌ HuggingFace authentication failed: {e}')

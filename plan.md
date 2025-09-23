@@ -27,7 +27,7 @@ This research project investigates two critical questions in parameter-efficient
 **Rationale for Task Selection**:
 - **Diversity**: Covers single-sentence (SST-2), sentence-pair (MRPC, RTE), and span-extraction (SQuAD v2) paradigms
 - **Complementary Skills**: Sentiment understanding, paraphrase detection, logical reasoning, and reading comprehension
-- **Computational Efficiency**: All tasks can be efficiently fine-tuned on Llama-2-1.3B within reasonable compute budgets
+- **Computational Efficiency**: All tasks can be efficiently fine-tuned on TinyLlama-1.1B within reasonable compute budgets
 - **Established Baselines**: Well-studied tasks with clear evaluation protocols and existing benchmarks
 
 
@@ -52,14 +52,14 @@ This research project investigates two critical questions in parameter-efficient
 
 | Task ID | Description | Model | Method |
 |---------|-------------|-------|---------|
-| `mrpc_full_finetune` | Full parameter fine-tuning on MRPC task | Llama-2-1.3B | Full fine-tuning |
-| `mrpc_lora` | LoRA fine-tuning on MRPC task | Llama-2-1.3B | LoRA (rank 8) |
-| `squad_full_finetune` | Full parameter fine-tuning on SQuAD v2 task | Llama-2-1.3B | Full fine-tuning |
-| `squad_lora` | LoRA fine-tuning on SQuAD v2 task | Llama-2-1.3B | LoRA (rank 8) |
-| `sst2_full_finetune` | Full parameter fine-tuning on SST-2 task | Llama-2-1.3B | Full fine-tuning |
-| `sst2_lora` | LoRA fine-tuning on SST-2 task | Llama-2-1.3B | LoRA (rank 8) |
-| `rte_full_finetune` | Full parameter fine-tuning on RTE task | Llama-2-1.3B | Full fine-tuning |
-| `rte_lora` | LoRA fine-tuning on RTE task | Llama-2-1.3B | LoRA (rank 8) |
+| `mrpc_full_finetune` | Full parameter fine-tuning on MRPC task | TinyLlama-1.1B | Full fine-tuning |
+| `mrpc_lora` | LoRA fine-tuning on MRPC task | TinyLlama-1.1B | LoRA (rank 8) |
+| `squad_full_finetune` | Full parameter fine-tuning on SQuAD v2 task | TinyLlama-1.1B | Full fine-tuning |
+| `squad_lora` | LoRA fine-tuning on SQuAD v2 task | TinyLlama-1.1B | LoRA (rank 8) |
+| `sst2_full_finetune` | Full parameter fine-tuning on SST-2 task | TinyLlama-1.1B | Full fine-tuning |
+| `sst2_lora` | LoRA fine-tuning on SST-2 task | TinyLlama-1.1B | LoRA (rank 8) |
+| `rte_full_finetune` | Full parameter fine-tuning on RTE task | TinyLlama-1.1B | Full fine-tuning |
+| `rte_lora` | LoRA fine-tuning on RTE task | TinyLlama-1.1B | LoRA (rank 8) |
 | `baselines_all_tasks` | Majority class, random, and SOTA literature baselines | Various | Baseline methods |
 
 **Phase 2a Tasks (Parallel Analysis)**:
@@ -171,7 +171,9 @@ training_configs:
     target_modules: ["q_proj", "v_proj"]
   
 wandb:
-  project: "NLP"
+  # Phase-based project organization
+  phase1_project: "NLP-Phase1-Training"      # All training experiments
+  phase2_project: "NLP-Phase2-Analysis"      # All analysis experiments
   entity: "galavny-tel-aviv-university"
   
 # Note: VM allocation handled by phase-organized scripts in scripts/ directory
@@ -255,6 +257,25 @@ tmux new-session -d -s synthesis "bash scripts/phase2b/vm1.sh"
 - **Tmux Sessions**: Keep experiments running persistently across VMs
 - **Manual Phase Transitions**: Start next phase when previous completes (visible in W&B)
 - **No Complex Scripts**: Just phase-organized bash scripts for each VM
+
+### W&B Project Organization
+
+**Separate Projects for Clean Organization**:
+- **Phase 1 - Training**: `NLP-Phase1-Training`
+  - All training experiments (baselines, full fine-tuning, LoRA)
+  - VM1, VM2, VM3 training runs
+  - Clear separation from analysis phase
+  
+- **Phase 2 - Analysis**: `NLP-Phase2-Analysis`
+  - All analysis experiments (drift analysis, deployment benchmarking)
+  - Phase 2a and 2b runs
+  - Statistical synthesis results
+
+**Benefits**:
+- **No Data Mixing**: Training and analysis results stay separate
+- **Clean Dashboard**: Easy to monitor each phase independently  
+- **No Overrides**: Phase 2 won't interfere with Phase 1 results
+- **Better Organization**: Clear project structure for research workflow
 
 **Phase Script Contents**:
 ```bash
@@ -377,7 +398,7 @@ CONTEXT:
 - Model: meta-llama/Llama-2-1.3b-hf (chosen for computational feasibility)
 - Tasks: MRPC, SQuAD v2, SST-2, RTE (four diverse NLP tasks for robust evaluation)
 - Infrastructure: 3 GPU VMs with task-based parallel allocation
-- Tracking: Weights & Biases (project: "NLP", entity: "galavny-tel-aviv-university")
+- Tracking: Weights & Biases (Phase 1: "NLP-Phase1-Training", Phase 2: "NLP-Phase2-Analysis", entity: "galavny-tel-aviv-university")
 
 REQUIREMENTS:
 1. Implement data loading utilities for all four tasks
@@ -422,7 +443,7 @@ Before completing this step, run a short demo to ensure everything works:
    Should display a sample MRPC example without errors.
 
 2. **Verify W&B Connection**:
-   - Check that W&B dashboard shows new runs under project "NLP"
+   - Check that W&B dashboard shows new runs under project "NLP-Phase1-Training"
    - Confirm entity "galavny-tel-aviv-university" is accessible
    - Verify metrics are being logged in real-time
 
@@ -610,7 +631,7 @@ You are implementing full fine-tuning experiments for Llama-2-1.3B on MRPC, SQuA
 
 CONTEXT:
 - Running in parallel with other training (balanced load: VM1 SQuAD+MRPC, VM2 SQuAD+SST-2, VM3 RTE+baselines)
-- Model: meta-llama/Llama-2-1.3b-hf  
+- Model: meta-llama/Llama-2-1.3b-hf
 - Hardware: Load-balanced task splitting for optimal parallel execution
 - Objective: Establish full fine-tuning performance and representation changes across all four tasks
 

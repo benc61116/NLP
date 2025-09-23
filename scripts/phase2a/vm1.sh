@@ -5,7 +5,7 @@ set -e  # Exit on error
 echo "Starting Phase 2a on VM1: MRPC + RTE Drift Analysis + Correlation Analysis Prep..."
 
 # Setup environment
-export WANDB_PROJECT=NLP
+export WANDB_PROJECT=NLP-Phase2-Analysis
 export WANDB_ENTITY=galavny-tel-aviv-university
 
 # Create logs directory

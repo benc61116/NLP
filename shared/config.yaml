@@ -3,10 +3,10 @@
 
 # Model Configuration
 model:
-  name: "meta-llama/Llama-2-1.3b-hf"  # Target model for full fine-tuning experiments
+  name: "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"  # 1.1B Llama-2 architecture, no auth needed
   max_length: 512
   device_map: "auto"
-  torch_dtype: "bfloat16"  # Use bfloat16 for better training stability
+  dtype: "bfloat16"  # Use bfloat16 for better training stability
   classification_max_length: 512
   qa_max_length: 768
 
@@ -118,7 +118,7 @@ infrastructure:
 # Weights & Biases Configuration
 wandb:
   project: "NLP"
-  entity: "${WANDB_ENTITY:-galavny-tel-aviv-university}"
+  entity: "galavny-tel-aviv-university"
   save_code: true
   log_model: "all"        # Log model checkpoints
   watch_model: true       # Watch gradients and parameters

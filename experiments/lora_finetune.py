@@ -438,7 +438,7 @@ class LoRAExperiment:
         # Load base model
         base_model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=getattr(torch, self.config['model']['torch_dtype']),
+            dtype=getattr(torch, self.config['model']['dtype']),
             device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
             trust_remote_code=True
         )
@@ -881,36 +881,6 @@ class LoRAExperiment:
         
         return results
     
-    def run_quick_validation(self, task_name: str = "sst2", num_samples: int = 500) -> Dict[str, Any]:
-        """Run quick validation with reasonable sample size for testing."""
-        logger.info(f"Running LoRA quick validation: {task_name} with {num_samples} samples")
-        
-        # Override config for validation
-        original_config = self.config['tasks'][task_name].copy()
-        self.config['tasks'][task_name]['max_samples_train'] = num_samples
-        self.config['tasks'][task_name]['max_samples_eval'] = min(100, num_samples // 5)
-        
-        # Quick validation settings
-        validation_hyperparams = {
-            'num_train_epochs': 1,
-            'learning_rate': self.lora_config.learning_rates[0],
-        }
-        
-        try:
-            result = self.run_single_experiment(
-                task_name=task_name, 
-                seed=42,
-                target_modules=self.lora_config.target_modules_standard,
-                experiment_type="quick_validation",
-                **validation_hyperparams
-            )
-            
-            logger.info("✓ LoRA quick validation completed")
-            return result
-        
-        finally:
-            # Restore original config
-            self.config['tasks'][task_name] = original_config
 
 
 def main():
@@ -920,7 +890,7 @@ def main():
     parser = argparse.ArgumentParser(description="LoRA fine-tuning experiments for Llama-2-1.3B")
     parser.add_argument("--task", choices=["mrpc", "squad_v2", "sst2", "rte"], 
                        help="Task to run", required=True)
-    parser.add_argument("--mode", choices=["single", "sweep", "ablation", "validation"], 
+    parser.add_argument("--mode", choices=["single", "sweep", "ablation"], 
                        default="single", help="Experiment mode")
     parser.add_argument("--ablation-type", choices=["rank", "alpha", "modules"],
                        help="Type of ablation study")
@@ -936,16 +906,10 @@ def main():
     # Initialize experiment
     experiment = LoRAExperiment(args.config)
     
-    # Override model to use Llama-2-1.3B for actual experiments
-    if args.mode != "validation":
-        experiment.config['model']['name'] = "meta-llama/Llama-2-1.3b-hf"
+    # Ensure model is set to TinyLlama for all experiments  
+    experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
     
-    if args.mode == "validation":
-        # Run quick validation
-        result = experiment.run_quick_validation(args.task)
-        print(f"LoRA validation completed: {result}")
-    
-    elif args.mode == "ablation":
+    if args.mode == "ablation":
         if not args.ablation_type:
             print("Error: --ablation-type required for ablation mode")
             return

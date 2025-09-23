@@ -105,7 +105,7 @@ class ExperimentRunner:
         # Load base model
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
-            torch_dtype=getattr(torch, self.config['model']['torch_dtype']),
+            dtype=getattr(torch, self.config['model']['dtype']),
             device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
             trust_remote_code=True
         )

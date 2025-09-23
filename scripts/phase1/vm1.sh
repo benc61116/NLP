@@ -5,22 +5,22 @@ set -e  # Exit on error
 echo "Starting Phase 1 on VM1: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA..."
 
 # Setup environment
-export WANDB_PROJECT=NLP
+export WANDB_PROJECT=NLP-Phase1-Training
 export WANDB_ENTITY=galavny-tel-aviv-university
 
 # Create logs directory
 mkdir -p logs/phase1/vm1
 
 # HuggingFace authentication check
-echo "Checking HuggingFace authentication for Llama-2..."
+echo "Checking TinyLlama model access..."
 python -c "
 from transformers import AutoTokenizer
 try:
-    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Llama-2-1.3b-hf')
-    print('✅ HuggingFace authentication successful')
+    tokenizer = AutoTokenizer.from_pretrained('TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T')
+    print('✅ TinyLlama model accessible')
 except Exception as e:
-    print(f'❌ HuggingFace authentication failed: {e}')
-    print('Please run: huggingface-cli login')
+    print(f'❌ TinyLlama access failed: {e}')
+    print('Please check internet connection')
     exit(1)
 " 2>&1 | tee logs/phase1/vm1/auth_check.log
 
