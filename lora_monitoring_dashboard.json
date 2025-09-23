@@ -1,0 +1,74 @@
+{
+  "sections": [
+    {
+      "name": "LoRA Parameter Efficiency",
+      "panels": [
+        {
+          "type": "line",
+          "metric": "lora_monitoring/trainable_ratio",
+          "title": "Trainable Parameter Ratio"
+        },
+        {
+          "type": "line",
+          "metric": "lora_monitoring/trainable_parameters",
+          "title": "Trainable Parameters"
+        },
+        {
+          "type": "scalar",
+          "metric": "lora_verification/base_model_frozen",
+          "title": "Base Model Frozen"
+        }
+      ]
+    },
+    {
+      "name": "LoRA Adapter Analysis",
+      "panels": [
+        {
+          "type": "line",
+          "metric": "lora_adapters/weight_mean_A",
+          "title": "LoRA A Weight Mean"
+        },
+        {
+          "type": "line",
+          "metric": "lora_adapters/weight_mean_B",
+          "title": "LoRA B Weight Mean"
+        },
+        {
+          "type": "line",
+          "metric": "lora_adapters/norm_mean",
+          "title": "Adapter Norm Mean"
+        },
+        {
+          "type": "line",
+          "metric": "lora_rank/utilization_mean",
+          "title": "Rank Utilization"
+        }
+      ]
+    },
+    {
+      "name": "LoRA Training Health",
+      "panels": [
+        {
+          "type": "line",
+          "metric": "lora_gradients/total_norm",
+          "title": "Total Gradient Norm"
+        },
+        {
+          "type": "scalar",
+          "metric": "lora_gradients/gradient_health",
+          "title": "Gradient Health"
+        },
+        {
+          "type": "line",
+          "metric": "lora_monitoring/total_red_flags",
+          "title": "Red Flags Count"
+        },
+        {
+          "type": "line",
+          "metric": "lora_monitoring/total_warnings",
+          "title": "Warnings Count"
+        }
+      ]
+    }
+  ]
+}
