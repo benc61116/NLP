@@ -3,6 +3,14 @@
 
 import os
 import sys
+import warnings
+
+# Suppress common warnings for cleaner output
+warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
+warnings.filterwarnings("ignore", message=".*use_cache=True.*is incompatible with gradient checkpointing")
+warnings.filterwarnings("ignore", message=".*Using a boolean value for 'reinit' is deprecated")
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
+
 import json
 import random
 import numpy as np
@@ -11,7 +19,6 @@ from typing import Dict, List, Tuple, Optional, Any, Union
 from pathlib import Path
 import logging
 from datetime import datetime
-import warnings
 import time
 
 import torch
@@ -99,8 +106,7 @@ class BaselineExperiments:
             entity=self.wandb_entity,
             name=run_name,
             tags=tags,
-            config=config,
-            reinit=True
+            config=config
         )
         
     def get_dataset_splits(self, task_name: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:

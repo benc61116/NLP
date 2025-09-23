@@ -94,21 +94,39 @@ class LoRAAnalyzer:
         
         for name, module in self.adapter_modules:
             try:
-                # Get LoRA weights (handle different naming conventions)
+                # Get LoRA weights (handle different naming conventions and module types)
                 lora_A = getattr(module, 'lora_A', getattr(module, 'adapter_A', None))
                 lora_B = getattr(module, 'lora_B', getattr(module, 'adapter_B', None))
                 
                 if lora_A is None or lora_B is None:
                     continue
                 
-                weight_A = lora_A.weight.data.flatten()
-                weight_B = lora_B.weight.data.flatten()
+                # Handle different module types (Linear vs ModuleDict)
+                if hasattr(lora_A, 'weight'):
+                    weight_A = lora_A.weight.data.flatten()
+                elif hasattr(lora_A, 'default') and hasattr(lora_A.default, 'weight'):
+                    weight_A = lora_A.default.weight.data.flatten()
+                else:
+                    continue  # Skip if we can't find weight tensor
+                    
+                if hasattr(lora_B, 'weight'):
+                    weight_B = lora_B.weight.data.flatten()
+                elif hasattr(lora_B, 'default') and hasattr(lora_B.default, 'weight'):
+                    weight_B = lora_B.default.weight.data.flatten()
+                else:
+                    continue  # Skip if we can't find weight tensor
                 
                 all_weights_A.extend(weight_A.cpu().numpy())
                 all_weights_B.extend(weight_B.cpu().numpy())
                 
                 # Compute adapter norm (||B @ A||_F)
-                adapter_weight = lora_B.weight @ lora_A.weight
+                # Get actual weight tensors for computation
+                if hasattr(lora_A, 'weight') and hasattr(lora_B, 'weight'):
+                    adapter_weight = lora_B.weight @ lora_A.weight
+                elif hasattr(lora_A, 'default') and hasattr(lora_B, 'default'):
+                    adapter_weight = lora_B.default.weight @ lora_A.default.weight
+                else:
+                    continue  # Skip if we can't compute adapter weight
                 adapter_norm = torch.norm(adapter_weight, p='fro').item()
                 adapter_norms.append(adapter_norm)
                 
@@ -168,7 +186,7 @@ class LoRAAnalyzer:
         
         for name, module in self.adapter_modules:
             try:
-                # Get LoRA weights
+                # Get LoRA weights (handle different module types)
                 lora_A = getattr(module, 'lora_A', getattr(module, 'adapter_A', None))
                 lora_B = getattr(module, 'lora_B', getattr(module, 'adapter_B', None))
                 
@@ -176,7 +194,13 @@ class LoRAAnalyzer:
                     continue
                 
                 # Compute effective rank using SVD
-                adapter_weight = lora_B.weight @ lora_A.weight
+                # Handle different module types (Linear vs ModuleDict)
+                if hasattr(lora_A, 'weight') and hasattr(lora_B, 'weight'):
+                    adapter_weight = lora_B.weight @ lora_A.weight
+                elif hasattr(lora_A, 'default') and hasattr(lora_B, 'default'):
+                    adapter_weight = lora_B.default.weight @ lora_A.default.weight
+                else:
+                    continue  # Skip if we can't compute adapter weight
                 
                 try:
                     U, S, V = torch.svd(adapter_weight.float())

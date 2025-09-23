@@ -12,11 +12,9 @@ pip install -r requirements.txt
 
 # 3. Download datasets
 python scripts/download_datasets.py
-
-# 4. Create necessary directories
-mkdir -p logs/phase1/vm1 logs/phase1/vm2 logs/phase1/vm3
-mkdir -p results
 ```
+
+**Note**: Log and result directories are created automatically by the scripts.
 
 ## Phase 1 Parallel Execution
 
@@ -26,7 +24,6 @@ mkdir -p results
 tmux new-session -d -s phase1
 
 # Run Phase 1 VM1 script
-cd /home/benc6116/workspace/NLP
 chmod +x scripts/phase1/vm1.sh
 ./scripts/phase1/vm1.sh
 
@@ -44,7 +41,6 @@ tmux attach -t phase1
 tmux new-session -d -s phase1
 
 # Run Phase 1 VM2 script
-cd /home/benc6116/workspace/NLP
 chmod +x scripts/phase1/vm2.sh
 ./scripts/phase1/vm2.sh
 
@@ -62,7 +58,6 @@ tmux attach -t phase1
 tmux new-session -d -s phase1
 
 # Run Phase 1 VM3 script
-cd /home/benc6116/workspace/NLP
 chmod +x scripts/phase1/vm3.sh
 ./scripts/phase1/vm3.sh
 

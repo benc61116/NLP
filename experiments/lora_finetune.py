@@ -3,6 +3,17 @@
 
 import os
 import sys
+import warnings
+
+# Suppress common warnings for cleaner output
+import transformers
+transformers.logging.set_verbosity_error()  # Only show errors
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*were not initialized.*")
+warnings.filterwarnings("ignore", message=".*use_cache=True.*")
+warnings.filterwarnings("ignore", message=".*reinit.*deprecated.*")
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
+
 import torch
 import wandb
 import yaml
@@ -14,7 +25,7 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 from pathlib import Path
-from dataclasses import dataclass, field
+# Removed dataclass import - using simple classes now
 
 import torch.nn.functional as F
 from transformers import (
@@ -56,43 +67,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class LoRAExperimentConfig:
-    """Configuration for LoRA experiments."""
-    # Core LoRA settings (fixed as per requirements)
-    rank: int = 8
-    alpha: int = 16  # Scaling factor alpha/r = 2
-    dropout: float = 0.05
-    
-    # Target module variations
-    target_modules_standard: List[str] = field(default_factory=lambda: ["q_proj", "v_proj"])
-    target_modules_extended: List[str] = field(default_factory=lambda: ["q_proj", "k_proj", "v_proj", "o_proj"])
-    target_modules_all_linear: List[str] = field(default_factory=lambda: [
-        "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"
-    ])
-    
-    # Hyperparameter search ranges
-    learning_rates: List[float] = field(default_factory=lambda: [1e-4, 3e-4])
-    warmup_ratio: float = 0.06  # 6% warmup as specified
-    
-    # Ablation study settings
-    rank_ablation: List[int] = field(default_factory=lambda: [4, 8, 16])
-    alpha_ablation: List[int] = field(default_factory=lambda: [8, 16, 32])
-    
-    # Representation tracking
-    extract_every_steps: int = 100
-    save_adapter_weights: bool = True
-    analyze_rank_utilization: bool = True
-    
-    # Validation settings
-    merge_test_enabled: bool = True
-    equivalence_threshold: float = 1e-5
+# LoRA configuration now comes entirely from shared/config.yaml
 
 
 class LoRARepresentationExtractor:
     """Extended representation extractor for LoRA-specific analysis."""
     
-    def __init__(self, config: LoRAExperimentConfig, output_dir: Path, task_name: str, method: str):
+    def __init__(self, config: object, output_dir: Path, task_name: str, method: str):
         self.config = config
         self.output_dir = output_dir / "representations" / f"{method}_{task_name}"
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -190,8 +171,20 @@ class LoRARepresentationExtractor:
                 adapter_weights = {}
                 for name, module in model.named_modules():
                     if hasattr(module, 'lora_A') and hasattr(module, 'lora_B'):
-                        adapter_weights[f"{name}_lora_A"] = module.lora_A.weight.detach().cpu()
-                        adapter_weights[f"{name}_lora_B"] = module.lora_B.weight.detach().cpu()
+                        # Handle different module types (Linear vs ModuleDict)
+                        try:
+                            if hasattr(module.lora_A, 'weight'):
+                                adapter_weights[f"{name}_lora_A"] = module.lora_A.weight.detach().cpu()
+                            elif hasattr(module.lora_A, 'default') and hasattr(module.lora_A.default, 'weight'):
+                                adapter_weights[f"{name}_lora_A"] = module.lora_A.default.weight.detach().cpu()
+                                
+                            if hasattr(module.lora_B, 'weight'):
+                                adapter_weights[f"{name}_lora_B"] = module.lora_B.weight.detach().cpu()
+                            elif hasattr(module.lora_B, 'default') and hasattr(module.lora_B.default, 'weight'):
+                                adapter_weights[f"{name}_lora_B"] = module.lora_B.default.weight.detach().cpu()
+                        except AttributeError:
+                            # Skip modules that don't have the expected structure
+                            continue
                 
                 representations.update(adapter_weights)
         
@@ -260,7 +253,7 @@ class LoRACallback(TrainerCallback):
                  representation_extractor: LoRARepresentationExtractor,
                  parameter_tracker: ParameterEfficiencyTracker,
                  eval_dataset: Dataset,
-                 config: LoRAExperimentConfig,
+                 config: object,
                  extract_every_steps: int = 100):
         self.representation_extractor = representation_extractor
         self.parameter_tracker = parameter_tracker
@@ -373,7 +366,41 @@ class LoRAExperiment:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer = None
         self.data_loader = None
-        self.lora_config = LoRAExperimentConfig()
+        # Load LoRA config from YAML
+        lora_yaml_config = self.config['lora']
+        
+        # Create simple config object from YAML
+        class LoRAConfig:
+            def __init__(self, yaml_config):
+                self.rank = yaml_config['r']  # YAML uses 'r', we use 'rank'
+                self.alpha = yaml_config['alpha']
+                self.dropout = yaml_config['dropout']
+                self.target_modules_standard = yaml_config['target_modules']
+                
+                # Extended target modules for ablation studies
+                self.target_modules_extended = ["q_proj", "k_proj", "v_proj", "o_proj"]
+                self.target_modules_all_linear = [
+                    "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"
+                ]
+                
+                # Hyperparameter search ranges (can be moved to YAML later)
+                self.learning_rates = [1e-4, 3e-4]
+                self.warmup_ratio = 0.06  # 6% warmup
+                
+                # Ablation study settings
+                self.rank_ablation = [4, 8, 16]
+                self.alpha_ablation = [8, 16, 32]
+                
+                # Validation settings
+                self.merge_test_enabled = True
+                self.equivalence_threshold = 1e-5
+                
+                # Representation tracking (was missing)
+                self.extract_every_steps = 100
+                self.save_adapter_weights = True
+                self.analyze_rank_utilization = True
+        
+        self.lora_config = LoRAConfig(lora_yaml_config)
         
         # Create output directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

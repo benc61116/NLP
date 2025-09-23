@@ -3,6 +3,17 @@
 
 import os
 import sys
+import warnings
+
+# Suppress common warnings for cleaner output
+import transformers
+transformers.logging.set_verbosity_error()  # Only show errors
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*were not initialized.*")
+warnings.filterwarnings("ignore", message=".*use_cache=True.*")
+warnings.filterwarnings("ignore", message=".*reinit.*deprecated.*")
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
+
 import torch
 import wandb
 import yaml
