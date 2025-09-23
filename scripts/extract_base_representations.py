@@ -30,9 +30,9 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
     try:
         # Prepare validation data
         if task_name == 'squad_v2':
-            eval_dataset = data_loader.prepare_qa_data('validation', max_samples=num_samples)
+            eval_dataset = data_loader.prepare_qa_data('validation', num_samples=num_samples)
         else:
-            eval_dataset = data_loader.prepare_classification_data(task_name, 'validation', max_samples=num_samples)
+            eval_dataset = data_loader.prepare_classification_data(task_name, 'validation', num_samples=num_samples)
         
         # Create output directory
         output_dir = Path('results/base_model_representations')
@@ -49,11 +49,11 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
         
         # Prepare validation examples for representation extraction
         examples = {
-            'input_ids': torch.tensor([ex['input_ids'] for ex in eval_dataset]),
-            'attention_mask': torch.tensor([ex['attention_mask'] for ex in eval_dataset])
+            'input_ids': eval_dataset['input_ids'],
+            'attention_mask': eval_dataset['attention_mask']
         }
-        if 'labels' in eval_dataset[0]:
-            examples['labels'] = torch.tensor([ex['labels'] for ex in eval_dataset])
+        if 'labels' in eval_dataset:
+            examples['labels'] = eval_dataset['labels']
         
         extractor.set_validation_examples(examples)
         
