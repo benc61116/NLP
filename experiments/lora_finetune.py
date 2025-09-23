@@ -31,6 +31,7 @@ import torch.nn.functional as F
 from transformers import (
     AutoModelForCausalLM, 
     AutoModelForSequenceClassification,
+    AutoModelForQuestionAnswering,
     AutoTokenizer, 
     TrainingArguments, 
     Trainer,
@@ -65,6 +66,48 @@ from models.trainer_utils import (
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+class QADataCollator:
+    """Custom data collator for QA tasks that handles start/end positions."""
+    
+    def __init__(self, tokenizer, padding=True):
+        self.tokenizer = tokenizer
+        self.padding = padding
+    
+    def __call__(self, features):
+        # Extract each field
+        input_ids = [f["input_ids"] for f in features]
+        attention_mask = [f["attention_mask"] for f in features]
+        start_positions = [f["start_positions"] for f in features]
+        end_positions = [f["end_positions"] for f in features]
+        
+        # Pad input_ids and attention_mask
+        max_length = max(len(ids) for ids in input_ids)
+        
+        padded_input_ids = []
+        padded_attention_mask = []
+        
+        for ids, mask in zip(input_ids, attention_mask):
+            padding_length = max_length - len(ids)
+            if padding_length > 0:
+                # Pad with tokenizer.pad_token_id
+                pad_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
+                padded_input_ids.append(ids + [pad_id] * padding_length)
+                padded_attention_mask.append(mask + [0] * padding_length)
+            else:
+                padded_input_ids.append(ids)
+                padded_attention_mask.append(mask)
+        
+        # Create batch tensors
+        batch = {
+            "input_ids": torch.tensor(padded_input_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(padded_attention_mask, dtype=torch.long),
+            "start_positions": torch.tensor(start_positions, dtype=torch.long),
+            "end_positions": torch.tensor(end_positions, dtype=torch.long),
+        }
+        
+        return batch
 
 
 # LoRA configuration now comes entirely from shared/config.yaml
@@ -448,8 +491,8 @@ class LoRAExperiment:
         # Determine task type based on the actual task
         if task_name and task_name in self.config['tasks']:
             task_config = self.config['tasks'][task_name]
-            if task_config.get('type') == 'qa':
-                task_type = TaskType.QUESTION_ANSWERING
+            if task_config.get('type') in ['qa', 'question_answering']:
+                task_type = TaskType.QUESTION_ANS
             else:  # classification tasks
                 task_type = TaskType.SEQ_CLS
         else:
@@ -486,9 +529,9 @@ class LoRAExperiment:
         
         # Choose model type based on task
         task_type = self.config['tasks'][task_name].get('type', 'classification')
-        if task_type == 'qa':
-            # For QA tasks, use CausalLM
-            base_model = AutoModelForCausalLM.from_pretrained(
+        if task_type in ['qa', 'question_answering']:
+            # For QA tasks, use QuestionAnswering model with QA head
+            base_model = AutoModelForQuestionAnswering.from_pretrained(
                 model_name,
                 dtype=getattr(torch, self.config['model']['dtype']),
                 device_map="auto" if torch.cuda.is_available() else None,
@@ -718,7 +761,7 @@ class LoRAExperiment:
         
         # Initialize wandb
         wandb.init(
-            project=self.config['wandb']['project'],
+            project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
             entity=self.config['wandb']['entity'],
             name=run_name,
             group=f"lora_{task_name}",
@@ -814,8 +857,14 @@ class LoRAExperiment:
             # Create compute metrics function
             compute_metrics = self.create_compute_metrics_function(task_name)
             
-            # Create data collator
-            data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
+            # Create task-appropriate data collator
+            task_config = self.config['tasks'][task_name]
+            if task_config['type'] in ['qa', 'question_answering']:
+                # For QA tasks, use custom QA data collator to handle start/end positions
+                data_collator = QADataCollator(tokenizer=self.tokenizer, padding=True)
+            else:
+                # For classification tasks, use padding collator
+                data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
             # Create custom callback
             custom_callback = LoRACallback(

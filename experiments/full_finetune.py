@@ -31,6 +31,7 @@ import torch.nn.functional as F
 from transformers import (
     AutoModelForCausalLM, 
     AutoModelForSequenceClassification,
+    AutoModelForQuestionAnswering,
     AutoTokenizer, 
     TrainingArguments, 
     Trainer,
@@ -40,6 +41,7 @@ from transformers import (
     DataCollatorWithPadding,
     EarlyStoppingCallback
 )
+import torch
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from datasets import Dataset
 import evaluate
@@ -53,6 +55,49 @@ from shared.checkpoint_utils import CheckpointManager
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+class QADataCollator:
+    """Custom data collator for QA tasks that handles start/end positions."""
+    
+    def __init__(self, tokenizer, padding=True, device=None):
+        self.tokenizer = tokenizer
+        self.padding = padding
+        self.device = device
+    
+    def __call__(self, features):
+        # Extract each field
+        input_ids = [f["input_ids"] for f in features]
+        attention_mask = [f["attention_mask"] for f in features]
+        start_positions = [f["start_positions"] for f in features]
+        end_positions = [f["end_positions"] for f in features]
+        
+        # Pad input_ids and attention_mask
+        max_length = max(len(ids) for ids in input_ids)
+        
+        padded_input_ids = []
+        padded_attention_mask = []
+        
+        for ids, mask in zip(input_ids, attention_mask):
+            padding_length = max_length - len(ids)
+            if padding_length > 0:
+                # Pad with tokenizer.pad_token_id
+                pad_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
+                padded_input_ids.append(ids + [pad_id] * padding_length)
+                padded_attention_mask.append(mask + [0] * padding_length)
+            else:
+                padded_input_ids.append(ids)
+                padded_attention_mask.append(mask)
+        
+        # Create batch tensors (device will be handled by Trainer automatically)
+        batch = {
+            "input_ids": torch.tensor(padded_input_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(padded_attention_mask, dtype=torch.long),
+            "start_positions": torch.tensor(start_positions, dtype=torch.long),
+            "end_positions": torch.tensor(end_positions, dtype=torch.long),
+        }
+        
+        return batch
 
 
 @dataclass
@@ -282,8 +327,12 @@ class FullFinetuneCallback(TrainerCallback):
                 'input_ids': torch.tensor([ex['input_ids'] for ex in eval_dataset]),
                 'attention_mask': torch.tensor([ex['attention_mask'] for ex in eval_dataset])
             }
+            # Handle both classification and QA tasks
             if 'labels' in eval_dataset[0]:
                 examples['labels'] = torch.tensor([ex['labels'] for ex in eval_dataset])
+            elif 'start_positions' in eval_dataset[0] and 'end_positions' in eval_dataset[0]:
+                examples['start_positions'] = torch.tensor([ex['start_positions'] for ex in eval_dataset])
+                examples['end_positions'] = torch.tensor([ex['end_positions'] for ex in eval_dataset])
             
             self.representation_extractor.set_validation_examples(examples)
     
@@ -390,9 +439,9 @@ class FullFinetuneExperiment:
         # Choose model type based on task
         if task_name and task_name in self.config['tasks']:
             task_type = self.config['tasks'][task_name].get('type', 'classification')
-            if task_type == 'qa':
-                # For QA tasks, we still use CausalLM
-                model = AutoModelForCausalLM.from_pretrained(
+            if task_type in ['qa', 'question_answering']:
+                # For QA tasks, use QuestionAnswering model with QA head
+                model = AutoModelForQuestionAnswering.from_pretrained(
                     model_name,
                     dtype=getattr(torch, self.config['model']['dtype']),
                     device_map="auto" if torch.cuda.is_available() else None,
@@ -620,7 +669,7 @@ class FullFinetuneExperiment:
         
         # Initialize wandb
         wandb.init(
-            project=self.config['wandb']['project'],
+            project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
             entity=self.config['wandb']['entity'],
             name=run_name,
             group=f"full_finetune_{task_name}",
@@ -721,11 +770,18 @@ class FullFinetuneExperiment:
             # Create compute metrics function
             compute_metrics = self.create_compute_metrics_function(task_name)
             
-            # Create data collator
-            data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
+            # Create task-appropriate data collator
+            task_config = self.config['tasks'][task_name]
+            if task_config['type'] in ['qa', 'question_answering']:
+                # For QA tasks, use custom QA data collator to handle start/end positions
+                data_collator = QADataCollator(tokenizer=self.tokenizer, padding=True)
+            else:
+                # For classification tasks, use padding collator
+                data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
             # Create custom callback (conditional based on representation extraction)
-            if representation_extractor is not None:
+            # Skip callbacks for QA tasks temporarily to debug
+            if representation_extractor is not None and task_config['type'] not in ['qa', 'question_answering']:
                 custom_callback = FullFinetuneCallback(
                     representation_extractor=representation_extractor,
                     gradient_monitor=gradient_monitor,
@@ -859,7 +915,7 @@ class FullFinetuneExperiment:
         # Initialize sweep
         sweep_id = wandb.sweep(
             sweep_config,
-            project=self.config['wandb']['project'],
+            project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
             entity=self.config['wandb']['entity']
         )
         

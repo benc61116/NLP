@@ -1,8 +1,8 @@
 #!/bin/bash
-# Phase 1 - VM2: SQuAD v2 LoRA + SST-2 Full FT + SST-2 LoRA (Balanced Load)
+# Phase 1 - VM2: Mixed Heavy Tasks (SQuAD v2 + RTE Full & LoRA)
 set -e  # Exit on error
 
-echo "Starting Phase 1 on VM2: SQuAD v2 LoRA + SST-2 Full FT + SST-2 LoRA..."
+echo "Starting Phase 1 on VM2: Mixed Heavy Tasks (SQuAD v2 + RTE Full & LoRA)..."
 
 # Setup environment
 export WANDB_PROJECT=NLP-Phase1-Training
@@ -24,43 +24,38 @@ else:
 mkdir -p logs/phase1/vm2
 
 # HuggingFace authentication check
-echo "Checking HuggingFace authentication for Llama-2..."
+echo "Checking TinyLlama model access..."
 python -c "
 from transformers import AutoTokenizer
 try:
     tokenizer = AutoTokenizer.from_pretrained('TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T')
-    print('✅ HuggingFace authentication successful')
+    print('✅ TinyLlama model accessible')
 except Exception as e:
-    print(f'❌ HuggingFace authentication failed: {e}')
-    print('Please run: huggingface-cli login')
+    print(f'❌ TinyLlama access failed: {e}')
+    print('Please check internet connection')
     exit(1)
 " 2>&1 | tee logs/phase1/vm2/auth_check.log
-
-# Run validation demo for both LoRA and full fine-tuning
-echo "Running validation demos..."
-python -c "
-from experiments.lora_finetune import LoRAExperiment
-from experiments.full_finetune import FullFinetuneExperiment
-
-# LoRA demo - run quick validation instead
-print('LoRA validation: TinyLlama imports successfully')
-from experiments.lora_finetune import LoRAExperiment
-lora_experiment = LoRAExperiment('shared/config.yaml')
-print('LoRA experiment class instantiated successfully')
-
-# Full FT demo  
-full_experiment = FullFinetuneExperiment('shared/config.yaml')
-full_experiment.config['model']['name'] = 'microsoft/DialoGPT-small'
-full_result = full_experiment.run_validation_demo('sst2', 50)
-print('SST-2 full fine-tuning validation demo completed')
-" 2>&1 | tee logs/phase1/vm2/validation_demos.log
 
 echo "✅ TinyLlama model check passed! Starting Phase 1 experiments..."
 echo "📅 Started at: $(date)"
 echo ""
 
+# SQuAD v2 full fine-tuning with multiple seeds (HEAVY LOAD)
+echo "🔬 [1/4] SQuAD v2 Full Fine-tuning (3 seeds + sweep)"
+for seed in 42 1337 2024; do
+    echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 full fine-tuning (seed $seed)..."
+    python experiments/full_finetune.py --task squad_v2 --mode single --seed $seed > logs/phase1/vm2/squad_v2_full_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - SQuAD v2 full fine-tuning (seed $seed) complete"
+done
+
+echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 hyperparameter sweep..."
+python experiments/full_finetune.py --task squad_v2 --mode sweep > logs/phase1/vm2/squad_v2_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - SQuAD v2 hyperparameter sweep complete"
+echo "🎯 [1/4] SQuAD v2 Full Fine-tuning COMPLETE"
+echo ""
+
 # SQuAD v2 LoRA fine-tuning with multiple seeds (HEAVY LOAD)
-echo "🔬 [1/6] SQuAD v2 LoRA Fine-tuning (3 seeds + sweep)"
+echo "🔬 [2/4] SQuAD v2 LoRA Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 LoRA fine-tuning (seed $seed)..."
     python experiments/lora_finetune.py --task squad_v2 --mode single --seed $seed > logs/phase1/vm2/squad_v2_lora_seed${seed}.log 2>&1
@@ -70,54 +65,35 @@ done
 echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 LoRA hyperparameter sweep..."
 python experiments/lora_finetune.py --task squad_v2 --mode sweep > logs/phase1/vm2/squad_v2_lora_sweep.log 2>&1
 echo "  ✅ $(date +'%H:%M') - SQuAD v2 LoRA hyperparameter sweep complete"
-echo "🎯 [1/6] SQuAD v2 LoRA Fine-tuning COMPLETE"
+echo "🎯 [2/4] SQuAD v2 LoRA Fine-tuning COMPLETE"
 echo ""
 
-# SST-2 full fine-tuning with multiple seeds (MEDIUM LOAD)
-echo "🔬 [2/6] SST-2 Full Fine-tuning (3 seeds + sweep)"
+# RTE full fine-tuning with multiple seeds (LIGHT LOAD)
+echo "🔬 [3/4] RTE Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  ⚡ $(date +'%H:%M') - Starting SST-2 full fine-tuning (seed $seed)..."
-    python experiments/full_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm2/sst2_full_seed${seed}.log 2>&1
-    echo "  ✅ $(date +'%H:%M') - SST-2 full fine-tuning (seed $seed) complete"
+    echo "  ⚡ $(date +'%H:%M') - Starting RTE full fine-tuning (seed $seed)..."
+    python experiments/full_finetune.py --task rte --mode single --seed $seed > logs/phase1/vm2/rte_full_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - RTE full fine-tuning (seed $seed) complete"
 done
 
-echo "  ⚡ $(date +'%H:%M') - Starting SST-2 hyperparameter sweep..."
-python experiments/full_finetune.py --task sst2 --mode sweep > logs/phase1/vm2/sst2_sweep.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SST-2 hyperparameter sweep complete"
-echo "🎯 [2/6] SST-2 Full Fine-tuning COMPLETE"
+echo "  ⚡ $(date +'%H:%M') - Starting RTE hyperparameter sweep..."
+python experiments/full_finetune.py --task rte --mode sweep > logs/phase1/vm2/rte_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - RTE hyperparameter sweep complete"
+echo "🎯 [3/4] RTE Full Fine-tuning COMPLETE"
 echo ""
 
-# SST-2 LoRA fine-tuning with multiple seeds (MEDIUM LOAD)
-echo "🔬 [3/6] SST-2 LoRA Fine-tuning (3 seeds + sweep)"
+# RTE LoRA fine-tuning with multiple seeds (LIGHT LOAD)
+echo "🔬 [4/4] RTE LoRA Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  ⚡ $(date +'%H:%M') - Starting SST-2 LoRA fine-tuning (seed $seed)..."
-    python experiments/lora_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm2/sst2_lora_seed${seed}.log 2>&1
-    echo "  ✅ $(date +'%H:%M') - SST-2 LoRA fine-tuning (seed $seed) complete"
+    echo "  ⚡ $(date +'%H:%M') - Starting RTE LoRA fine-tuning (seed $seed)..."
+    python experiments/lora_finetune.py --task rte --mode single --seed $seed > logs/phase1/vm2/rte_lora_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - RTE LoRA fine-tuning (seed $seed) complete"
 done
 
-echo "  ⚡ $(date +'%H:%M') - Starting SST-2 LoRA hyperparameter sweep..."
-python experiments/lora_finetune.py --task sst2 --mode sweep > logs/phase1/vm2/sst2_lora_sweep.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SST-2 LoRA hyperparameter sweep complete"
-echo "🎯 [3/6] SST-2 LoRA Fine-tuning COMPLETE"
-
-# Memory optimization check for longer sequences
-echo "Running memory optimization analysis for SQuAD v2..."
-python -c "
-import torch
-import psutil
-print('GPU Memory Analysis:')
-if torch.cuda.is_available():
-    for i in range(torch.cuda.device_count()):
-        props = torch.cuda.get_device_properties(i)
-        print(f'  GPU {i}: {props.name} - {props.total_memory / 1024**3:.1f} GB')
-else:
-    print('  No CUDA devices available')
-
-print('CPU Memory Analysis:')
-memory = psutil.virtual_memory()
-print(f'  Total: {memory.total / 1024**3:.1f} GB')
-print(f'  Available: {memory.available / 1024**3:.1f} GB')
-" 2>&1 | tee logs/phase1/vm2/memory_analysis.log
+echo "  ⚡ $(date +'%H:%M') - Starting RTE LoRA hyperparameter sweep..."
+python experiments/lora_finetune.py --task rte --mode sweep > logs/phase1/vm2/rte_lora_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - RTE LoRA hyperparameter sweep complete"
+echo "🎯 [4/4] RTE LoRA Fine-tuning COMPLETE"
 
 echo ""
 echo "🎉 VM2 PHASE 1 COMPLETE! $(date)"

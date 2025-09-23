@@ -91,24 +91,28 @@ This research project investigates two critical questions in parameter-efficient
 **Optimal Distribution Philosophy**: Maximize parallel utilization by eliminating dependencies and splitting work by tasks/methods, similar to distributed pre-training then fine-tuning approach.
 
 **Phase 1 - Training (All VMs start immediately in parallel)**:
-- **VM1 (SQuAD Full FT + MRPC Mix)**: SQuAD v2 full fine-tuning + MRPC full fine-tuning + MRPC LoRA (1 heavy + 2 light tasks)
-- **VM2 (SQuAD LoRA + SST-2 Mix)**: SQuAD v2 LoRA + SST-2 full fine-tuning + SST-2 LoRA (1 medium + 2 medium tasks)  
-- **VM3 (RTE + Baselines + Base Representations)**: RTE full fine-tuning + RTE LoRA + all baseline experiments + **base model representation extraction for all tasks** (2 light + baselines + representations)
+- **VM1 (Classification Tasks)**: MRPC full fine-tuning + MRPC LoRA + SST-2 full fine-tuning + SST-2 LoRA (4 balanced classification tasks)
+- **VM2 (Mixed Heavy Tasks)**: SQuAD v2 full fine-tuning + SQuAD v2 LoRA + RTE full fine-tuning + RTE LoRA (2 heavy QA + 2 light entailment tasks)
+- **VM3 (Analysis & Baselines)**: All baseline experiments (MRPC, SST-2, RTE, SQuAD v2) + **base model representation extraction for all tasks** (baselines + representations)
 
 **Phase 2a - Parallel Analysis (All VMs start immediately after Phase 1)**:
-- **VM1 (MRPC + RTE Analysis)**: Representational drift analysis for MRPC and RTE tasks + correlation analysis prep
-- **VM2 (SQuAD Analysis + Deployment)**: Representational drift analysis for SQuAD v2 + vLLM deployment benchmarking  
-- **VM3 (SST-2 Analysis + Visualization)**: Representational drift analysis for SST-2 + visualization preparation
+- **VM1 (Classification Analysis)**: Representational drift analysis for MRPC and SST-2 tasks + correlation analysis prep
+- **VM2 (QA Analysis + Deployment)**: Representational drift analysis for SQuAD v2 + vLLM deployment benchmarking + RTE drift analysis
+- **VM3 (Visualization + Stats Prep)**: Cross-task correlation analysis + visualization preparation + statistical test setup
 
 **Phase 2b - Final Synthesis (Single VM after Phase 2a)**:  
 - **VM1 (Statistical Synthesis)**: Final statistical analysis, hypothesis testing, visualization, and report generation
 - **VM2 & VM3**: Idle (cost optimization - can be shut down)
 
 **Justification**: This allocation ensures:
-1. No dependencies in Phase 1 - all VMs start working immediately
-2. Balanced computational load by splitting on tasks rather than methods
-3. True parallel utilization from start to finish
-4. Efficient resource usage with no idle time waiting for dependencies
+1. **No Task Overlap**: Each task (MRPC, SST-2, SQuAD v2, RTE) is handled by only one VM, eliminating resource conflicts
+2. **Balanced Load Distribution**: 
+   - VM1: 4 classification experiments (balanced medium load)
+   - VM2: 4 mixed experiments (2 heavy QA + 2 light entailment = balanced load)
+   - VM3: Analysis tasks (baselines + representations = lighter but critical load)
+3. **No Dependencies**: All VMs start working immediately with zero coordination overhead
+4. **Clear Task Separation**: VM1=Classification, VM2=Mixed, VM3=Analysis (easier monitoring and debugging)
+5. **Efficient Resource Usage**: No idle time and optimal GPU utilization across all VMs
 
 **Memory Optimizations Applied**:
 - **Representation extraction disabled during training** to reduce memory usage from ~16GB to ~2GB

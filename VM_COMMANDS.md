@@ -31,9 +31,9 @@ chmod +x scripts/phase1/vm1.sh
 tmux attach -t phase1
 ```
 
-**VM1 Tasks**: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA  
+**VM1 Tasks**: MRPC (Full + LoRA) + SST-2 (Full + LoRA)  
 **Expected Time**: ~4 hours  
-**W&B Group**: `squad_v2_full_ft`, `mrpc_full_ft`, `mrpc_lora`
+**W&B Group**: `mrpc_full_ft`, `mrpc_lora`, `sst2_full_ft`, `sst2_lora`
 
 ### VM2 Commands
 ```bash
@@ -48,9 +48,9 @@ chmod +x scripts/phase1/vm2.sh
 tmux attach -t phase1
 ```
 
-**VM2 Tasks**: SQuAD v2 LoRA + SST-2 Full FT + SST-2 LoRA  
-**Expected Time**: ~3 hours  
-**W&B Group**: `squad_v2_lora`, `sst2_full_ft`, `sst2_lora`
+**VM2 Tasks**: SQuAD v2 (Full + LoRA) + RTE (Full + LoRA)  
+**Expected Time**: ~4 hours  
+**W&B Group**: `squad_v2_full_ft`, `squad_v2_lora`, `rte_full_ft`, `rte_lora`
 
 ### VM3 Commands
 ```bash
@@ -65,9 +65,9 @@ chmod +x scripts/phase1/vm3.sh
 tmux attach -t phase1
 ```
 
-**VM3 Tasks**: RTE Full FT + RTE LoRA + All Baselines + Base Model Representations  
+**VM3 Tasks**: All Baselines (MRPC, SST-2, RTE, SQuAD v2) + Base Model Representations  
 **Expected Time**: ~2 hours  
-**W&B Group**: `rte_full_ft`, `rte_lora`, `baselines_all_tasks`
+**W&B Group**: `baselines_all_tasks`, `base_representations`
 
 ## Monitoring
 

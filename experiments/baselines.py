@@ -71,7 +71,7 @@ class BaselineExperiments:
         self.model_name = "microsoft/DialoGPT-small"  # Use publicly available model for demo
         
         # Initialize W&B (will be configured per experiment)
-        self.wandb_project = "NLP-Baselines"
+        self.wandb_project = os.getenv('WANDB_PROJECT', "NLP-Baselines")
         self.wandb_entity = "galavny-tel-aviv-university"
         
         logger.info(f"Initialized baseline experiments")
@@ -110,7 +110,7 @@ class BaselineExperiments:
         )
         
     def get_dataset_splits(self, task_name: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """Get train and validation datasets for a task.
+        """Get train and validation datasets for a task (lightweight for baselines).
         
         Args:
             task_name: Name of the task
@@ -124,8 +124,9 @@ class BaselineExperiments:
             
         try:
             if task_name == 'squad_v2':
-                train_data = self.data_loader.prepare_qa_data('train')
-                val_data = self.data_loader.prepare_qa_data('validation')
+                # For QA baselines, load raw data without tokenization
+                train_data = self._get_qa_baseline_data('train')
+                val_data = self._get_qa_baseline_data('validation')
             else:
                 train_data = self.data_loader.prepare_classification_data(task_name, 'train')
                 val_data = self.data_loader.prepare_classification_data(task_name, 'validation')
@@ -134,6 +135,58 @@ class BaselineExperiments:
         except Exception as e:
             logger.warning(f"Data loading failed for {task_name}: {e}, using simulated data")
             return self._get_simulated_data(task_name)
+    
+    def _get_qa_baseline_data(self, split: str) -> Dict[str, Any]:
+        """Get QA data for baselines without tokenization (raw text + answers)."""
+        try:
+            from datasets import load_from_disk
+            dataset_path = f"data/squad_v2"
+            dataset = load_from_disk(dataset_path)[split]
+            
+            # Extract the raw data needed for QA baselines
+            questions = []
+            contexts = [] 
+            answers = []
+            is_impossible = []
+            
+            for example in dataset:
+                questions.append(example['question'])
+                contexts.append(example['context'])
+                
+                if example['answers']['text']:  # Has answer
+                    answers.append(example['answers']['text'])
+                    is_impossible.append(False)
+                else:  # No answer (impossible question)
+                    answers.append([])
+                    is_impossible.append(True)
+            
+            return {
+                'num_samples': len(dataset),
+                'questions': questions,
+                'contexts': contexts, 
+                'answers': answers,
+                'is_impossible': is_impossible,
+                'task_name': 'squad_v2',
+                # These are for compatibility but empty since no tokenization
+                'input_ids': [],
+                'attention_mask': [],
+                'start_positions': [],
+                'end_positions': []
+            }
+        except Exception as e:
+            logger.warning(f"QA baseline data loading failed: {e}")
+            return {
+                'num_samples': 1000 if split == 'train' else 100,
+                'questions': [],
+                'contexts': [],
+                'answers': [],
+                'is_impossible': [],
+                'task_name': 'squad_v2',
+                'input_ids': [],
+                'attention_mask': [],
+                'start_positions': [],
+                'end_positions': []
+            }
     
     def _get_simulated_data(self, task_name: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Get simulated data when real data loading fails."""
@@ -232,10 +285,9 @@ class BaselineExperiments:
         # since there are unanswerable questions
         predictions = ["no answer"] * val_data['num_samples']
         
-        # Need to process true answers and impossibility flags
-        # This is simplified - in full implementation, would extract from the actual dataset
-        true_answers = [["dummy"] if i % 3 != 0 else [] for i in range(val_data['num_samples'])]
-        is_impossible = [i % 3 == 0 for i in range(val_data['num_samples'])]
+        # Use the real answers and impossibility flags from the dataset
+        true_answers = val_data['answers']
+        is_impossible = val_data['is_impossible']
         
         # Setup W&B
         run_name = f"majority_class_{task_name}"
@@ -1158,7 +1210,7 @@ def main():
     parser.add_argument("--demo", action="store_true", help="Run validation demo")
     parser.add_argument("--full", action="store_true", help="Run full baseline suite")
     parser.add_argument("--task", type=str, help="Run baselines for specific task")
-    parser.add_argument("--baseline", type=str, choices=["majority", "random", "zero_shot", "sota"],
+    parser.add_argument("--baseline", type=str, choices=["majority", "random", "sota"],
                        help="Run specific baseline type")
     
     args = parser.parse_args()
@@ -1184,8 +1236,6 @@ def main():
             result = experiments.random_baseline(args.task)
         elif args.baseline == "sota":
             result = experiments.sota_literature_baseline(args.task)
-        elif args.baseline == "sota":
-            result = experiments.sota_baseline(args.task)
         
         print(f"Baseline completed. Result: {result}")
         
