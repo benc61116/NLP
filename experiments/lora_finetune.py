@@ -413,13 +413,21 @@ class LoRAExperiment:
         
         logger.info("✓ LoRA environment setup complete")
     
-    def create_lora_config(self, target_modules: List[str], rank: int = None, alpha: int = None) -> LoraConfig:
+    def create_lora_config(self, target_modules: List[str], rank: int = None, alpha: int = None, task_name: str = None) -> LoraConfig:
         """Create LoRA configuration."""
         rank = rank or self.lora_config.rank
         alpha = alpha or self.lora_config.alpha
         
-        # Determine task type
-        task_type = TaskType.CAUSAL_LM
+        # Determine task type based on the actual task
+        if task_name and task_name in self.config['tasks']:
+            task_config = self.config['tasks'][task_name]
+            if task_config.get('type') == 'qa':
+                task_type = TaskType.QUESTION_ANSWERING
+            else:  # classification tasks
+                task_type = TaskType.SEQ_CLS
+        else:
+            # Default to sequence classification
+            task_type = TaskType.SEQ_CLS
         
         lora_config = LoraConfig(
             r=rank,
@@ -440,6 +448,15 @@ class LoRAExperiment:
         
         model_name = self.config['model']['name']
         
+        # Calculate max memory based on our config
+        max_memory = None
+        if torch.cuda.is_available():
+            total_memory = torch.cuda.get_device_properties(0).total_memory
+            max_memory_percent = self.config['model'].get('max_memory_percent', 95)
+            max_memory_bytes = int(total_memory * (max_memory_percent / 100))
+            max_memory = {0: max_memory_bytes}
+            logger.info(f"Using {max_memory_percent}% of GPU memory: {max_memory_bytes / (1024**3):.1f}GB")
+        
         # Choose model type based on task
         task_type = self.config['tasks'][task_name].get('type', 'classification')
         if task_type == 'qa':
@@ -447,7 +464,8 @@ class LoRAExperiment:
             base_model = AutoModelForCausalLM.from_pretrained(
                 model_name,
                 dtype=getattr(torch, self.config['model']['dtype']),
-                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                device_map="auto" if torch.cuda.is_available() else None,
+                max_memory=max_memory,
                 trust_remote_code=True
             )
         else:  # classification tasks
@@ -456,12 +474,13 @@ class LoRAExperiment:
                 model_name,
                 num_labels=num_labels,
                 dtype=getattr(torch, self.config['model']['dtype']),
-                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                device_map="auto" if torch.cuda.is_available() else None,
+                max_memory=max_memory,
                 trust_remote_code=True
             )
         
         # Create LoRA config
-        lora_config = self.create_lora_config(target_modules, rank, alpha)
+        lora_config = self.create_lora_config(target_modules, rank, alpha, task_name)
         
         # Apply LoRA
         model = get_peft_model(base_model, lora_config)

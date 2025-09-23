@@ -7,7 +7,7 @@ model:
   max_length: 512
   device_map: "auto"
   dtype: "float16"  # Use float16 instead of bfloat16 for better compatibility
-  max_memory_percent: 95  # Use 95% of GPU memory instead of 90%
+  max_memory_percent: 95  # Use 95% of GPU memory - balanced efficiency
   classification_max_length: 512
   qa_max_length: 768
 

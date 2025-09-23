@@ -367,6 +367,15 @@ class FullFinetuneExperiment:
         
         model_name = self.config['model']['name']
         
+        # Calculate max memory based on our config
+        max_memory = None
+        if torch.cuda.is_available():
+            total_memory = torch.cuda.get_device_properties(0).total_memory
+            max_memory_percent = self.config['model'].get('max_memory_percent', 95)
+            max_memory_bytes = int(total_memory * (max_memory_percent / 100))
+            max_memory = {0: max_memory_bytes}
+            logger.info(f"Using {max_memory_percent}% of GPU memory: {max_memory_bytes / (1024**3):.1f}GB")
+        
         # Choose model type based on task
         if task_name and task_name in self.config['tasks']:
             task_type = self.config['tasks'][task_name].get('type', 'classification')
@@ -375,7 +384,8 @@ class FullFinetuneExperiment:
                 model = AutoModelForCausalLM.from_pretrained(
                     model_name,
                     dtype=getattr(torch, self.config['model']['dtype']),
-                    device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                    device_map="auto" if torch.cuda.is_available() else None,
+                    max_memory=max_memory,
                     trust_remote_code=True
                 )
             else:  # classification tasks
@@ -384,7 +394,8 @@ class FullFinetuneExperiment:
                     model_name,
                     num_labels=num_labels,
                     dtype=getattr(torch, self.config['model']['dtype']),
-                    device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                    device_map="auto" if torch.cuda.is_available() else None,
+                    max_memory=max_memory,
                     trust_remote_code=True
                 )
         else:
@@ -393,7 +404,8 @@ class FullFinetuneExperiment:
                 model_name,
                 num_labels=2,
                 dtype=getattr(torch, self.config['model']['dtype']),
-                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                device_map="auto" if torch.cuda.is_available() else None,
+                max_memory=max_memory,
                 trust_remote_code=True
             )
         
