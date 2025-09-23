@@ -738,10 +738,16 @@ Before completing this step, run a short demo to ensure everything works:
 You are implementing LoRA (Low-Rank Adaptation) experiments with rank 8 for Llama-2-1.3B. Your goal is to match or exceed full fine-tuning performance while dramatically reducing parameter updates.
 
 CONTEXT:
-- Running in parallel with full fine-tuning (no dependencies)
+- PREVIOUS WORK COMPLETED: Steps 1-3 have been implemented and validated
+  * Step 1: Environment setup, data pipeline, and sanity checks COMPLETE
+  * Step 2: All baseline experiments (majority/random/SOTA) COMPLETE & VALIDATED
+  * Step 3: Full fine-tuning implementation COMPLETE & VALIDATED
+- CURRENT STATUS: Ready to implement LoRA experiments as Step 4
+- INFRASTRUCTURE: Complete experimental framework with W&B logging, load-balanced VM allocation
+- BASELINE PERFORMANCE: Established reference scores for all 4 tasks (MRPC, SQuAD v2, SST-2, RTE)
 - Target: ≤3% accuracy drop compared to full fine-tuning across all four tasks
 - LoRA rank: 8 (fixed as per research protocol)
-- Hardware: VM1 for MRPC + RTE, VM2 for SQuAD v2, VM3 for SST-2 (task-based splitting)
+- Hardware: Load-balanced allocation (VM1: SQuAD+MRPC, VM2: SQuAD+SST-2, VM3: RTE+baselines)
 
 LORA CONFIGURATION:
 1. ARCHITECTURE SETTINGS:
@@ -771,18 +777,23 @@ LORA CONFIGURATION:
    - Monitor rank utilization (singular value analysis)
 
 IMPLEMENTATION REQUIREMENTS:
-- Implement training in experiments/lora_finetune.py using PEFT library
-- Create parameter efficiency utilities in models/ directory:
-  - Trainable parameters: ~0.3% of full model
-  - Memory usage during training
-  - Actual vs theoretical speedup
-- Create LoRA merge testing utilities:
-  - Test merged model equivalence
-  - Benchmark merged vs adapter inference
-- Implement ablation studies in same script:
-  - Different rank values [4, 8, 16] for comparison
-  - Impact of alpha scaling
-  - Module selection impact
+- BUILD ON EXISTING CODEBASE: 
+  * Use established shared/data_preparation.py for data loading (already validated)
+  * Follow shared/config.yaml structure for hyperparameters (already configured)
+  * Integrate with existing shared/metrics.py evaluation framework (already working)
+  * Use same W&B logging patterns as experiments/baselines.py and experiments/full_finetune.py
+- IMPLEMENT NEW: experiments/lora_finetune.py using PEFT library
+- CREATE UTILITIES: models/lora_utils.py for parameter efficiency analysis:
+  * Trainable parameters: ~0.3% of full model
+  * Memory usage during training  
+  * Actual vs theoretical speedup
+- VALIDATION TOOLS: LoRA merge testing utilities:
+  * Test merged model equivalence
+  * Benchmark merged vs adapter inference
+- ABLATION STUDIES: Include in same script:
+  * Different rank values [4, 8, 16] for comparison
+  * Impact of alpha scaling
+  * Module selection impact
 
 CRITICAL VALIDATION:
 - Verify LoRA updates don't affect base model weights
@@ -792,6 +803,14 @@ CRITICAL VALIDATION:
 
 Save all LoRA adapters locally and log all results to W&B for later analysis phases.
 
+AVAILABLE RESOURCES FROM PREVIOUS STEPS:
+- experiments/baselines.py: Working baseline implementations for comparison
+- experiments/full_finetune.py: Complete full fine-tuning pipeline to compare against
+- shared/data_preparation.py: Validated data loading for all 4 tasks
+- shared/metrics.py: Established evaluation framework  
+- shared/config.yaml: Hyperparameter configuration with VM allocation
+- Phase 1 scripts: Ready for parallel execution once LoRA is implemented
+
 VALIDATION REQUIREMENT:
 Before completing this step, run a short demo to ensure everything works:
 1. Run LoRA training on one task (SST-2) for 1 epoch with 100 examples
@@ -799,6 +818,7 @@ Before completing this step, run a short demo to ensure everything works:
 3. Test adapter merging and equivalence with separate loading
 4. Monitor LoRA-specific metrics in W&B (adapter weights, rank utilization)
 5. Validate parameter efficiency (should be ~0.3% of full model)
+6. Confirm integration with existing codebase (data loading, metrics, W&B patterns)
 ```
 
 ### Step 4 Validation Instructions
@@ -870,8 +890,15 @@ Before completing this step, run a short demo to ensure everything works:
 You are conducting comprehensive representational drift analysis comparing full fine-tuning and LoRA. This analysis is critical for understanding how different training methods affect model internals.
 
 CONTEXT:
-- Completed: Full fine-tuning and LoRA training on all four tasks (MRPC, SQuAD v2, SST-2, RTE)
-- Saved: Layer-wise representations every 100 training steps for all tasks
+- PREVIOUS WORK COMPLETED: Steps 1-4 have been implemented and validated
+  * Step 1: Environment setup, data pipeline, and sanity checks COMPLETE
+  * Step 2: All baseline experiments (majority/random/SOTA) COMPLETE & VALIDATED
+  * Step 3: Full fine-tuning implementation COMPLETE & VALIDATED
+  * Step 4: LoRA experiments implementation COMPLETE & VALIDATED
+- CURRENT STATUS: Ready to analyze representational drift as Step 5
+- INFRASTRUCTURE: Complete experimental framework with W&B logging, load-balanced VM allocation
+- AVAILABLE DATA: Layer-wise representations every 100 training steps for all tasks saved from Steps 3-4
+- BASELINE ESTABLISHED: Original pre-trained Llama-2-1.3B representations extracted for comparison
 - Objective: Quantify if LoRA preserves representations better (≥20% less drift) across task types
 
 ANALYSIS METHODS:
@@ -1034,8 +1061,16 @@ Before completing this step, run a short demo to ensure everything works:
 You are conducting comprehensive deployment benchmarking using vLLM to measure real-world inference performance of multiple LoRA adapters versus merged models.
 
 CONTEXT:
-- Completed: All training experiments with saved models for four tasks
-- Infrastructure: VM2 with vLLM 0.2.0 installed (after SQuAD training completes)
+- PREVIOUS WORK COMPLETED: Steps 1-5 have been implemented and validated
+  * Step 1: Environment setup, data pipeline, and sanity checks COMPLETE
+  * Step 2: All baseline experiments (majority/random/SOTA) COMPLETE & VALIDATED
+  * Step 3: Full fine-tuning implementation COMPLETE & VALIDATED
+  * Step 4: LoRA experiments implementation COMPLETE & VALIDATED
+  * Step 5: Representational drift analysis COMPLETE & VALIDATED
+- CURRENT STATUS: Ready to benchmark deployment performance as Step 6
+- INFRASTRUCTURE: Complete experimental framework with vLLM installed and load-balanced VM allocation
+- AVAILABLE MODELS: Trained full fine-tuned and LoRA models for all four tasks (MRPC, SQuAD v2, SST-2, RTE)
+- BASELINE PERFORMANCE: Established training and validation metrics from previous steps
 - Objective: Quantify deployment overhead (target: ≤30% for multi-adapter) across task types
 
 BENCHMARKING SCENARIOS:
@@ -1204,10 +1239,18 @@ Before completing this step, run a short demo to ensure everything works:
 You are implementing the final statistical analysis pipeline to synthesize all experimental results and test the research hypotheses with rigorous statistical methods.
 
 CONTEXT:
-- All experiments complete with raw results in W&B and shared/results/ for four tasks
-- Hypothesis: LoRA achieves ≤3% accuracy drop AND (≥20% less drift OR ≤30% inference overhead) across task types
-- Implement in analysis/statistical_analysis.py
-- Need publication-quality statistical analysis with per-task and cross-task results
+- PREVIOUS WORK COMPLETED: Steps 1-6 have been implemented and validated
+  * Step 1: Environment setup, data pipeline, and sanity checks COMPLETE
+  * Step 2: All baseline experiments (majority/random/SOTA) COMPLETE & VALIDATED
+  * Step 3: Full fine-tuning implementation COMPLETE & VALIDATED
+  * Step 4: LoRA experiments implementation COMPLETE & VALIDATED
+  * Step 5: Representational drift analysis COMPLETE & VALIDATED
+  * Step 6: Deployment benchmarking COMPLETE & VALIDATED
+- CURRENT STATUS: Ready to perform final statistical analysis as Step 7
+- INFRASTRUCTURE: Complete experimental framework with all results collected in W&B and local storage
+- AVAILABLE DATA: Complete experimental results for all four tasks (MRPC, SQuAD v2, SST-2, RTE)
+- HYPOTHESIS TO TEST: LoRA achieves ≤3% accuracy drop AND (≥20% less drift OR ≤30% inference overhead) across task types
+- DELIVERABLE: Publication-quality statistical analysis in analysis/statistical_analysis.py
 
 ANALYSIS COMPONENTS:
 1. PERFORMANCE COMPARISON:
