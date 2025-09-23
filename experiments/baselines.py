@@ -71,6 +71,21 @@ class BaselineExperiments:
         logger.info(f"Output directory: {self.output_dir}")
         logger.info(f"Tasks: {self.tasks}")
         
+    def setup_environment(self):
+        """Setup the experimental environment for consistency with other experiment classes."""
+        logger.info("Setting up baseline experimental environment...")
+        
+        # Set random seeds for reproducibility
+        seed = 42  # Default seed for baselines
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        
+        logger.info("✓ Baseline environment setup complete")
+        
     def setup_wandb(self, run_name: str, tags: List[str], config: Dict[str, Any]) -> None:
         """Setup W&B logging for experiment.
         
