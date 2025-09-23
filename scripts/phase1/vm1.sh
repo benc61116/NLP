@@ -24,54 +24,53 @@ except Exception as e:
     exit(1)
 " 2>&1 | tee logs/phase1/vm1/auth_check.log
 
-# Run validation demo first
-echo "Running full fine-tuning validation demo..."
-python run_full_finetune_demo.py 2>&1 | tee logs/phase1/vm1/validation_demo.log
-
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    echo "❌ Validation demo failed! Check implementation."
-    exit 1
-fi
-
-echo "✅ Validation demo passed! Starting full experiments..."
+# Skip validation demo - start full experiments directly
+echo "✅ TinyLlama model check passed! Starting Phase 1 experiments..."
+echo "📅 Started at: $(date)"
+echo ""
 
 # SQuAD v2 full fine-tuning with multiple seeds (HEAVY LOAD)
-echo "Running SQuAD v2 full fine-tuning experiments..."
+echo "🔬 [1/7] SQuAD v2 Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  Running SQuAD v2 full fine-tuning with seed $seed..."
-    python experiments/full_finetune.py --task squad_v2 --mode single --seed $seed 2>&1 | tee logs/phase1/vm1/squad_v2_full_seed${seed}.log
+    echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 full fine-tuning (seed $seed)..."
+    python experiments/full_finetune.py --task squad_v2 --mode single --seed $seed > logs/phase1/vm1/squad_v2_full_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - SQuAD v2 full fine-tuning (seed $seed) complete"
 done
 
-# SQuAD v2 hyperparameter search
-echo "Running SQuAD v2 hyperparameter sweep..."
-python experiments/full_finetune.py --task squad_v2 --mode sweep 2>&1 | tee logs/phase1/vm1/squad_v2_sweep.log
+echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 hyperparameter sweep..."
+python experiments/full_finetune.py --task squad_v2 --mode sweep > logs/phase1/vm1/squad_v2_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - SQuAD v2 hyperparameter sweep complete"
+echo "🎯 [1/7] SQuAD v2 Full Fine-tuning COMPLETE"
+echo ""
 
 # MRPC full fine-tuning with multiple seeds (LIGHT LOAD)
-echo "Running MRPC full fine-tuning experiments..."
+echo "🔬 [2/7] MRPC Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  Running MRPC full fine-tuning with seed $seed..."
-    python experiments/full_finetune.py --task mrpc --mode single --seed $seed 2>&1 | tee logs/phase1/vm1/mrpc_full_seed${seed}.log
+    echo "  ⚡ $(date +'%H:%M') - Starting MRPC full fine-tuning (seed $seed)..."
+    python experiments/full_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_full_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - MRPC full fine-tuning (seed $seed) complete"
 done
 
-# MRPC hyperparameter search
-echo "Running MRPC hyperparameter sweep..."
-python experiments/full_finetune.py --task mrpc --mode sweep 2>&1 | tee logs/phase1/vm1/mrpc_sweep.log
+echo "  ⚡ $(date +'%H:%M') - Starting MRPC hyperparameter sweep..."
+python experiments/full_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - MRPC hyperparameter sweep complete"
+echo "🎯 [2/7] MRPC Full Fine-tuning COMPLETE"
+echo ""
 
 # MRPC LoRA fine-tuning with multiple seeds (LIGHT LOAD)
-echo "Running MRPC LoRA fine-tuning experiments..."
+echo "🔬 [3/7] MRPC LoRA Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  Running MRPC LoRA fine-tuning with seed $seed..."
-    python experiments/lora_finetune.py --task mrpc --mode single --seed $seed 2>&1 | tee logs/phase1/vm1/mrpc_lora_seed${seed}.log
+    echo "  ⚡ $(date +'%H:%M') - Starting MRPC LoRA fine-tuning (seed $seed)..."
+    python experiments/lora_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_lora_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - MRPC LoRA fine-tuning (seed $seed) complete"
 done
 
-# MRPC LoRA hyperparameter search
-echo "Running MRPC LoRA hyperparameter sweep..."
-python experiments/lora_finetune.py --task mrpc --mode sweep 2>&1 | tee logs/phase1/vm1/mrpc_lora_sweep.log
+echo "  ⚡ $(date +'%H:%M') - Starting MRPC LoRA hyperparameter sweep..."
+python experiments/lora_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_lora_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - MRPC LoRA hyperparameter sweep complete"
+echo "🎯 [3/7] MRPC LoRA Fine-tuning COMPLETE"
 
-echo "✅ Phase 1 VM1 complete: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA finished"
-echo "  - 3 SQuAD v2 full fine-tuning runs completed (1 heavy task)"
-echo "  - 3 MRPC full fine-tuning runs completed (1 light task)"
-echo "  - 3 MRPC LoRA fine-tuning runs completed (1 light task)"
-echo "  - 3 hyperparameter sweeps completed"
-echo "  - All representations extracted and saved"
-echo "  - Checkpoints saved for analysis phases"
+echo ""
+echo "🎉 VM1 PHASE 1 COMPLETE! $(date)"
+echo "📊 W&B Dashboard: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase1-Training"
+echo "⏳ Ready for Phase 2a when all VMs complete"

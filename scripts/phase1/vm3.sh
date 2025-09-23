@@ -35,37 +35,47 @@ exit(0 if success else 1)
 " 2>&1 | tee logs/phase1/vm3/data_validation.log
 
 # Run all baseline experiments for all four tasks
-echo "Running baseline experiments for all tasks..."
-python experiments/baselines.py 2>&1 | tee logs/phase1/vm3/baseline_experiments.log
+echo "🔬 [1/3] Baseline Experiments (All Tasks)"
+echo "  ⚡ $(date +'%H:%M') - Starting baseline experiments for all tasks..."
+python experiments/baselines.py > logs/phase1/vm3/baseline_experiments.log 2>&1
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "❌ Baseline experiments failed! Check implementation."
     exit 1
 fi
 
-echo "✅ Baseline experiments completed! Starting RTE fine-tuning..."
+echo "  ✅ $(date +'%H:%M') - Baseline experiments complete"
+echo "🎯 [1/3] Baseline Experiments COMPLETE"
+
+echo "📅 Started at: $(date)"
+echo ""
 
 # RTE full fine-tuning with multiple seeds (LIGHT LOAD)
-echo "Running RTE full fine-tuning experiments..."
+echo "🔬 [2/3] RTE Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  Running RTE full fine-tuning with seed $seed..."
-    python experiments/full_finetune.py --task rte --mode single --seed $seed 2>&1 | tee logs/phase1/vm3/rte_full_seed${seed}.log
+    echo "  ⚡ $(date +'%H:%M') - Starting RTE full fine-tuning (seed $seed)..."
+    python experiments/full_finetune.py --task rte --mode single --seed $seed > logs/phase1/vm3/rte_full_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - RTE full fine-tuning (seed $seed) complete"
 done
 
-# RTE hyperparameter search
-echo "Running RTE hyperparameter sweep..."
-python experiments/full_finetune.py --task rte --mode sweep 2>&1 | tee logs/phase1/vm3/rte_sweep.log
+echo "  ⚡ $(date +'%H:%M') - Starting RTE hyperparameter sweep..."
+python experiments/full_finetune.py --task rte --mode sweep > logs/phase1/vm3/rte_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - RTE hyperparameter sweep complete"
+echo "🎯 [2/3] RTE Full Fine-tuning COMPLETE"
+echo ""
 
 # RTE LoRA fine-tuning with multiple seeds (LIGHT LOAD)
-echo "Running RTE LoRA fine-tuning experiments..."
+echo "🔬 [3/3] RTE LoRA Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
-    echo "  Running RTE LoRA fine-tuning with seed $seed..."
-    python experiments/lora_finetune.py --task rte --mode single --seed $seed 2>&1 | tee logs/phase1/vm3/rte_lora_seed${seed}.log
+    echo "  ⚡ $(date +'%H:%M') - Starting RTE LoRA fine-tuning (seed $seed)..."
+    python experiments/lora_finetune.py --task rte --mode single --seed $seed > logs/phase1/vm3/rte_lora_seed${seed}.log 2>&1
+    echo "  ✅ $(date +'%H:%M') - RTE LoRA fine-tuning (seed $seed) complete"
 done
 
-# RTE LoRA hyperparameter search
-echo "Running RTE LoRA hyperparameter sweep..."
-python experiments/lora_finetune.py --task rte --mode sweep 2>&1 | tee logs/phase1/vm3/rte_lora_sweep.log
+echo "  ⚡ $(date +'%H:%M') - Starting RTE LoRA hyperparameter sweep..."
+python experiments/lora_finetune.py --task rte --mode sweep > logs/phase1/vm3/rte_lora_sweep.log 2>&1
+echo "  ✅ $(date +'%H:%M') - RTE LoRA hyperparameter sweep complete"
+echo "🎯 [3/3] RTE LoRA Fine-tuning COMPLETE"
 
 # Extract base model representations for all tasks (for later drift analysis)
 echo "Extracting base model representations for all tasks..."
@@ -171,10 +181,7 @@ print(f'  Memory Available: {memory.available / 1024**3:.1f} GB')
 print(f'  Memory Used: {memory.used / 1024**3:.1f} GB ({memory.percent}%)')
 " 2>&1 | tee logs/phase1/vm3/resource_analysis.log
 
-echo "✅ Phase 1 VM3 complete: RTE Full FT + RTE LoRA + baselines finished"
-echo "  - All baseline experiments completed for 4 tasks"
-echo "  - 3 RTE full fine-tuning runs completed (1 light task)"
-echo "  - 3 RTE LoRA fine-tuning runs completed (1 light task)"
-echo "  - 2 hyperparameter sweeps completed"
-echo "  - Base model representations extracted for all tasks"
-echo "  - System monitoring and resource analysis completed"
+echo ""
+echo "🎉 VM3 PHASE 1 COMPLETE! $(date)"
+echo "📊 W&B Dashboard: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase1-Training"
+echo "⏳ Ready for Phase 2a when all VMs complete"

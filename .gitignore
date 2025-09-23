@@ -40,3 +40,7 @@ Thumbs.db
 
 # Data (too large for GitHub)
 data/
+
+# Logs and results
+logs/
+results/

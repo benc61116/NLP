@@ -32,35 +32,24 @@ tmux new-session -d -s phase1 './scripts/phase1/vm3.sh'
 tmux attach -t phase1  # Optional: monitor progress
 ```
 
-## Monitoring Commands
+## Monitoring Progress
 
-### Check tmux sessions
-```bash
-tmux list-sessions
-```
-
-### Monitor logs in real-time
-```bash
-# VM1
-tail -f logs/phase1/vm1/*.log
-
-# VM2  
-tail -f logs/phase1/vm2/*.log
-
-# VM3
-tail -f logs/phase1/vm3/*.log
-```
-
-### Check W&B Dashboard
+### Primary Monitoring: W&B Dashboard
 Visit: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase1-Training
 
-### Detach from tmux (keep running)
-Press: `Ctrl+B` then `D`
-
-### Reattach to tmux session
-```bash
-tmux attach -t phase1
+### Terminal Progress Indicators
+Each VM shows clean progress with timestamps:
 ```
+🔬 [1/7] SQuAD v2 Full Fine-tuning (3 seeds + sweep)
+  ⚡ 14:32 - Starting SQuAD v2 full fine-tuning (seed 42)...
+  ✅ 15:47 - SQuAD v2 full fine-tuning (seed 42) complete
+🎯 [1/7] SQuAD v2 Full Fine-tuning COMPLETE
+```
+
+### tmux Controls
+- **Detach** (keep running): `Ctrl+B` then `D`
+- **Reattach**: `tmux attach -t phase1`
+- **List sessions**: `tmux list-sessions`
 
 ## Expected Results
 - **Total runs**: ~21 experiments across all VMs

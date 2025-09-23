@@ -36,6 +36,7 @@ import evaluate
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.data_preparation import TaskDataLoader
 from shared.metrics import compute_classification_metrics, compute_qa_metrics
+from shared.checkpoint_utils import CheckpointManager
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -325,6 +326,9 @@ class FullFinetuneExperiment:
         self.output_dir = Path(f"results/full_finetune_{timestamp}")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Initialize checkpoint manager
+        self.checkpoint_manager = CheckpointManager(str(self.output_dir))
+        
         logger.info(f"Initialized full fine-tuning experiment")
         logger.info(f"Output directory: {self.output_dir}")
     
@@ -535,6 +539,18 @@ class FullFinetuneExperiment:
         """Run a single full fine-tuning experiment."""
         logger.info(f"Running full fine-tuning experiment: {task_name} (seed: {seed})")
         
+        # Check resume status
+        resume_info = self.checkpoint_manager.get_resume_info(task_name, "full_finetune", seed)
+        
+        if resume_info["should_skip"]:
+            logger.info(f"✅ Skipping {task_name} (seed {seed}) - already completed")
+            return {"status": "skipped", "reason": "already_completed"}
+        
+        if resume_info["should_resume"]:
+            logger.info(f"🔄 Resuming {task_name} (seed {seed}) from checkpoint: {resume_info['checkpoint_path']}")
+        else:
+            logger.info(f"🆕 Starting fresh {task_name} (seed {seed})")
+        
         # Override seed in config
         self.config['reproducibility']['seed'] = seed
         
@@ -670,10 +686,18 @@ class FullFinetuneExperiment:
             initial_memory = memory_profiler.get_memory_stats()
             wandb.log({f"initial_memory/{k}": v for k, v in initial_memory.items()})
             
-            # Train the model
+            # Train the model (with resume support)
             logger.info(f"Starting training for {task_name}...")
             start_time = time.time()
-            train_result = trainer.train()
+            
+            # Mark experiment as started
+            self.checkpoint_manager.save_experiment_progress(
+                task_name, "full_finetune", seed, "started", str(output_dir)
+            )
+            
+            # Train with checkpoint resume if available
+            resume_from_checkpoint = resume_info.get("checkpoint_path") if resume_info["should_resume"] else None
+            train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
             training_time = time.time() - start_time
             
             # Evaluate the model
@@ -683,6 +707,11 @@ class FullFinetuneExperiment:
             # Save the model
             model_save_path = output_dir / "final_model"
             trainer.save_model(str(model_save_path))
+            
+            # Mark experiment as completed
+            self.checkpoint_manager.save_experiment_progress(
+                task_name, "full_finetune", seed, "completed", str(model_save_path)
+            )
             
             # Final memory profiling
             final_memory = memory_profiler.get_memory_stats()
@@ -729,6 +758,12 @@ class FullFinetuneExperiment:
             
         except Exception as e:
             logger.error(f"✗ Full fine-tuning failed: {task_name} - {e}")
+            
+            # Mark experiment as failed
+            self.checkpoint_manager.save_experiment_progress(
+                task_name, "full_finetune", seed, "failed"
+            )
+            
             return {
                 "task_name": task_name,
                 "method": "full_finetune",
