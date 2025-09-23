@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 import torch.nn.functional as F
 from transformers import (
     AutoModelForCausalLM, 
+    AutoModelForSequenceClassification,
     AutoTokenizer, 
     TrainingArguments, 
     Trainer,
@@ -360,18 +361,41 @@ class FullFinetuneExperiment:
         
         logger.info("✓ Environment setup complete")
     
-    def load_model(self) -> torch.nn.Module:
+    def load_model(self, task_name: str = None) -> torch.nn.Module:
         """Load model for full fine-tuning."""
         logger.info("Loading model for full fine-tuning...")
         
         model_name = self.config['model']['name']
         
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            dtype=getattr(torch, self.config['model']['dtype']),
-            device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
-            trust_remote_code=True
-        )
+        # Choose model type based on task
+        if task_name and task_name in self.config['tasks']:
+            task_type = self.config['tasks'][task_name].get('type', 'classification')
+            if task_type == 'qa':
+                # For QA tasks, we still use CausalLM
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    dtype=getattr(torch, self.config['model']['dtype']),
+                    device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                    trust_remote_code=True
+                )
+            else:  # classification tasks
+                num_labels = self.config['tasks'][task_name].get('num_labels', 2)
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    model_name,
+                    num_labels=num_labels,
+                    dtype=getattr(torch, self.config['model']['dtype']),
+                    device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                    trust_remote_code=True
+                )
+        else:
+            # Default to classification with 2 labels
+            model = AutoModelForSequenceClassification.from_pretrained(
+                model_name,
+                num_labels=2,
+                dtype=getattr(torch, self.config['model']['dtype']),
+                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                trust_remote_code=True
+            )
         
         # Enable gradients for all parameters (full fine-tuning)
         for param in model.parameters():
@@ -461,12 +485,25 @@ class FullFinetuneExperiment:
         
         # Load clean pre-trained model
         model_name = self.config['model']['name']
-        base_model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            dtype=getattr(torch, self.config['model']['dtype']),
-            device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
-            trust_remote_code=True
-        )
+        
+        # Use same model type as training
+        task_type = self.config['tasks'][task_name].get('type', 'classification')
+        if task_type == 'qa':
+            base_model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                dtype=getattr(torch, self.config['model']['dtype']),
+                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                trust_remote_code=True
+            )
+        else:  # classification tasks
+            num_labels = self.config['tasks'][task_name].get('num_labels', 2)
+            base_model = AutoModelForSequenceClassification.from_pretrained(
+                model_name,
+                num_labels=num_labels,
+                dtype=getattr(torch, self.config['model']['dtype']),
+                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                trust_remote_code=True
+            )
         
         # Create base model representation extractor
         base_extractor = RepresentationExtractor(
@@ -580,21 +617,26 @@ class FullFinetuneExperiment:
             self.setup_environment()
             
             # Load model
-            model = self.load_model()
+            model = self.load_model(task_name)
             
             # Prepare datasets
             train_dataset, eval_dataset = self.prepare_datasets(task_name)
             
-            # Extract base model representations first
-            self.extract_base_model_representations(eval_dataset, task_name)
+            # Extract base model representations first (only if enabled)
+            if self.config['training'].get('save_final_representations', True):
+                self.extract_base_model_representations(eval_dataset, task_name)
+            else:
+                logger.info("Base model representation extraction disabled to save memory")
             
-            # Create representation extractor
-            representation_extractor = RepresentationExtractor(
-                self.representation_config,
-                self.output_dir,
-                task_name,
-                "full_finetune"
-            )
+            # Create representation extractor (disabled to save memory)
+            representation_extractor = None
+            if self.config['training'].get('save_final_representations', True):
+                representation_extractor = RepresentationExtractor(
+                    self.representation_config,
+                    self.output_dir,
+                    task_name,
+                    "full_finetune"
+                )
             
             # Create monitoring components
             gradient_monitor = GradientStatsMonitor()
@@ -627,7 +669,7 @@ class FullFinetuneExperiment:
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 
                 # Evaluation and saving
-                evaluation_strategy="steps",
+                eval_strategy="steps",  # Updated parameter name
                 eval_steps=100,
                 save_strategy="steps",
                 save_steps=500,
@@ -641,7 +683,8 @@ class FullFinetuneExperiment:
                 # Performance optimizations
                 gradient_checkpointing=True,
                 dataloader_pin_memory=True,
-                fp16=torch.cuda.is_available(),
+                fp16=False,  # Disabled when using bfloat16 dtype to avoid conflicts
+                bf16=False,  # Let model dtype handle precision
                 
                 # Reporting
                 report_to=["wandb"],
@@ -658,16 +701,24 @@ class FullFinetuneExperiment:
             # Create data collator
             data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
-            # Create custom callback
-            custom_callback = FullFinetuneCallback(
-                representation_extractor=representation_extractor,
-                gradient_monitor=gradient_monitor,
-                memory_profiler=memory_profiler,
-                eval_dataset=eval_dataset,
-                extract_every_steps=100
-            )
+            # Create custom callback (conditional based on representation extraction)
+            if representation_extractor is not None:
+                custom_callback = FullFinetuneCallback(
+                    representation_extractor=representation_extractor,
+                    gradient_monitor=gradient_monitor,
+                    memory_profiler=memory_profiler,
+                    eval_dataset=eval_dataset,
+                    extract_every_steps=100
+                )
+            else:
+                # Minimal callback without representation extraction
+                custom_callback = None
             
             # Create trainer
+            callbacks = [EarlyStoppingCallback(early_stopping_patience=3)]
+            if custom_callback is not None:
+                callbacks.append(custom_callback)
+                
             trainer = Trainer(
                 model=model,
                 args=training_args,
@@ -676,10 +727,7 @@ class FullFinetuneExperiment:
                 tokenizer=self.tokenizer,
                 data_collator=data_collator,
                 compute_metrics=compute_metrics,
-                callbacks=[
-                    EarlyStoppingCallback(early_stopping_patience=3),
-                    custom_callback
-                ]
+                callbacks=callbacks
             )
             
             # Log initial memory stats
@@ -717,13 +765,14 @@ class FullFinetuneExperiment:
             final_memory = memory_profiler.get_memory_stats()
             wandb.log({f"final_memory/{k}": v for k, v in final_memory.items()})
             
-            # Extract final representations
-            final_representations = representation_extractor.extract_representations(
-                model, trainer.state.global_step
-            )
-            representation_extractor.save_representations(
-                final_representations, trainer.state.global_step
-            )
+            # Extract final representations (if enabled)
+            if representation_extractor is not None:
+                final_representations = representation_extractor.extract_representations(
+                    model, trainer.state.global_step
+                )
+                representation_extractor.save_representations(
+                    final_representations, trainer.state.global_step
+                )
             
             # Compile results
             results = {
@@ -736,7 +785,7 @@ class FullFinetuneExperiment:
                 "eval_loss": eval_result.get("eval_loss", 0),
                 "eval_metrics": {k: v for k, v in eval_result.items() if k.startswith("eval_")},
                 "model_path": str(model_save_path),
-                "representation_path": str(representation_extractor.output_dir),
+                "representation_path": str(representation_extractor.output_dir) if representation_extractor else None,
                 "total_steps": trainer.state.global_step,
                 "final_learning_rate": trainer.lr_scheduler.get_last_lr()[0] if trainer.lr_scheduler else learning_rate,
             }

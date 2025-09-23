@@ -8,6 +8,18 @@ echo "Starting Phase 1 on VM3: RTE Full FT + RTE LoRA + Baselines..."
 export WANDB_PROJECT=NLP-Phase1-Training
 export WANDB_ENTITY=galavny-tel-aviv-university
 
+# Clear GPU memory cache to ensure maximum available memory
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+python -c "
+import torch
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()
+    print(f'GPU memory cleared. Available: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB')
+else:
+    print('No CUDA available')
+"
+
 # Create logs directory
 mkdir -p logs/phase1/vm3
 
@@ -76,9 +88,18 @@ echo "  ⚡ $(date +'%H:%M') - Starting RTE LoRA hyperparameter sweep..."
 python experiments/lora_finetune.py --task rte --mode sweep > logs/phase1/vm3/rte_lora_sweep.log 2>&1
 echo "  ✅ $(date +'%H:%M') - RTE LoRA hyperparameter sweep complete"
 echo "🎯 [3/3] RTE LoRA Fine-tuning COMPLETE"
+echo ""
 
 # Extract base model representations for all tasks (for later drift analysis)
-echo "Extracting base model representations for all tasks..."
+echo "🔬 [4/4] Base Model Representation Extraction (All Tasks)"
+echo "  ⚡ $(date +'%H:%M') - Starting base model representation extraction..."
+python scripts/extract_base_representations.py > logs/phase1/vm3/base_representations.log 2>&1
+echo "  ✅ $(date +'%H:%M') - Base model representation extraction complete"
+echo "🎯 [4/4] Base Model Representation Extraction COMPLETE"
+echo ""
+
+# Legacy extraction code (kept as backup)
+echo "Running legacy base model extraction check..."
 python -c "
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -183,5 +204,9 @@ print(f'  Memory Used: {memory.used / 1024**3:.1f} GB ({memory.percent}%)')
 
 echo ""
 echo "🎉 VM3 PHASE 1 COMPLETE! $(date)"
+echo "  ✅ RTE Full Fine-tuning: 3 seeds + hyperparameter sweep"
+echo "  ✅ RTE LoRA Fine-tuning: 3 seeds + hyperparameter sweep"  
+echo "  ✅ Baseline Experiments: All 4 tasks (majority class, random, SOTA)"
+echo "  ✅ Base Model Representations: All 4 tasks (for drift analysis)"
 echo "📊 W&B Dashboard: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase1-Training"
 echo "⏳ Ready for Phase 2a when all VMs complete"

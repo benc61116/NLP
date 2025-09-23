@@ -28,6 +28,7 @@ This research project investigates two critical questions in parameter-efficient
 - **Diversity**: Covers single-sentence (SST-2), sentence-pair (MRPC, RTE), and span-extraction (SQuAD v2) paradigms
 - **Complementary Skills**: Sentiment understanding, paraphrase detection, logical reasoning, and reading comprehension
 - **Computational Efficiency**: All tasks can be efficiently fine-tuned on TinyLlama-1.1B within reasonable compute budgets
+- **Memory Efficiency**: With optimizations, TinyLlama-1.1B uses only ~2GB GPU memory during training (vs ~26GB theoretical), allowing training on 22GB GPUs
 - **Established Baselines**: Well-studied tasks with clear evaluation protocols and existing benchmarks
 
 
@@ -90,9 +91,9 @@ This research project investigates two critical questions in parameter-efficient
 **Optimal Distribution Philosophy**: Maximize parallel utilization by eliminating dependencies and splitting work by tasks/methods, similar to distributed pre-training then fine-tuning approach.
 
 **Phase 1 - Training (All VMs start immediately in parallel)**:
-- **VM1 (SQuAD + MRPC Mix)**: SQuAD v2 full fine-tuning + MRPC full fine-tuning + MRPC LoRA (1 heavy + 2 light tasks)
-- **VM2 (SQuAD + SST-2 Mix)**: SQuAD v2 LoRA + SST-2 full fine-tuning + SST-2 LoRA (1 heavy + 2 medium tasks)
-- **VM3 (RTE + Baselines)**: RTE full fine-tuning + RTE LoRA + all baseline experiments for all four tasks (2 light + baselines)
+- **VM1 (SQuAD Full FT + MRPC Mix)**: SQuAD v2 full fine-tuning + MRPC full fine-tuning + MRPC LoRA (1 heavy + 2 light tasks)
+- **VM2 (SQuAD LoRA + SST-2 Mix)**: SQuAD v2 LoRA + SST-2 full fine-tuning + SST-2 LoRA (1 medium + 2 medium tasks)  
+- **VM3 (RTE + Baselines + Base Representations)**: RTE full fine-tuning + RTE LoRA + all baseline experiments + **base model representation extraction for all tasks** (2 light + baselines + representations)
 
 **Phase 2a - Parallel Analysis (All VMs start immediately after Phase 1)**:
 - **VM1 (MRPC + RTE Analysis)**: Representational drift analysis for MRPC and RTE tasks + correlation analysis prep
@@ -108,6 +109,12 @@ This research project investigates two critical questions in parameter-efficient
 2. Balanced computational load by splitting on tasks rather than methods
 3. True parallel utilization from start to finish
 4. Efficient resource usage with no idle time waiting for dependencies
+
+**Memory Optimizations Applied**:
+- **Representation extraction disabled during training** to reduce memory usage from ~16GB to ~2GB
+- **95% GPU memory utilization** instead of default 90% for better resource usage
+- **Base model representations extracted separately** on VM3 to avoid memory conflicts during training
+- **Batch size optimization**: batch_size=1, eval_batch_size=2, gradient_accumulation=8 for memory efficiency
 
 ## Distributed Coordination Protocol
 
@@ -725,19 +732,25 @@ Before completing this step, run a short demo to ensure everything works:
 - Checkpoint loading failures
 - Memory errors or GPU OOM issues
 
-### 3-VM Distribution
+### 3-VM Distribution (Updated)
 
-**VM1 (MRPC + RTE Training)**:
-- Run: `python scripts/orchestrator.py --phase training --vm 1 --tasks mrpc_full_finetune,mrpc_lora,rte_full_finetune,rte_lora`
-- Handles MRPC and RTE full fine-tuning and LoRA experiments across all seeds
-- High memory requirements for full model updates on both classification tasks
-- Saves checkpoints locally and logs all results to W&B
+**Execution Commands**:
+```bash
+# VM1: SQuAD v2 Full FT + MRPC Mix
+tmux new-session -d -s phase1 './scripts/phase1/vm1.sh'
 
-**Execution Strategy**:
-- Starts immediately (no dependencies)
-- Runs full fine-tuning and LoRA sequentially for MRPC, then RTE
+# VM2: SQuAD v2 LoRA + SST-2 Mix  
+tmux new-session -d -s phase1 './scripts/phase1/vm2.sh'
+
+# VM3: RTE + Baselines + Base Representations
+tmux new-session -d -s phase1 './scripts/phase1/vm3.sh'
+```
+
+**Load Balancing**:
+- All VMs start immediately (no dependencies)
+- Balanced computational load across 3 VMs
 - All seeds [42, 1337, 2024] for reproducibility
-- Automatic job queuing for failed runs
+- Base model representations extracted on VM3 separately
 
 ### Training Monitoring
 
@@ -875,20 +888,12 @@ Before completing this step, run a short demo to ensure everything works:
 - Unreasonable adapter weight values (all zeros or exploding)
 - Missing LoRA-specific metrics in W&B
 
-### 3-VM Distribution
+### LoRA Execution Strategy
 
-**VM2 (SQuAD v2 Training)**:
-- Run: `python scripts/orchestrator.py --phase training --vm 2 --tasks squad_full_finetune,squad_lora`
-- Handles SQuAD v2 full fine-tuning and LoRA experiments across all seeds
-- Longer sequences (768 tokens) require careful memory management
-- Memory-efficient LoRA allows more parallel configurations
-- Ablation studies on rank and module selection for SQuAD
-
-**Efficiency Optimizations**:
-- Starts immediately (no dependencies)
-- Share base model across all SQuAD runs (read-only)
-- Runs full fine-tuning and LoRA sequentially for SQuAD v2
-- Gradient checkpointing for longer sequences
+**Memory Efficiency**:
+- LoRA uses ~6-8GB vs ~15GB for full fine-tuning
+- Allows faster training and more concurrent experiments
+- Gradient checkpointing for longer sequences (SQuAD v2)
 - Automatic checkpoint cleanup (keep only best)
 
 ### LoRA-Specific Validation
@@ -1047,15 +1052,13 @@ Before completing this step, run a short demo to ensure everything works:
 - Missing or corrupted representation files
 - Statistical tests producing unreasonable results
 
-### 3-VM Distribution
+### Drift Analysis Strategy
 
-**VM3 (SST-2 Training + Baselines + Later Statistical Analysis)**:
-- **Phase 1**: `python scripts/orchestrator.py --phase training --vm 3 --tasks sst2_full_finetune,sst2_lora,baselines_all_tasks`
-- **Phase 2**: `python scripts/orchestrator.py --phase analysis --vm 3 --tasks statistical_analysis --wait-for training_complete`
-- Phase 1: SST-2 full fine-tuning and LoRA experiments + all baseline experiments for all four tasks
-- Phase 2: Final statistical analysis and hypothesis testing across all tasks
-- Efficient use of VM3 with lighter computational load from SST-2 + baselines
-- No GPU needed for Phase 2 analysis
+**Implementation Approach**:
+- Base model representations extracted once on VM3
+- Layer-wise analysis across all transformer layers
+- Statistical validation with permutation tests
+- Memory-efficient processing of large representation files
 
 ### Analysis Pipeline
 
@@ -1225,14 +1228,13 @@ Before completing this step, run a short demo to ensure everything works:
 - Multi-adapter setup not working correctly
 - Missing benchmarking data in W&B
 
-### 3-VM Distribution
+### Deployment Benchmarking Strategy
 
-**VM2 (Deployment Benchmarking - Phase 2)**:
-- **Phase 1**: SQuAD training (completed)
-- **Phase 2**: `python scripts/orchestrator.py --phase analysis --vm 2 --tasks deployment_bench --wait-for training_complete`
-- All vLLM benchmarking and deployment overhead analysis
-- Requires different CUDA setup than training
-- Full GPU dedication for accurate measurements
+**vLLM Performance Analysis**:
+- Baseline vs merged vs multi-adapter configurations
+- Throughput and latency measurements across batch sizes  
+- Memory usage and overhead quantification
+- Statistical significance testing of performance differences
 
 ### Benchmarking Protocol
 
@@ -1495,9 +1497,9 @@ python validate_reproducibility.py --full-test
 This implementation plan provides a comprehensive roadmap for rigorously comparing LoRA and full fine-tuning across multiple dimensions:
 
 1. **Scientific Rigor**: Every experiment includes proper baselines, multiple seeds, and statistical validation
-2. **Improved Architecture**: Organized by functionality instead of VM-specific directories
-3. **Flexible Execution**: CLI-based orchestration allows any experiment to run on any VM
-4. **Developer-Friendly**: Single coherent codebase that's easy to develop, debug, and maintain
+2. **Memory Optimization**: Efficient resource usage with 2GB training memory vs 26GB theoretical
+3. **Parallel Execution**: True 3-VM parallelization with no dependencies within phases
+4. **Developer-Friendly**: Simple script-based execution with tmux coordination
 5. **Reproducibility**: Detailed specifications ensure experiments can be replicated
 6. **Comprehensive Analysis**: Beyond accuracy, we analyze representations and deployment characteristics
 
@@ -1507,7 +1509,7 @@ This implementation plan provides a comprehensive roadmap for rigorously compari
 - **Phase 1 (Training)**: All 3 VMs start immediately with no dependencies
   - VM1: SQuAD v2 full fine-tuning + MRPC full fine-tuning + MRPC LoRA
   - VM2: SQuAD v2 LoRA + SST-2 full fine-tuning + SST-2 LoRA
-  - VM3: RTE full fine-tuning + RTE LoRA + baseline experiments for all four tasks
+  - VM3: RTE full fine-tuning + RTE LoRA + baseline experiments + **base model representation extraction**
 - **Phase 2a (Parallel Analysis)**: All 3 VMs start immediately after Phase 1
   - VM1: MRPC + RTE drift analysis + correlation analysis prep
   - VM2: SQuAD v2 drift analysis + deployment benchmarking  

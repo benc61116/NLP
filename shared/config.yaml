@@ -6,7 +6,8 @@ model:
   name: "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"  # 1.1B Llama-2 architecture, no auth needed
   max_length: 512
   device_map: "auto"
-  dtype: "bfloat16"  # Use bfloat16 for better training stability
+  dtype: "float16"  # Use float16 instead of bfloat16 for better compatibility
+  max_memory_percent: 95  # Use 95% of GPU memory instead of 90%
   classification_max_length: 512
   qa_max_length: 768
 
@@ -30,15 +31,15 @@ training:
   dataloader_num_workers: 4
   
   # Batch sizes (adjust based on GPU memory)
-  per_device_train_batch_size: 4
-  per_device_eval_batch_size: 8
-  gradient_accumulation_steps: 4
+  per_device_train_batch_size: 1  # Reduced for memory efficiency
+  per_device_eval_batch_size: 2   # Reduced for memory efficiency  
+  gradient_accumulation_steps: 8  # Increased to maintain effective batch size
   
   # Learning rates (as specified in requirements)
-  learning_rate: 2e-4      # Higher for LoRA
-  full_finetune_learning_rate_classification: [1e-5, 2e-5]  # Classification tasks (MRPC, SST-2, RTE)
-  full_finetune_learning_rate_qa: [5e-6, 1e-5]  # QA tasks (SQuAD v2)
-  full_finetune_learning_rate: 2e-5  # Default full fine-tuning LR
+  learning_rate: 0.0002      # Higher for LoRA
+  full_finetune_learning_rate_classification: [0.00001, 0.00002]  # Classification tasks (MRPC, SST-2, RTE)
+  full_finetune_learning_rate_qa: [0.000005, 0.00001]  # QA tasks (SQuAD v2)
+  full_finetune_learning_rate: 0.00002  # Default full fine-tuning LR
   
   # Optimization
   weight_decay: 0.01
@@ -51,15 +52,15 @@ training:
   max_steps: -1            # -1 means use num_train_epochs
   
   # Evaluation
-  evaluation_strategy: "steps"
+  eval_strategy: "steps"
   eval_steps: 100
   save_strategy: "steps"
   save_steps: 500
   logging_steps: 50
   
-  # Representation extraction settings
-  extract_representations_every_steps: 100
-  save_final_representations: true
+  # Representation extraction settings (disabled during training to save memory)
+  extract_representations_every_steps: -1  # Disabled to save GPU memory
+  save_final_representations: false        # Disabled to save GPU memory
   
   # Early stopping
   load_best_model_at_end: true

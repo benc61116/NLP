@@ -179,7 +179,7 @@ class ExperimentRunner:
             optim=self.config['training']['optim'],
             
             # Evaluation and saving
-            evaluation_strategy=self.config['training']['evaluation_strategy'],
+            eval_strategy=self.config['training']['eval_strategy'],
             eval_steps=self.config['training']['eval_steps'],
             save_strategy=self.config['training']['save_strategy'],
             save_steps=self.config['training']['save_steps'],

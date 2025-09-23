@@ -550,7 +550,13 @@ def compute_classification_metrics(eval_pred, primary_metric: str = "accuracy"):
     Returns:
         Dictionary of metrics
     """
-    predictions, labels = eval_pred
+    # Handle both tuple and EvalPrediction object formats
+    if hasattr(eval_pred, 'predictions') and hasattr(eval_pred, 'label_ids'):
+        predictions = eval_pred.predictions
+        labels = eval_pred.label_ids
+    else:
+        predictions, labels = eval_pred
+    
     predictions = np.argmax(predictions, axis=1)
     
     accuracy = accuracy_score(labels, predictions)
@@ -588,7 +594,12 @@ def compute_qa_metrics(eval_pred):
     Returns:
         Dictionary of metrics
     """
-    predictions, labels = eval_pred
+    # Handle both tuple and EvalPrediction object formats  
+    if hasattr(eval_pred, 'predictions') and hasattr(eval_pred, 'label_ids'):
+        predictions = eval_pred.predictions
+        labels = eval_pred.label_ids
+    else:
+        predictions, labels = eval_pred
     
     # For QA, this is simplified - in a full implementation,
     # you'd need to decode predictions to text and compare with answers

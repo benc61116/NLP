@@ -8,6 +8,18 @@ echo "Starting Phase 1 on VM1: SQuAD v2 Full FT + MRPC Full FT + MRPC LoRA..."
 export WANDB_PROJECT=NLP-Phase1-Training
 export WANDB_ENTITY=galavny-tel-aviv-university
 
+# Clear GPU memory cache to ensure maximum available memory
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+python -c "
+import torch
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()
+    print(f'GPU memory cleared. Available: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB')
+else:
+    print('No CUDA available')
+"
+
 # Create logs directory
 mkdir -p logs/phase1/vm1
 

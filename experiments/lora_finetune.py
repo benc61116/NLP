@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 import torch.nn.functional as F
 from transformers import (
     AutoModelForCausalLM, 
+    AutoModelForSequenceClassification,
     AutoTokenizer, 
     TrainingArguments, 
     Trainer,
@@ -433,19 +434,31 @@ class LoRAExperiment:
         logger.info(f"Created LoRA config: rank={rank}, alpha={alpha}, modules={target_modules}")
         return lora_config
     
-    def load_lora_model(self, target_modules: List[str], rank: int = None, alpha: int = None) -> torch.nn.Module:
+    def load_lora_model(self, task_name: str, target_modules: List[str], rank: int = None, alpha: int = None) -> torch.nn.Module:
         """Load model with LoRA adaptation."""
         logger.info("Loading model with LoRA adaptation...")
         
         model_name = self.config['model']['name']
         
-        # Load base model
-        base_model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            dtype=getattr(torch, self.config['model']['dtype']),
-            device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
-            trust_remote_code=True
-        )
+        # Choose model type based on task
+        task_type = self.config['tasks'][task_name].get('type', 'classification')
+        if task_type == 'qa':
+            # For QA tasks, use CausalLM
+            base_model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                dtype=getattr(torch, self.config['model']['dtype']),
+                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                trust_remote_code=True
+            )
+        else:  # classification tasks
+            num_labels = self.config['tasks'][task_name].get('num_labels', 2)
+            base_model = AutoModelForSequenceClassification.from_pretrained(
+                model_name,
+                num_labels=num_labels,
+                dtype=getattr(torch, self.config['model']['dtype']),
+                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                trust_remote_code=True
+            )
         
         # Create LoRA config
         lora_config = self.create_lora_config(target_modules, rank, alpha)
@@ -683,7 +696,7 @@ class LoRAExperiment:
             self.setup_environment()
             
             # Load LoRA model
-            model = self.load_lora_model(target_modules, rank, alpha)
+            model = self.load_lora_model(task_name, target_modules, rank, alpha)
             
             # Create parameter tracker
             parameter_tracker = ParameterEfficiencyTracker(model, "lora")
@@ -726,7 +739,7 @@ class LoRAExperiment:
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 
                 # Evaluation and saving
-                evaluation_strategy="steps",
+                eval_strategy="steps",
                 eval_steps=100,
                 save_strategy="steps",
                 save_steps=500,
@@ -740,7 +753,8 @@ class LoRAExperiment:
                 # Performance optimizations
                 gradient_checkpointing=True,
                 dataloader_pin_memory=True,
-                fp16=torch.cuda.is_available(),
+                fp16=False,  # Disabled when using bfloat16 dtype to avoid conflicts
+                bf16=False,  # Let model dtype handle precision
                 
                 # Reporting
                 report_to=["wandb"],
