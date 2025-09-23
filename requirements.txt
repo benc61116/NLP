@@ -1,13 +1,32 @@
+# PyTorch-only environment (no TensorFlow)
+# Complete PyTorch ecosystem
 torch==2.8.0
+torchaudio==2.8.0
+torchvision==0.23.0
+
+# Core ML libraries
 transformers==4.56.2
 peft==0.17.1
 datasets==4.1.1
+
+# Experiment tracking and evaluation
 wandb==0.22.0
+evaluate==0.4.6
+
+# Data science stack
 numpy==2.2.6
 pandas==2.3.2
 scikit-learn==1.7.2
+
+# Visualization
 matplotlib==3.10.6
 seaborn==0.13.2
+
+# Utilities
 tqdm==4.67.1
+
+# Inference optimization
 vllm==0.10.2
-evaluate==0.4.6
+
+# Note: TensorFlow is NOT needed for this PyTorch-only project
+# If you see TensorFlow errors, uninstall it: pip uninstall tensorflow tensorflow-gpu tf-keras -y

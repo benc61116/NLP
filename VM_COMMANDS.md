@@ -7,8 +7,8 @@
 git clone https://github.com/benc61116/NLP.git
 cd NLP
 
-# 2. Install dependencies
-pip install -r requirements.txt
+# 2. Setup clean environment (removes TensorFlow conflicts)
+./setup_environment.sh
 
 # 3. Download datasets
 python scripts/download_datasets.py
