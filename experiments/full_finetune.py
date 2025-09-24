@@ -208,7 +208,7 @@ class RepresentationExtractor:
             
             # Save chunk to disk immediately
             chunk_file = f"chunk_{chunk_start//chunk_size}_{step}.pt"
-            chunk_path = self.output_dir / "representations" / self.experiment_name / chunk_file
+            chunk_path = self.output_dir / chunk_file
             chunk_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save(chunk_representations, chunk_path)
             all_saved_chunks.append(chunk_path)
