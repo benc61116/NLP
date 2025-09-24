@@ -1205,10 +1205,10 @@ class FullFinetuneExperiment:
             train_dataset, eval_dataset = self.prepare_datasets(task_name)
             
             # Extract base model representations first (only if enabled)
-            if self.config['training'].get('save_final_representations', True):
+            if self.config['training'].get('extract_base_model_representations', True):
                 self.extract_base_model_representations(eval_dataset, task_name)
             else:
-                logger.info("Base model representation extraction disabled to save memory")
+                logger.info("Base model representation extraction disabled")
             
             # Create representation extractor (disabled to save memory)
             representation_extractor = None
@@ -1500,6 +1500,8 @@ def main():
     parser.add_argument("--config", default="shared/config.yaml", help="Config file path")
     parser.add_argument("--learning-rate", type=float, help="Override learning rate")
     parser.add_argument("--batch-size", type=int, help="Override batch size")
+    parser.add_argument("--no-base-representations", action="store_true", 
+                       help="Disable base model representation extraction (for VM1/VM2)")
     
     args = parser.parse_args()
     
@@ -1509,6 +1511,10 @@ def main():
     # Override model to use TinyLlama for actual experiments
     if args.mode != "demo":
         experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+    
+    # Override base model representation extraction if requested
+    if args.no_base_representations:
+        experiment.config['training']['extract_base_model_representations'] = False
     
     if args.mode == "demo":
         # Run validation demo

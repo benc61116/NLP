@@ -45,7 +45,7 @@ echo ""
 echo "🔬 [1/4] MRPC Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting MRPC full fine-tuning (seed $seed)..."
-    if python experiments/full_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_full_seed${seed}.log 2>&1; then
+    if python experiments/full_finetune.py --task mrpc --mode single --seed $seed --no-base-representations > logs/phase1/vm1/mrpc_full_seed${seed}.log 2>&1; then
         echo "  ✅ $(date +'%H:%M') - MRPC full fine-tuning (seed $seed) complete"
     else
         echo "  ❌ $(date +'%H:%M') - MRPC full fine-tuning (seed $seed) FAILED"
@@ -55,7 +55,7 @@ for seed in 42 1337 2024; do
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting MRPC hyperparameter sweep..."
-if python experiments/full_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_sweep.log 2>&1; then
+if python experiments/full_finetune.py --task mrpc --mode sweep --no-base-representations > logs/phase1/vm1/mrpc_sweep.log 2>&1; then
     echo "  ✅ $(date +'%H:%M') - MRPC hyperparameter sweep complete"
 else
     echo "  ❌ $(date +'%H:%M') - MRPC hyperparameter sweep FAILED"
@@ -93,7 +93,7 @@ echo ""
 echo "🔬 [3/4] SST-2 Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting SST-2 full fine-tuning (seed $seed)..."
-    if python experiments/full_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm1/sst2_full_seed${seed}.log 2>&1; then
+    if python experiments/full_finetune.py --task sst2 --mode single --seed $seed --no-base-representations > logs/phase1/vm1/sst2_full_seed${seed}.log 2>&1; then
         echo "  ✅ $(date +'%H:%M') - SST-2 full fine-tuning (seed $seed) complete"
     else
         echo "  ❌ $(date +'%H:%M') - SST-2 full fine-tuning (seed $seed) FAILED"
@@ -103,7 +103,7 @@ for seed in 42 1337 2024; do
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting SST-2 hyperparameter sweep..."
-if python experiments/full_finetune.py --task sst2 --mode sweep > logs/phase1/vm1/sst2_sweep.log 2>&1; then
+if python experiments/full_finetune.py --task sst2 --mode sweep --no-base-representations > logs/phase1/vm1/sst2_sweep.log 2>&1; then
     echo "  ✅ $(date +'%H:%M') - SST-2 hyperparameter sweep complete"
 else
     echo "  ❌ $(date +'%H:%M') - SST-2 hyperparameter sweep FAILED"

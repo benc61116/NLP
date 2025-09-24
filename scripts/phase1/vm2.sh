@@ -44,7 +44,7 @@ echo ""
 echo "🔬 [1/4] SQuAD v2 Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 full fine-tuning (seed $seed)..."
-    if python experiments/full_finetune.py --task squad_v2 --mode single --seed $seed > logs/phase1/vm2/squad_v2_full_seed${seed}.log 2>&1; then
+    if python experiments/full_finetune.py --task squad_v2 --mode single --seed $seed --no-base-representations > logs/phase1/vm2/squad_v2_full_seed${seed}.log 2>&1; then
         echo "  ✅ $(date +'%H:%M') - SQuAD v2 full fine-tuning (seed $seed) complete"
     else
         echo "  ❌ $(date +'%H:%M') - SQuAD v2 full fine-tuning (seed $seed) FAILED"
@@ -54,7 +54,7 @@ for seed in 42 1337 2024; do
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting SQuAD v2 hyperparameter sweep..."
-if python experiments/full_finetune.py --task squad_v2 --mode sweep > logs/phase1/vm2/squad_v2_sweep.log 2>&1; then
+if python experiments/full_finetune.py --task squad_v2 --mode sweep --no-base-representations > logs/phase1/vm2/squad_v2_sweep.log 2>&1; then
     echo "  ✅ $(date +'%H:%M') - SQuAD v2 hyperparameter sweep complete"
 else
     echo "  ❌ $(date +'%H:%M') - SQuAD v2 hyperparameter sweep FAILED"
@@ -92,7 +92,7 @@ echo ""
 echo "🔬 [3/4] RTE Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting RTE full fine-tuning (seed $seed)..."
-    if python experiments/full_finetune.py --task rte --mode single --seed $seed > logs/phase1/vm2/rte_full_seed${seed}.log 2>&1; then
+    if python experiments/full_finetune.py --task rte --mode single --seed $seed --no-base-representations > logs/phase1/vm2/rte_full_seed${seed}.log 2>&1; then
         echo "  ✅ $(date +'%H:%M') - RTE full fine-tuning (seed $seed) complete"
     else
         echo "  ❌ $(date +'%H:%M') - RTE full fine-tuning (seed $seed) FAILED"
@@ -102,7 +102,7 @@ for seed in 42 1337 2024; do
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting RTE hyperparameter sweep..."
-if python experiments/full_finetune.py --task rte --mode sweep > logs/phase1/vm2/rte_sweep.log 2>&1; then
+if python experiments/full_finetune.py --task rte --mode sweep --no-base-representations > logs/phase1/vm2/rte_sweep.log 2>&1; then
     echo "  ✅ $(date +'%H:%M') - RTE hyperparameter sweep complete"
 else
     echo "  ❌ $(date +'%H:%M') - RTE hyperparameter sweep FAILED"
