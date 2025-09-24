@@ -17,7 +17,7 @@ pip uninstall torch_xla -y 2>/dev/null || true
 
 # Install exact requirements
 echo "📦 Installing exact package versions..."
-pip install -r requirements.txt --force-reinstall
+pip install --user -r requirements.txt --force-reinstall
 
 echo ""
 echo "✅ Environment setup complete!"
