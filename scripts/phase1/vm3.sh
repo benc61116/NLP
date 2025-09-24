@@ -41,7 +41,7 @@ echo "📅 Started at: $(date)"
 echo ""
 
 # Baseline experiments for all tasks
-echo "🔬 [1/5] Running All Baseline Experiments"
+echo "🔬 [1/2] Running All Baseline Experiments"
 
 echo "  ⚡ $(date +'%H:%M') - Running MRPC baselines..."
 python experiments/baselines.py --task mrpc --baseline majority > logs/phase1/vm3/mrpc_majority.log 2>&1
@@ -67,11 +67,11 @@ python experiments/baselines.py --task squad_v2 --baseline random > logs/phase1/
 python experiments/baselines.py --task squad_v2 --baseline sota > logs/phase1/vm3/squad_v2_sota.log 2>&1
 echo "  ✅ $(date +'%H:%M') - SQuAD v2 baselines complete"
 
-echo "🎯 [1/5] All Baseline Experiments COMPLETE"
+echo "🎯 [1/2] All Baseline Experiments COMPLETE"
 echo ""
 
 # Base model representation extraction for drift analysis
-echo "🔬 [2/5] Base Model Representation Extraction"
+echo "🔬 [2/2] Base Model Representation Extraction"
 
 echo "  ⚡ $(date +'%H:%M') - Extracting base representations for MRPC, SST-2, RTE..."
 python scripts/extract_base_representations.py --task mrpc > logs/phase1/vm3/base_repr_mrpc.log 2>&1
@@ -85,7 +85,7 @@ python -c "import torch, gc; torch.cuda.empty_cache(); gc.collect()"
 python scripts/extract_base_representations.py --task squad_v2 > logs/phase1/vm3/base_repr_squad_v2.log 2>&1
 echo "  ✅ $(date +'%H:%M') - SQuAD v2 base representations complete"
 
-echo "🎯 [2/5] Base Model Representation Extraction COMPLETE"
+echo "🎯 [2/2] Base Model Representation Extraction COMPLETE"
 
 echo ""
 echo "🎉 VM3 PHASE 1 COMPLETE! $(date)"
