@@ -755,7 +755,8 @@ class FullFinetuneCallback(TrainerCallback):
                     eval_metrics[key] = value
             
             if eval_metrics:
-                wandb.log(eval_metrics, step=step, commit=False)
+                # Don't specify step for evaluation metrics to avoid conflicts
+                wandb.log(eval_metrics, commit=False)
         
         # Extract representations during evaluation
         model = kwargs.get('model')
@@ -764,7 +765,8 @@ class FullFinetuneCallback(TrainerCallback):
         
         # Log evaluation representation extraction without step conflicts
         if wandb.run is not None:
-            wandb.log({"full_finetune_eval_representations/extracted": 1}, step=step, commit=False)
+            # Don't specify step to let wandb auto-assign and avoid conflicts
+            wandb.log({"full_finetune_eval_representations/extracted": 1}, commit=False)
 
 
 class FullFinetuneExperiment:
