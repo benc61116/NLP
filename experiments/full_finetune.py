@@ -704,18 +704,25 @@ class FullFinetuneCallback(TrainerCallback):
         if step % self.gradient_monitor.log_every_steps == 0:
             grad_stats = self.gradient_monitor.compute_gradient_stats(model)
             if wandb.run is not None:
-                wandb.log({f"gradients/{k}": v for k, v in grad_stats.items()}, step=step)
+                wandb.log({f"gradients/{k}": v for k, v in grad_stats.items()}, step=step, commit=False)
         
         # Log memory statistics
         memory_stats = self.memory_profiler.get_memory_stats()
         if wandb.run is not None:
-            wandb.log({f"memory/{k}": v for k, v in memory_stats.items()}, step=step)
+            wandb.log({f"memory/{k}": v for k, v in memory_stats.items()}, step=step, commit=False)
         
         # Extract representations
         if step % self.extract_every_steps == 0:
             logger.info(f"Extracting representations at step {step}")
             representations = self.representation_extractor.extract_representations(model, step)
             self.representation_extractor.save_representations(representations, step)
+            # Log representation extraction completion without conflicting with main training logs
+            if wandb.run is not None:
+                wandb.log({"full_finetune_representations/extracted": 1}, step=step, commit=False)
+        
+        # Commit all logs for this step together (every 10 steps to reduce frequency)
+        if wandb.run is not None and step % 10 == 0:
+            wandb.log({}, step=step, commit=True)
     
     def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Called during evaluation."""
@@ -726,6 +733,10 @@ class FullFinetuneCallback(TrainerCallback):
         model = kwargs.get('model')
         representations = self.representation_extractor.extract_representations(model, step)
         self.representation_extractor.save_representations(representations, step)
+        
+        # Log evaluation representation extraction without step conflicts
+        if wandb.run is not None:
+            wandb.log({"full_finetune_eval_representations/extracted": 1}, step=step, commit=False)
 
 
 class FullFinetuneExperiment:
