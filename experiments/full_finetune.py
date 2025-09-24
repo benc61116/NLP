@@ -985,7 +985,7 @@ class FullFinetuneExperiment:
         
         return sweep_config
     
-    def run_single_experiment(self, task_name: str, seed: int = 42, **hyperparams) -> Dict[str, Any]:
+    def run_single_experiment(self, task_name: str, seed: int = 42, skip_wandb_init: bool = False, **hyperparams) -> Dict[str, Any]:
         """Run a single full fine-tuning experiment."""
         logger.info(f"Running full fine-tuning experiment: {task_name} (seed: {seed})")
         
@@ -1004,26 +1004,35 @@ class FullFinetuneExperiment:
         # Override seed in config
         self.config['reproducibility']['seed'] = seed
         
-        # Create run name
-        timestamp = datetime.now().strftime("%H%M%S")
-        run_name = f"full_ft_{task_name}_seed{seed}_{timestamp}"
-        
-        # Initialize wandb
-        wandb.init(
-            project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
-            entity=self.config['wandb']['entity'],
-            name=run_name,
-            group=f"full_finetune_{task_name}",
-            job_type="full_finetune",
-            tags=["full_finetune", task_name, f"seed_{seed}"],
-            config={
-                **self.config,
+        # Initialize wandb if not skipped (for sweep runs, wandb is already initialized)
+        if not skip_wandb_init:
+            # Create run name
+            timestamp = datetime.now().strftime("%H%M%S")
+            run_name = f"full_ft_{task_name}_seed{seed}_{timestamp}"
+            
+            wandb.init(
+                project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
+                entity=self.config['wandb']['entity'],
+                name=run_name,
+                group=f"full_finetune_{task_name}",
+                job_type="full_finetune",
+                tags=["full_finetune", task_name, f"seed_{seed}"],
+                config={
+                    **self.config,
+                    "task_name": task_name,
+                    "method": "full_finetune",
+                    "seed": seed,
+                    **hyperparams
+                }
+            )
+        else:
+            # Update wandb config with hyperparameters for sweep runs
+            wandb.config.update({
                 "task_name": task_name,
-                "method": "full_finetune",
+                "method": "full_finetune", 
                 "seed": seed,
                 **hyperparams
-            }
-        )
+            })
         
         try:
             # Setup environment with new seed
@@ -1245,7 +1254,10 @@ class FullFinetuneExperiment:
             if 'model' in locals():
                 del model
             torch.cuda.empty_cache()
-            wandb.finish()
+            
+            # Only finish wandb if we initialized it in this method (not for sweep runs)
+            if not skip_wandb_init:
+                wandb.finish()
     
     def run_hyperparameter_sweep(self, task_name: str) -> List[Dict[str, Any]]:
         """Run hyperparameter sweep for a task."""
@@ -1263,12 +1275,26 @@ class FullFinetuneExperiment:
         results = []
         
         def sweep_function():
+            # Initialize wandb for sweep run
+            run_name = f"sweep_{task_name}_{datetime.now().strftime('%H%M%S')}"
+            wandb.init(
+                project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
+                entity=self.config['wandb']['entity'],
+                name=run_name,
+                group=f"sweep_{task_name}",
+                job_type="hyperparameter_sweep",
+                tags=["full_finetune", "sweep", task_name]
+            )
+            
             # Get hyperparameters from sweep
             hyperparams = dict(wandb.config)
             seed = hyperparams.pop('seed', 42)
             
-            result = self.run_single_experiment(task_name, seed, **hyperparams)
+            result = self.run_single_experiment(task_name, seed, skip_wandb_init=True, **hyperparams)
             results.append(result)
+            
+            # Finish the run
+            wandb.finish()
         
         # Run sweep agent
         wandb.agent(sweep_id, sweep_function, count=12)  # Grid search: 2x2x3 = 12 runs
