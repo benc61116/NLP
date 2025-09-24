@@ -22,6 +22,7 @@ import logging
 import numpy as np
 import psutil
 import time
+import gc
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 from pathlib import Path
@@ -194,7 +195,6 @@ class RepresentationExtractor:
                 # Cleanup batch
                 del batch_input_ids, batch_attention_mask, outputs
                 torch.cuda.empty_cache()
-                import gc
                 gc.collect()
             
             # Concatenate and save this chunk
@@ -208,7 +208,7 @@ class RepresentationExtractor:
             
             # Save chunk to disk immediately
             chunk_file = f"chunk_{chunk_start//chunk_size}_{step}.pt"
-            chunk_path = self.output_dir / "representations" / self.experiment_name / chunk_file
+            chunk_path = self.output_dir / chunk_file
             chunk_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save(chunk_representations, chunk_path)
             all_saved_chunks.append(chunk_path)
