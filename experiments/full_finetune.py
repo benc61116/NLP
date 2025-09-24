@@ -184,11 +184,11 @@ class RepresentationExtractor:
                 input_ids = self.validation_examples['input_ids']
                 attention_mask = self.validation_examples['attention_mask']
                 
-                # Adaptive batch size based on task type
+                # Adaptive batch size based on task type - aggressive memory optimization
                 if self.task_name == 'squad_v2':
-                    batch_size = 8  # Smaller batches for longer QA sequences
+                    batch_size = 4  # Very small batches for QA sequences (memory critical)
                 else:
-                    batch_size = 16  # Standard batch size for classification
+                    batch_size = 12  # Reduced batch size for classification
                     
                 num_samples = input_ids.shape[0]
                 all_layer_outputs = {f'layer_{i}': [] for i in self.config.save_layers}
@@ -196,11 +196,21 @@ class RepresentationExtractor:
                 
                 for i in range(0, num_samples, batch_size):
                     end_idx = min(i + batch_size, num_samples)
+                    
+                    # Progress logging for SQuAD v2 (large dataset)
+                    if self.task_name == 'squad_v2' and i % (batch_size * 25) == 0:
+                        progress = (i / num_samples) * 100
+                        logger.info(f"SQuAD v2 processing: {progress:.1f}% ({i}/{num_samples} samples)")
+                    
                     batch_input_ids = input_ids[i:end_idx].to(model.device)
                     batch_attention_mask = attention_mask[i:end_idx].to(model.device)
                     
                     # Clear layer outputs for this batch
                     layer_outputs.clear()
+                    
+                    # Pre-batch memory cleanup for critical memory situations
+                    if self.task_name == 'squad_v2':
+                        torch.cuda.empty_cache()
                     
                     outputs = model(input_ids=batch_input_ids, attention_mask=batch_attention_mask)
                     
@@ -217,15 +227,34 @@ class RepresentationExtractor:
                     # Aggressive memory cleanup after each batch
                     del batch_input_ids, batch_attention_mask, outputs
                     torch.cuda.empty_cache()  # Force GPU memory cleanup
-                    torch.cuda.empty_cache()
+                    
+                    # Extra cleanup for SQuAD v2 (memory critical)
+                    if self.task_name == 'squad_v2':
+                        torch.cuda.empty_cache()
+                        import gc
+                        gc.collect()
+                
+                # Final memory cleanup before concatenation (memory intensive step)
+                torch.cuda.empty_cache()
+                if self.task_name == 'squad_v2':
+                    import gc
+                    gc.collect()
+                    logger.info(f"SQuAD v2 processing complete, concatenating {len(self.config.save_layers)} layers...")
                 
                 # Concatenate all batch results
                 for layer_name in all_layer_outputs:
                     if all_layer_outputs[layer_name]:
                         representations[layer_name] = torch.cat(all_layer_outputs[layer_name], dim=0)
+                        # Immediate cleanup of batch data after concatenation
+                        del all_layer_outputs[layer_name]
+                        if self.task_name == 'squad_v2':
+                            torch.cuda.empty_cache()
                 
                 if all_final_hidden_states:
                     representations['final_hidden_states'] = torch.cat(all_final_hidden_states, dim=0)
+                    del all_final_hidden_states
+                    if self.task_name == 'squad_v2':
+                        torch.cuda.empty_cache()
         
         finally:
             # Remove hooks

@@ -67,17 +67,33 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
         
         # Extract and save representations with aggressive memory management
         logger.info(f"Starting representation extraction with memory optimization...")
+        
+        # Additional memory cleanup before extraction
+        if task_name == 'squad_v2':
+            import gc
+            torch.cuda.empty_cache()
+            gc.collect()
+            logger.info(f"Pre-extraction memory cleanup complete for {task_name}")
+        
         representations = extractor.extract_representations(model, step=0)
         
         # Force memory cleanup after extraction
         torch.cuda.empty_cache()
         
         # Save representations immediately
+        logger.info(f"Saving representations for {task_name}...")
         extractor.save_representations(representations, step=0)
         
-        # Clean up representations from memory
+        # Clean up representations from memory immediately after saving
         del representations
         torch.cuda.empty_cache()
+        
+        # Additional cleanup for SQuAD v2
+        if task_name == 'squad_v2':
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            logger.info(f"Post-save memory cleanup complete for {task_name}")
         
         logger.info(f"✅ Base representations extracted for {task_name}")
         return True
@@ -131,8 +147,8 @@ def main():
     # Extract representations for each task
     successful_extractions = 0
     for task_name in tasks:
-        # Use fewer samples for SQuAD v2 due to memory constraints
-        samples = 500 if task_name == 'squad_v2' else 1000
+        # Keep 1000 samples for all tasks (required for research validity)
+        samples = 1000
         success = extract_base_representations_for_task(
             model, tokenizer, data_loader, task_name, num_samples=samples
         )
