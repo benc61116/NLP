@@ -142,6 +142,118 @@ class RepresentationExtractor:
         
         logger.info(f"Set {max_samples} validation examples for representation extraction")
     
+    def _extract_representations_chunked(self, model: torch.nn.Module, input_ids: torch.Tensor, 
+                                       attention_mask: torch.Tensor, num_samples: int, 
+                                       batch_size: int, layer_outputs: dict, hooks: list, step: int) -> Dict[str, torch.Tensor]:
+        """Extract representations in chunks for memory-intensive tasks like SQuAD v2."""
+        chunk_size = 200  # Process 200 samples at a time
+        all_saved_chunks = []  # Track saved chunk files for final merging
+        
+        logger.info(f"SQuAD v2: Processing {num_samples} samples in chunks of {chunk_size}")
+        
+        for chunk_start in range(0, num_samples, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, num_samples)
+            chunk_samples = chunk_end - chunk_start
+            
+            logger.info(f"Processing chunk {chunk_start//chunk_size + 1}/{(num_samples-1)//chunk_size + 1}: samples {chunk_start}-{chunk_end-1}")
+            
+            # Process this chunk
+            chunk_input_ids = input_ids[chunk_start:chunk_end]
+            chunk_attention_mask = attention_mask[chunk_start:chunk_end]
+            
+            chunk_layer_outputs = {f'layer_{i}': [] for i in self.config.save_layers}
+            chunk_final_hidden_states = []
+            
+            # Process chunk in small batches
+            for i in range(0, chunk_samples, batch_size):
+                batch_end = min(i + batch_size, chunk_samples)
+                
+                # Progress within chunk
+                if i % (batch_size * 10) == 0:
+                    chunk_progress = (i / chunk_samples) * 100
+                    overall_progress = ((chunk_start + i) / num_samples) * 100
+                    logger.info(f"Chunk progress: {chunk_progress:.1f}%, Overall: {overall_progress:.1f}%")
+                
+                batch_input_ids = chunk_input_ids[i:batch_end].to(model.device)
+                batch_attention_mask = chunk_attention_mask[i:batch_end].to(model.device)
+                
+                layer_outputs.clear()
+                torch.cuda.empty_cache()
+                
+                outputs = model(input_ids=batch_input_ids, attention_mask=batch_attention_mask)
+                
+                # Collect outputs for this batch
+                for layer_name, layer_output in layer_outputs.items():
+                    chunk_layer_outputs[layer_name].append(layer_output)
+                
+                if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
+                    chunk_final_hidden_states.append(outputs.hidden_states[-1].detach().cpu())
+                elif hasattr(outputs, 'last_hidden_state'):
+                    chunk_final_hidden_states.append(outputs.last_hidden_state.detach().cpu())
+                
+                # Cleanup batch
+                del batch_input_ids, batch_attention_mask, outputs
+                torch.cuda.empty_cache()
+                import gc
+                gc.collect()
+            
+            # Concatenate and save this chunk
+            chunk_representations = {}
+            for layer_name in chunk_layer_outputs:
+                if chunk_layer_outputs[layer_name]:
+                    chunk_representations[layer_name] = torch.cat(chunk_layer_outputs[layer_name], dim=0)
+            
+            if chunk_final_hidden_states:
+                chunk_representations['final_hidden_states'] = torch.cat(chunk_final_hidden_states, dim=0)
+            
+            # Save chunk to disk immediately
+            chunk_file = f"chunk_{chunk_start//chunk_size}_{step}.pt"
+            chunk_path = self.output_dir / "representations" / self.experiment_name / chunk_file
+            chunk_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(chunk_representations, chunk_path)
+            all_saved_chunks.append(chunk_path)
+            
+            logger.info(f"Saved chunk {chunk_start//chunk_size + 1} to {chunk_file}")
+            
+            # Cleanup chunk data
+            del chunk_representations, chunk_layer_outputs, chunk_final_hidden_states
+            del chunk_input_ids, chunk_attention_mask
+            torch.cuda.empty_cache()
+            gc.collect()
+        
+        # Load and merge all chunks into final result
+        logger.info("Merging all chunks into final representations...")
+        final_representations = {}
+        
+        for chunk_idx, chunk_path in enumerate(all_saved_chunks):
+            chunk_data = torch.load(chunk_path, map_location='cpu')
+            
+            for layer_name, layer_data in chunk_data.items():
+                if layer_name not in final_representations:
+                    final_representations[layer_name] = []
+                final_representations[layer_name].append(layer_data)
+            
+            # Clean up chunk file
+            chunk_path.unlink()
+            del chunk_data
+            
+            if chunk_idx % 2 == 0:  # Cleanup every 2 chunks
+                torch.cuda.empty_cache()
+                gc.collect()
+        
+        # Final concatenation
+        merged_representations = {}
+        for layer_name, layer_chunks in final_representations.items():
+            merged_representations[layer_name] = torch.cat(layer_chunks, dim=0)
+            logger.info(f"Merged {layer_name}: {merged_representations[layer_name].shape}")
+        
+        del final_representations
+        torch.cuda.empty_cache()
+        gc.collect()
+        
+        logger.info("✅ SQuAD v2 chunked processing complete!")
+        return merged_representations
+    
     def extract_representations(self, model: torch.nn.Module, step: int) -> Dict[str, torch.Tensor]:
         """Extract representations from the model."""
         if self.validation_examples is None:
@@ -191,6 +303,13 @@ class RepresentationExtractor:
                     batch_size = 12  # Reduced batch size for classification
                     
                 num_samples = input_ids.shape[0]
+                
+                # For SQuAD v2, use chunked processing to avoid memory accumulation
+                if self.task_name == 'squad_v2':
+                    chunk_size = 200  # Process and save 200 samples at a time
+                    return self._extract_representations_chunked(model, input_ids, attention_mask, num_samples, batch_size, layer_outputs, hooks, step)
+                
+                # For other tasks, use normal processing
                 all_layer_outputs = {f'layer_{i}': [] for i in self.config.save_layers}
                 all_final_hidden_states = []
                 
