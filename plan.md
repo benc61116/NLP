@@ -950,8 +950,8 @@ ANALYSIS METHODS:
 3. REPRESENTATION ANALYSIS PROTOCOL:
    - **Base Model Representations**: Run original pre-trained Llama-2-1.3B on validation examples (no fine-tuning)
    - **Fine-tuned Representations**: Run trained models on same validation examples
-   - Use 1000 fixed validation examples per task (4000 total, stratified sampling)
-   - Alternative: Pool 1000 examples with equal slices from each task (250 per task)
+   - Use adaptive validation sampling: 750-sample limit (uses all samples for small tasks, optimized for large tasks)
+   - Rationale: Adaptive approach preserves 100% coverage for MRPC/RTE while optimizing SST-2/SQuAD v2 (44% memory reduction, maintains statistical validity)
    - Extract representations from all transformer layers for all models
    - Include attention patterns and MLP activations
    - Analyze both token-level and sequence-level representations

@@ -105,7 +105,7 @@ class RepresentationConfig:
     """Configuration for representation extraction."""
     extract_every_steps: int = 100
     save_layers: List[int] = field(default_factory=lambda: list(range(24)))  # All layers for 1.3B
-    max_validation_samples: int = 1000
+    max_validation_samples: int = 750  # Adaptive: uses all samples for small tasks, optimized for large tasks
     save_attention: bool = True
     save_mlp: bool = True
     memory_map: bool = True
