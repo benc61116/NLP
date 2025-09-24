@@ -329,15 +329,24 @@ class RepresentationExtractor:
                 logger.info(f"Final {layer_name}: {layer_repr.shape}")
                 del layer_chunks
                 
-                # Save immediately to final destination
+                # Validate tensor integrity before saving
+                if not self._validate_tensor(layer_repr, layer_name):
+                    logger.error(f"❌ Tensor validation failed for {layer_name}, skipping save")
+                    del layer_repr
+                    continue
+                
+                # Save with retry mechanism and validation
                 step_dir = self.output_dir / f"step_{step:06d}"
                 step_dir.mkdir(exist_ok=True)
                 file_path = step_dir / f"{layer_name}.pt"
-                torch.save(layer_repr, file_path)
-                logger.info(f"✅ Saved {layer_name} to {file_path}")
                 
-                # Store a placeholder in final_representations to track completion
-                final_representations[layer_name] = layer_repr.shape
+                if self._safe_tensor_save(layer_repr, file_path, layer_name):
+                    logger.info(f"✅ Saved {layer_name} to {file_path}")
+                    # Store a placeholder in final_representations to track completion
+                    final_representations[layer_name] = layer_repr.shape
+                else:
+                    logger.error(f"❌ Failed to save {layer_name} after retries")
+                
                 del layer_repr
                 
                 # Force memory cleanup after each layer
@@ -370,16 +379,24 @@ class RepresentationExtractor:
             logger.info(f"Final final_hidden_states: {final_hidden_repr.shape}")
             del layer_chunks
             
-            # Save immediately to final destination
-            step_dir = self.output_dir / f"step_{step:06d}"
-            step_dir.mkdir(exist_ok=True)
-            file_path = step_dir / "final_hidden_states.pt"
-            torch.save(final_hidden_repr, file_path)
-            logger.info(f"✅ Saved final_hidden_states to {file_path}")
-            
-            # Store a placeholder to track completion
-            final_representations['final_hidden_states'] = final_hidden_repr.shape
-            del final_hidden_repr
+            # Validate tensor integrity before saving
+            if not self._validate_tensor(final_hidden_repr, "final_hidden_states"):
+                logger.error(f"❌ Tensor validation failed for final_hidden_states, skipping save")
+                del final_hidden_repr
+            else:
+                # Save with retry mechanism and validation
+                step_dir = self.output_dir / f"step_{step:06d}"
+                step_dir.mkdir(exist_ok=True)
+                file_path = step_dir / "final_hidden_states.pt"
+                
+                if self._safe_tensor_save(final_hidden_repr, file_path, "final_hidden_states"):
+                    logger.info(f"✅ Saved final_hidden_states to {file_path}")
+                    # Store a placeholder to track completion
+                    final_representations['final_hidden_states'] = final_hidden_repr.shape
+                else:
+                    logger.error(f"❌ Failed to save final_hidden_states after retries")
+                
+                del final_hidden_repr
         
         # Cleanup temporary files
         logger.info("Cleaning up temporary chunk files...")
@@ -413,6 +430,112 @@ class RepresentationExtractor:
         
         # Return shapes instead of tensors to avoid memory issues
         return final_representations
+    
+    def _validate_tensor(self, tensor: torch.Tensor, layer_name: str) -> bool:
+        """Validate tensor integrity before saving."""
+        try:
+            # Check if tensor is valid
+            if tensor is None:
+                logger.warning(f"Tensor {layer_name} is None")
+                return False
+            
+            # Check for NaN or Inf values
+            if torch.isnan(tensor).any():
+                logger.warning(f"Tensor {layer_name} contains NaN values")
+                return False
+            
+            if torch.isinf(tensor).any():
+                logger.warning(f"Tensor {layer_name} contains Inf values")
+                return False
+            
+            # Check tensor properties
+            if tensor.numel() == 0:
+                logger.warning(f"Tensor {layer_name} is empty")
+                return False
+            
+            # Try a basic operation to verify tensor integrity
+            _ = tensor.sum()
+            
+            logger.debug(f"Tensor {layer_name} validation passed: shape={tensor.shape}, dtype={tensor.dtype}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Tensor validation failed for {layer_name}: {e}")
+            return False
+    
+    def _safe_tensor_save(self, tensor: torch.Tensor, file_path: Path, layer_name: str, max_retries: int = 3) -> bool:
+        """Safely save tensor with retry mechanism and validation."""
+        for attempt in range(max_retries):
+            try:
+                # Force tensor to be contiguous and on CPU
+                tensor_to_save = tensor.detach().cpu().contiguous()
+                
+                # Ensure we have sufficient memory for save
+                torch.cuda.empty_cache()
+                import gc
+                gc.collect()
+                
+                # Save the tensor
+                torch.save(tensor_to_save, file_path)
+                
+                # Verify the saved file by loading it back
+                if self._verify_saved_tensor(file_path, tensor_to_save.shape, layer_name):
+                    del tensor_to_save
+                    return True
+                else:
+                    logger.warning(f"Verification failed for {layer_name}, attempt {attempt + 1}/{max_retries}")
+                    # Remove the corrupted file
+                    if file_path.exists():
+                        file_path.unlink()
+                    
+                del tensor_to_save
+                
+            except Exception as e:
+                logger.error(f"Save attempt {attempt + 1}/{max_retries} failed for {layer_name}: {e}")
+                
+                # Remove any partial file
+                if file_path.exists():
+                    try:
+                        file_path.unlink()
+                    except:
+                        pass
+                
+                # Wait a bit before retrying and cleanup memory
+                import time
+                time.sleep(1)
+                torch.cuda.empty_cache()
+                import gc
+                gc.collect()
+        
+        logger.error(f"All save attempts failed for {layer_name}")
+        return False
+    
+    def _verify_saved_tensor(self, file_path: Path, expected_shape: torch.Size, layer_name: str) -> bool:
+        """Verify that a saved tensor can be loaded and has the expected shape."""
+        try:
+            # Try to load the tensor
+            loaded_tensor = torch.load(file_path, map_location='cpu')
+            
+            # Check shape matches
+            if loaded_tensor.shape != expected_shape:
+                logger.error(f"Shape mismatch for {layer_name}: expected {expected_shape}, got {loaded_tensor.shape}")
+                return False
+            
+            # Basic integrity check
+            if torch.isnan(loaded_tensor).any() or torch.isinf(loaded_tensor).any():
+                logger.error(f"Loaded tensor {layer_name} contains NaN/Inf values")
+                return False
+            
+            # Try a basic operation
+            _ = loaded_tensor.sum()
+            
+            del loaded_tensor
+            logger.debug(f"Verification passed for {layer_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Verification failed for {layer_name}: {e}")
+            return False
     
     def extract_representations(self, model: torch.nn.Module, step: int) -> Dict[str, torch.Tensor]:
         """Extract representations from the model."""
