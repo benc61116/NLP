@@ -918,6 +918,11 @@ class FullFinetuneExperiment:
                 trust_remote_code=True
             )
         
+        # CRITICAL FIX: Configure the model to use the properly set up tokenizer
+        # This resolves the "Cannot handle batch sizes > 1 if no padding token is defined" error
+        if hasattr(base_model, 'config'):
+            base_model.config.pad_token_id = self.tokenizer.pad_token_id
+        
         # Create base model representation extractor
         base_extractor = RepresentationExtractor(
             self.representation_config,
