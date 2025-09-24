@@ -58,9 +58,9 @@ training:
   save_steps: 500
   logging_steps: 50
   
-  # Representation extraction settings (disabled during training to save memory)
-  extract_representations_every_steps: -1  # Disabled to save GPU memory
-  save_final_representations: false        # Disabled to save GPU memory
+  # Representation extraction settings (enabled for drift analysis)
+  extract_representations_every_steps: 100  # Extract every 100 steps for drift analysis
+  save_final_representations: true         # Save final representations for drift analysis
   
   # Early stopping
   load_best_model_at_end: true

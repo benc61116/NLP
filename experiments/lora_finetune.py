@@ -180,22 +180,47 @@ class LoRARepresentationExtractor:
                     hook = layer.register_forward_hook(create_hook(f'layer_{i}'))
                     hooks.append(hook)
             
-            # Forward pass
+            # Forward pass (process in batches to avoid OOM)
             with torch.no_grad():
-                input_ids = self.validation_examples['input_ids'].to(model.device)
-                attention_mask = self.validation_examples['attention_mask'].to(model.device)
+                input_ids = self.validation_examples['input_ids']
+                attention_mask = self.validation_examples['attention_mask']
                 
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+                batch_size = 16  # Process in smaller batches to avoid OOM
+                num_samples = input_ids.shape[0]
+                all_layer_outputs = {f'layer_{i}': [] for i in range(min(24, len(base_model.layers) if hasattr(base_model, 'layers') else 0))}
+                all_final_hidden_states = []
                 
-                # Store layer representations
-                for layer_name, layer_output in layer_outputs.items():
-                    representations[layer_name] = layer_output
+                for i in range(0, num_samples, batch_size):
+                    end_idx = min(i + batch_size, num_samples)
+                    batch_input_ids = input_ids[i:end_idx].to(model.device)
+                    batch_attention_mask = attention_mask[i:end_idx].to(model.device)
+                    
+                    # Clear layer outputs for this batch
+                    layer_outputs.clear()
+                    
+                    outputs = model(input_ids=batch_input_ids, attention_mask=batch_attention_mask)
+                    
+                    # Collect layer outputs
+                    for layer_name, layer_output in layer_outputs.items():
+                        all_layer_outputs[layer_name].append(layer_output)
+                    
+                    # Collect final hidden states
+                    if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
+                        all_final_hidden_states.append(outputs.hidden_states[-1].detach().cpu())
+                    elif hasattr(outputs, 'last_hidden_state'):
+                        all_final_hidden_states.append(outputs.last_hidden_state.detach().cpu())
+                    
+                    # Clean up GPU memory after each batch
+                    del batch_input_ids, batch_attention_mask, outputs
+                    torch.cuda.empty_cache()
                 
-                # Store final hidden states
-                if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
-                    representations['final_hidden_states'] = outputs.hidden_states[-1].detach().cpu()
-                elif hasattr(outputs, 'last_hidden_state'):
-                    representations['final_hidden_states'] = outputs.last_hidden_state.detach().cpu()
+                # Concatenate all batch results
+                for layer_name in all_layer_outputs:
+                    if all_layer_outputs[layer_name]:
+                        representations[layer_name] = torch.cat(all_layer_outputs[layer_name], dim=0)
+                
+                if all_final_hidden_states:
+                    representations['final_hidden_states'] = torch.cat(all_final_hidden_states, dim=0)
             
             # Extract LoRA-specific representations
             if self.config.save_adapter_weights and hasattr(model, 'peft_config'):

@@ -983,17 +983,12 @@ class FullFinetuneExperiment:
         results = []
         
         def sweep_function():
-            # Initialize wandb run first to access config
-            with wandb.init() as run:
-                # Get hyperparameters from sweep
-                hyperparams = dict(wandb.config)
-                seed = hyperparams.pop('seed', 42)
-                
-                # End this run since run_single_experiment will start its own
-                wandb.finish()
-                
-                result = self.run_single_experiment(task_name, seed, **hyperparams)
-                results.append(result)
+            # Get hyperparameters from sweep
+            hyperparams = dict(wandb.config)
+            seed = hyperparams.pop('seed', 42)
+            
+            result = self.run_single_experiment(task_name, seed, **hyperparams)
+            results.append(result)
         
         # Run sweep agent
         wandb.agent(sweep_id, sweep_function, count=12)  # Grid search: 2x2x3 = 12 runs

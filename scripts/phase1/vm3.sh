@@ -73,9 +73,17 @@ echo ""
 # Base model representation extraction for drift analysis
 echo "🔬 [2/5] Base Model Representation Extraction"
 
-echo "  ⚡ $(date +'%H:%M') - Extracting base representations for all tasks..."
-python scripts/extract_base_representations.py > logs/phase1/vm3/base_repr_all.log 2>&1
-echo "  ✅ $(date +'%H:%M') - All base representations complete"
+echo "  ⚡ $(date +'%H:%M') - Extracting base representations for MRPC, SST-2, RTE..."
+python scripts/extract_base_representations.py --task mrpc > logs/phase1/vm3/base_repr_mrpc.log 2>&1
+python scripts/extract_base_representations.py --task sst2 > logs/phase1/vm3/base_repr_sst2.log 2>&1  
+python scripts/extract_base_representations.py --task rte > logs/phase1/vm3/base_repr_rte.log 2>&1
+echo "  ✅ $(date +'%H:%M') - MRPC, SST-2, RTE base representations complete"
+
+echo "  ⚡ $(date +'%H:%M') - Extracting base representations for SQuAD v2 (separate process)..."
+# Clear all caches before the memory-intensive SQuAD v2 task
+python -c "import torch, gc; torch.cuda.empty_cache(); gc.collect()"
+python scripts/extract_base_representations.py --task squad_v2 > logs/phase1/vm3/base_repr_squad_v2.log 2>&1
+echo "  ✅ $(date +'%H:%M') - SQuAD v2 base representations complete"
 
 echo "🎯 [2/5] Base Model Representation Extraction COMPLETE"
 
