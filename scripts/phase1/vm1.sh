@@ -45,13 +45,23 @@ echo ""
 echo "🔬 [1/4] MRPC Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting MRPC full fine-tuning (seed $seed)..."
-    python experiments/full_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_full_seed${seed}.log 2>&1
-    echo "  ✅ $(date +'%H:%M') - MRPC full fine-tuning (seed $seed) complete"
+    if python experiments/full_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_full_seed${seed}.log 2>&1; then
+        echo "  ✅ $(date +'%H:%M') - MRPC full fine-tuning (seed $seed) complete"
+    else
+        echo "  ❌ $(date +'%H:%M') - MRPC full fine-tuning (seed $seed) FAILED"
+        echo "Check logs/phase1/vm1/mrpc_full_seed${seed}.log for details"
+        exit 1
+    fi
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting MRPC hyperparameter sweep..."
-python experiments/full_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_sweep.log 2>&1
-echo "  ✅ $(date +'%H:%M') - MRPC hyperparameter sweep complete"
+if python experiments/full_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_sweep.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - MRPC hyperparameter sweep complete"
+else
+    echo "  ❌ $(date +'%H:%M') - MRPC hyperparameter sweep FAILED"
+    echo "Check logs/phase1/vm1/mrpc_sweep.log for details"
+    exit 1
+fi
 echo "🎯 [1/4] MRPC Full Fine-tuning COMPLETE"
 echo ""
 
@@ -59,13 +69,23 @@ echo ""
 echo "🔬 [2/4] MRPC LoRA Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting MRPC LoRA fine-tuning (seed $seed)..."
-    python experiments/lora_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_lora_seed${seed}.log 2>&1
-    echo "  ✅ $(date +'%H:%M') - MRPC LoRA fine-tuning (seed $seed) complete"
+    if python experiments/lora_finetune.py --task mrpc --mode single --seed $seed > logs/phase1/vm1/mrpc_lora_seed${seed}.log 2>&1; then
+        echo "  ✅ $(date +'%H:%M') - MRPC LoRA fine-tuning (seed $seed) complete"
+    else
+        echo "  ❌ $(date +'%H:%M') - MRPC LoRA fine-tuning (seed $seed) FAILED"
+        echo "Check logs/phase1/vm1/mrpc_lora_seed${seed}.log for details"
+        exit 1
+    fi
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting MRPC LoRA hyperparameter sweep..."
-python experiments/lora_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_lora_sweep.log 2>&1
-echo "  ✅ $(date +'%H:%M') - MRPC LoRA hyperparameter sweep complete"
+if python experiments/lora_finetune.py --task mrpc --mode sweep > logs/phase1/vm1/mrpc_lora_sweep.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - MRPC LoRA hyperparameter sweep complete"
+else
+    echo "  ❌ $(date +'%H:%M') - MRPC LoRA hyperparameter sweep FAILED"
+    echo "Check logs/phase1/vm1/mrpc_lora_sweep.log for details"
+    exit 1
+fi
 echo "🎯 [2/4] MRPC LoRA Fine-tuning COMPLETE"
 echo ""
 
@@ -73,13 +93,23 @@ echo ""
 echo "🔬 [3/4] SST-2 Full Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting SST-2 full fine-tuning (seed $seed)..."
-    python experiments/full_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm1/sst2_full_seed${seed}.log 2>&1
-    echo "  ✅ $(date +'%H:%M') - SST-2 full fine-tuning (seed $seed) complete"
+    if python experiments/full_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm1/sst2_full_seed${seed}.log 2>&1; then
+        echo "  ✅ $(date +'%H:%M') - SST-2 full fine-tuning (seed $seed) complete"
+    else
+        echo "  ❌ $(date +'%H:%M') - SST-2 full fine-tuning (seed $seed) FAILED"
+        echo "Check logs/phase1/vm1/sst2_full_seed${seed}.log for details"
+        exit 1
+    fi
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting SST-2 hyperparameter sweep..."
-python experiments/full_finetune.py --task sst2 --mode sweep > logs/phase1/vm1/sst2_sweep.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SST-2 hyperparameter sweep complete"
+if python experiments/full_finetune.py --task sst2 --mode sweep > logs/phase1/vm1/sst2_sweep.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - SST-2 hyperparameter sweep complete"
+else
+    echo "  ❌ $(date +'%H:%M') - SST-2 hyperparameter sweep FAILED"
+    echo "Check logs/phase1/vm1/sst2_sweep.log for details"
+    exit 1
+fi
 echo "🎯 [3/4] SST-2 Full Fine-tuning COMPLETE"
 echo ""
 
@@ -87,13 +117,23 @@ echo ""
 echo "🔬 [4/4] SST-2 LoRA Fine-tuning (3 seeds + sweep)"
 for seed in 42 1337 2024; do
     echo "  ⚡ $(date +'%H:%M') - Starting SST-2 LoRA fine-tuning (seed $seed)..."
-    python experiments/lora_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm1/sst2_lora_seed${seed}.log 2>&1
-    echo "  ✅ $(date +'%H:%M') - SST-2 LoRA fine-tuning (seed $seed) complete"
+    if python experiments/lora_finetune.py --task sst2 --mode single --seed $seed > logs/phase1/vm1/sst2_lora_seed${seed}.log 2>&1; then
+        echo "  ✅ $(date +'%H:%M') - SST-2 LoRA fine-tuning (seed $seed) complete"
+    else
+        echo "  ❌ $(date +'%H:%M') - SST-2 LoRA fine-tuning (seed $seed) FAILED"
+        echo "Check logs/phase1/vm1/sst2_lora_seed${seed}.log for details"
+        exit 1
+    fi
 done
 
 echo "  ⚡ $(date +'%H:%M') - Starting SST-2 LoRA hyperparameter sweep..."
-python experiments/lora_finetune.py --task sst2 --mode sweep > logs/phase1/vm1/sst2_lora_sweep.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SST-2 LoRA hyperparameter sweep complete"
+if python experiments/lora_finetune.py --task sst2 --mode sweep > logs/phase1/vm1/sst2_lora_sweep.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - SST-2 LoRA hyperparameter sweep complete"
+else
+    echo "  ❌ $(date +'%H:%M') - SST-2 LoRA hyperparameter sweep FAILED"
+    echo "Check logs/phase1/vm1/sst2_lora_sweep.log for details"
+    exit 1
+fi
 echo "🎯 [4/4] SST-2 LoRA Fine-tuning COMPLETE"
 
 echo ""

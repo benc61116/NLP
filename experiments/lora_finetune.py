@@ -506,11 +506,17 @@ class LoRAExperiment:
                 torch.backends.cudnn.deterministic = True
                 torch.backends.cudnn.benchmark = False
         
-        # Initialize tokenizer
+        # Initialize tokenizer with proper padding setup
         model_name = self.config['model']['name']
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+        # Fix padding token for TinyLlama (critical for batch processing)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        
+        # Ensure padding side is correct for causal LM
+        self.tokenizer.padding_side = "right"
         
         # Initialize data loader
         self.data_loader = TaskDataLoader(model_name)
@@ -608,24 +614,27 @@ class LoRAExperiment:
         return model
     
     def _freeze_base_model_parameters(self, model: torch.nn.Module):
-        """Aggressively freeze all base model parameters to prevent gradient warnings."""
+        """Freeze base model parameters but keep LoRA adapters and task heads trainable."""
         frozen_count = 0
-        lora_count = 0
+        trainable_count = 0
         
         for name, param in model.named_parameters():
-            # Check if this is a LoRA parameter
-            is_lora_param = any(keyword in name for keyword in ['lora_A', 'lora_B', 'adapter'])
+            # Check if this is a parameter that should remain trainable
+            should_train = any(keyword in name for keyword in [
+                'lora_A', 'lora_B', 'adapter',  # LoRA parameters
+                'classifier', 'score', 'qa_outputs'  # Task-specific heads
+            ])
             
-            if is_lora_param:
-                # LoRA parameters should be trainable
+            if should_train:
+                # LoRA and task-specific parameters should be trainable
                 param.requires_grad = True
-                lora_count += 1
+                trainable_count += 1
             else:
                 # Base model parameters should be frozen
                 param.requires_grad = False
                 frozen_count += 1
         
-        logger.info(f"Frozen {frozen_count} base parameters, kept {lora_count} LoRA parameters trainable")
+        logger.info(f"Frozen {frozen_count} base parameters, kept {trainable_count} LoRA/task parameters trainable")
     
     def prepare_datasets(self, task_name: str) -> Tuple[Dataset, Dataset]:
         """Prepare training and validation datasets (same as full fine-tuning)."""

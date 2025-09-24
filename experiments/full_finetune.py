@@ -745,11 +745,17 @@ class FullFinetuneExperiment:
                 torch.backends.cudnn.deterministic = True
                 torch.backends.cudnn.benchmark = False
         
-        # Initialize tokenizer
+        # Initialize tokenizer with proper padding setup
         model_name = self.config['model']['name']
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+        # Fix padding token for TinyLlama (critical for batch processing)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        
+        # Ensure padding side is correct for causal LM
+        self.tokenizer.padding_side = "right"
         
         # Initialize data loader
         self.data_loader = TaskDataLoader(model_name)

@@ -44,28 +44,48 @@ echo ""
 echo "🔬 [1/2] Running All Baseline Experiments"
 
 echo "  ⚡ $(date +'%H:%M') - Running MRPC baselines..."
-python experiments/baselines.py --task mrpc --baseline majority > logs/phase1/vm3/mrpc_majority.log 2>&1
-python experiments/baselines.py --task mrpc --baseline random > logs/phase1/vm3/mrpc_random.log 2>&1
-python experiments/baselines.py --task mrpc --baseline sota > logs/phase1/vm3/mrpc_sota.log 2>&1
-echo "  ✅ $(date +'%H:%M') - MRPC baselines complete"
+if python experiments/baselines.py --task mrpc --baseline majority > logs/phase1/vm3/mrpc_majority.log 2>&1 && \
+   python experiments/baselines.py --task mrpc --baseline random > logs/phase1/vm3/mrpc_random.log 2>&1 && \
+   python experiments/baselines.py --task mrpc --baseline sota > logs/phase1/vm3/mrpc_sota.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - MRPC baselines complete"
+else
+    echo "  ❌ $(date +'%H:%M') - MRPC baselines FAILED"
+    echo "Check logs/phase1/vm3/mrpc_*.log for details"
+    exit 1
+fi
 
 echo "  ⚡ $(date +'%H:%M') - Running SST-2 baselines..."
-python experiments/baselines.py --task sst2 --baseline majority > logs/phase1/vm3/sst2_majority.log 2>&1
-python experiments/baselines.py --task sst2 --baseline random > logs/phase1/vm3/sst2_random.log 2>&1
-python experiments/baselines.py --task sst2 --baseline sota > logs/phase1/vm3/sst2_sota.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SST-2 baselines complete"
+if python experiments/baselines.py --task sst2 --baseline majority > logs/phase1/vm3/sst2_majority.log 2>&1 && \
+   python experiments/baselines.py --task sst2 --baseline random > logs/phase1/vm3/sst2_random.log 2>&1 && \
+   python experiments/baselines.py --task sst2 --baseline sota > logs/phase1/vm3/sst2_sota.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - SST-2 baselines complete"
+else
+    echo "  ❌ $(date +'%H:%M') - SST-2 baselines FAILED"
+    echo "Check logs/phase1/vm3/sst2_*.log for details"
+    exit 1
+fi
 
 echo "  ⚡ $(date +'%H:%M') - Running RTE baselines..."
-python experiments/baselines.py --task rte --baseline majority > logs/phase1/vm3/rte_majority.log 2>&1
-python experiments/baselines.py --task rte --baseline random > logs/phase1/vm3/rte_random.log 2>&1
-python experiments/baselines.py --task rte --baseline sota > logs/phase1/vm3/rte_sota.log 2>&1
-echo "  ✅ $(date +'%H:%M') - RTE baselines complete"
+if python experiments/baselines.py --task rte --baseline majority > logs/phase1/vm3/rte_majority.log 2>&1 && \
+   python experiments/baselines.py --task rte --baseline random > logs/phase1/vm3/rte_random.log 2>&1 && \
+   python experiments/baselines.py --task rte --baseline sota > logs/phase1/vm3/rte_sota.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - RTE baselines complete"
+else
+    echo "  ❌ $(date +'%H:%M') - RTE baselines FAILED"
+    echo "Check logs/phase1/vm3/rte_*.log for details"
+    exit 1
+fi
 
 echo "  ⚡ $(date +'%H:%M') - Running SQuAD v2 baselines..."
-python experiments/baselines.py --task squad_v2 --baseline majority > logs/phase1/vm3/squad_v2_majority.log 2>&1
-python experiments/baselines.py --task squad_v2 --baseline random > logs/phase1/vm3/squad_v2_random.log 2>&1
-python experiments/baselines.py --task squad_v2 --baseline sota > logs/phase1/vm3/squad_v2_sota.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SQuAD v2 baselines complete"
+if python experiments/baselines.py --task squad_v2 --baseline majority > logs/phase1/vm3/squad_v2_majority.log 2>&1 && \
+   python experiments/baselines.py --task squad_v2 --baseline random > logs/phase1/vm3/squad_v2_random.log 2>&1 && \
+   python experiments/baselines.py --task squad_v2 --baseline sota > logs/phase1/vm3/squad_v2_sota.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - SQuAD v2 baselines complete"
+else
+    echo "  ❌ $(date +'%H:%M') - SQuAD v2 baselines FAILED"
+    echo "Check logs/phase1/vm3/squad_v2_*.log for details"
+    exit 1
+fi
 
 echo "🎯 [1/2] All Baseline Experiments COMPLETE"
 echo ""
@@ -74,16 +94,26 @@ echo ""
 echo "🔬 [2/2] Base Model Representation Extraction"
 
 echo "  ⚡ $(date +'%H:%M') - Extracting base representations for MRPC, SST-2, RTE..."
-python scripts/extract_base_representations.py --task mrpc > logs/phase1/vm3/base_repr_mrpc.log 2>&1
-python scripts/extract_base_representations.py --task sst2 > logs/phase1/vm3/base_repr_sst2.log 2>&1  
-python scripts/extract_base_representations.py --task rte > logs/phase1/vm3/base_repr_rte.log 2>&1
-echo "  ✅ $(date +'%H:%M') - MRPC, SST-2, RTE base representations complete"
+if python scripts/extract_base_representations.py --task mrpc > logs/phase1/vm3/base_repr_mrpc.log 2>&1 && \
+   python scripts/extract_base_representations.py --task sst2 > logs/phase1/vm3/base_repr_sst2.log 2>&1 && \
+   python scripts/extract_base_representations.py --task rte > logs/phase1/vm3/base_repr_rte.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - MRPC, SST-2, RTE base representations complete"
+else
+    echo "  ❌ $(date +'%H:%M') - Base representations FAILED for MRPC/SST-2/RTE"
+    echo "Check logs/phase1/vm3/base_repr_*.log for details"
+    exit 1
+fi
 
 echo "  ⚡ $(date +'%H:%M') - Extracting base representations for SQuAD v2 (separate process)..."
 # Clear all caches before the memory-intensive SQuAD v2 task
 python -c "import torch, gc; torch.cuda.empty_cache(); gc.collect()"
-python scripts/extract_base_representations.py --task squad_v2 > logs/phase1/vm3/base_repr_squad_v2.log 2>&1
-echo "  ✅ $(date +'%H:%M') - SQuAD v2 base representations complete"
+if python scripts/extract_base_representations.py --task squad_v2 > logs/phase1/vm3/base_repr_squad_v2.log 2>&1; then
+    echo "  ✅ $(date +'%H:%M') - SQuAD v2 base representations complete"
+else
+    echo "  ❌ $(date +'%H:%M') - SQuAD v2 base representations FAILED"
+    echo "Check logs/phase1/vm3/base_repr_squad_v2.log for details"
+    exit 1
+fi
 
 echo "🎯 [2/2] Base Model Representation Extraction COMPLETE"
 
