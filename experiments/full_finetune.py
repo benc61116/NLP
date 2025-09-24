@@ -146,34 +146,46 @@ class RepresentationExtractor:
     def _extract_representations_chunked(self, model: torch.nn.Module, input_ids: torch.Tensor, 
                                        attention_mask: torch.Tensor, num_samples: int, 
                                        batch_size: int, layer_outputs: dict, hooks: list, step: int) -> Dict[str, torch.Tensor]:
-        """Extract representations in chunks for memory-intensive tasks like SQuAD v2."""
-        chunk_size = 200  # Process 200 samples at a time
-        all_saved_chunks = []  # Track saved chunk files for final merging
+        """Extract representations using GPU-first streaming approach for SQuAD v2."""
+        mini_chunk_size = 100  # Process 100 samples per mini-chunk (more efficient with GPU memory)
         
-        logger.info(f"SQuAD v2: Processing {num_samples} samples in chunks of {chunk_size}")
+        # Initialize collectors for all representations (GPU-first streaming)
+        all_representations = {f'layer_{i}': [] for i in self.config.save_layers}
+        all_final_hidden_states = []
         
-        for chunk_start in range(0, num_samples, chunk_size):
-            chunk_end = min(chunk_start + chunk_size, num_samples)
+        # Memory monitoring (both GPU and CPU)
+        import psutil
+        initial_cpu_memory = psutil.virtual_memory().available / (1024**3)  # GB
+        initial_gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)  # GB
+        gpu_memory_used = torch.cuda.memory_allocated() / (1024**3)  # GB
+        gpu_memory_available = initial_gpu_memory - gpu_memory_used
+        
+        logger.info(f"SQuAD v2: GPU memory: {gpu_memory_available:.1f}GB available / {initial_gpu_memory:.1f}GB total")
+        logger.info(f"SQuAD v2: CPU memory: {initial_cpu_memory:.1f}GB available")
+        logger.info(f"Processing {num_samples} samples in mini-chunks of {mini_chunk_size} (GPU-first streaming)")
+        
+        for chunk_start in range(0, num_samples, mini_chunk_size):
+            chunk_end = min(chunk_start + mini_chunk_size, num_samples)
             chunk_samples = chunk_end - chunk_start
             
-            logger.info(f"Processing chunk {chunk_start//chunk_size + 1}/{(num_samples-1)//chunk_size + 1}: samples {chunk_start}-{chunk_end-1}")
+            logger.info(f"Processing mini-chunk {chunk_start//mini_chunk_size + 1}/{(num_samples-1)//mini_chunk_size + 1}: samples {chunk_start}-{chunk_end-1}")
             
-            # Process this chunk
+            # Process this mini-chunk
             chunk_input_ids = input_ids[chunk_start:chunk_end]
             chunk_attention_mask = attention_mask[chunk_start:chunk_end]
             
             chunk_layer_outputs = {f'layer_{i}': [] for i in self.config.save_layers}
             chunk_final_hidden_states = []
             
-            # Process chunk in small batches
+            # Process mini-chunk in small batches
             for i in range(0, chunk_samples, batch_size):
                 batch_end = min(i + batch_size, chunk_samples)
                 
-                # Progress within chunk
-                if i % (batch_size * 10) == 0:
+                # Progress logging
+                if i % (batch_size * 5) == 0:
                     chunk_progress = (i / chunk_samples) * 100
                     overall_progress = ((chunk_start + i) / num_samples) * 100
-                    logger.info(f"Chunk progress: {chunk_progress:.1f}%, Overall: {overall_progress:.1f}%")
+                    logger.info(f"Mini-chunk progress: {chunk_progress:.1f}%, Overall: {overall_progress:.1f}%")
                 
                 batch_input_ids = chunk_input_ids[i:batch_end].to(model.device)
                 batch_attention_mask = chunk_attention_mask[i:batch_end].to(model.device)
@@ -183,76 +195,158 @@ class RepresentationExtractor:
                 
                 outputs = model(input_ids=batch_input_ids, attention_mask=batch_attention_mask)
                 
-                # Collect outputs for this batch
-                for layer_name, layer_output in layer_outputs.items():
-                    chunk_layer_outputs[layer_name].append(layer_output)
+                # Collect outputs for this batch (keep on GPU if memory permits)
+                current_gpu_memory = torch.cuda.memory_allocated() / (1024**3)  # GB
+                gpu_available = initial_gpu_memory - current_gpu_memory
                 
-                if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
-                    chunk_final_hidden_states.append(outputs.hidden_states[-1].detach().cpu())
-                elif hasattr(outputs, 'last_hidden_state'):
-                    chunk_final_hidden_states.append(outputs.last_hidden_state.detach().cpu())
+                # If GPU memory is getting low (< 5GB), move to CPU
+                if gpu_available < 5:
+                    for layer_name, layer_output in layer_outputs.items():
+                        chunk_layer_outputs[layer_name].append(layer_output.detach().cpu())
+                    
+                    if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
+                        chunk_final_hidden_states.append(outputs.hidden_states[-1].detach().cpu())
+                    elif hasattr(outputs, 'last_hidden_state'):
+                        chunk_final_hidden_states.append(outputs.last_hidden_state.detach().cpu())
+                else:
+                    # Keep on GPU for speed
+                    for layer_name, layer_output in layer_outputs.items():
+                        chunk_layer_outputs[layer_name].append(layer_output.detach())
+                    
+                    if hasattr(outputs, 'hidden_states') and outputs.hidden_states is not None:
+                        chunk_final_hidden_states.append(outputs.hidden_states[-1].detach())
+                    elif hasattr(outputs, 'last_hidden_state'):
+                        chunk_final_hidden_states.append(outputs.last_hidden_state.detach())
                 
-                # Cleanup batch
+                # Cleanup batch data immediately
                 del batch_input_ids, batch_attention_mask, outputs
                 torch.cuda.empty_cache()
-                gc.collect()
             
-            # Concatenate and save this chunk
-            chunk_representations = {}
+            # Concatenate this mini-chunk and add to main collectors
             for layer_name in chunk_layer_outputs:
                 if chunk_layer_outputs[layer_name]:
-                    chunk_representations[layer_name] = torch.cat(chunk_layer_outputs[layer_name], dim=0)
+                    mini_chunk_repr = torch.cat(chunk_layer_outputs[layer_name], dim=0)
+                    all_representations[layer_name].append(mini_chunk_repr)
             
             if chunk_final_hidden_states:
-                chunk_representations['final_hidden_states'] = torch.cat(chunk_final_hidden_states, dim=0)
+                mini_chunk_final = torch.cat(chunk_final_hidden_states, dim=0)
+                all_final_hidden_states.append(mini_chunk_final)
             
-            # Save chunk to disk immediately
-            chunk_file = f"chunk_{chunk_start//chunk_size}_{step}.pt"
-            chunk_path = self.output_dir / chunk_file
-            chunk_path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(chunk_representations, chunk_path)
-            all_saved_chunks.append(chunk_path)
-            
-            logger.info(f"Saved chunk {chunk_start//chunk_size + 1} to {chunk_file}")
-            
-            # Cleanup chunk data
-            del chunk_representations, chunk_layer_outputs, chunk_final_hidden_states
+            # Cleanup mini-chunk data
+            del chunk_layer_outputs, chunk_final_hidden_states
             del chunk_input_ids, chunk_attention_mask
             torch.cuda.empty_cache()
-            gc.collect()
+            
+            # Memory monitoring and cleanup every 3 mini-chunks
+            if (chunk_start // mini_chunk_size + 1) % 3 == 0:
+                import gc
+                gc.collect()
+                torch.cuda.empty_cache()
+                
+                # Check both GPU and CPU memory
+                current_cpu_memory = psutil.virtual_memory().available / (1024**3)  # GB
+                current_gpu_memory = torch.cuda.memory_allocated() / (1024**3)  # GB
+                gpu_available = initial_gpu_memory - current_gpu_memory
+                cpu_used = initial_cpu_memory - current_cpu_memory
+                
+                chunk_num = chunk_start // mini_chunk_size + 1
+                logger.info(f"After {chunk_num} mini-chunks:")
+                logger.info(f"  GPU: {current_gpu_memory:.1f}GB used, {gpu_available:.1f}GB available")
+                logger.info(f"  CPU: {cpu_used:.1f}GB used, {current_cpu_memory:.1f}GB available")
+                
+                # GPU memory management: if GPU memory gets low, move older chunks to CPU
+                if gpu_available < 8:
+                    logger.warning(f"GPU memory getting low ({gpu_available:.1f}GB). Moving older chunks to CPU...")
+                    for layer_name in all_representations:
+                        if len(all_representations[layer_name]) > 3:
+                            # Move first few chunks to CPU to free GPU memory
+                            for i in range(min(3, len(all_representations[layer_name]))):
+                                if all_representations[layer_name][i].is_cuda:
+                                    all_representations[layer_name][i] = all_representations[layer_name][i].cpu()
+                    
+                    # Also move final hidden states to CPU if needed
+                    for i in range(min(3, len(all_final_hidden_states))):
+                        if all_final_hidden_states[i].is_cuda:
+                            all_final_hidden_states[i] = all_final_hidden_states[i].cpu()
+                    
+                    torch.cuda.empty_cache()
+                    new_gpu_memory = torch.cuda.memory_allocated() / (1024**3)
+                    logger.info(f"After moving to CPU: {new_gpu_memory:.1f}GB GPU memory used")
+                
+                # CPU memory safety check
+                if cpu_used > 20:
+                    logger.warning(f"High CPU memory usage: {cpu_used:.1f}GB used")
+                elif cpu_used > 25:
+                    logger.error(f"Critical CPU memory usage: {cpu_used:.1f}GB used")
+                    raise MemoryError(f"CPU memory usage too high: {cpu_used:.1f}GB")
         
-        # Load and merge all chunks into final result
-        logger.info("Merging all chunks into final representations...")
+        # Final memory check before concatenation (most memory-intensive step)
+        final_gpu_memory = torch.cuda.memory_allocated() / (1024**3)  # GB
+        final_cpu_memory = psutil.virtual_memory().available / (1024**3)  # GB
+        logger.info(f"Pre-concatenation: GPU {final_gpu_memory:.1f}GB used, CPU {final_cpu_memory:.1f}GB available")
+        
+        # Determine where to perform final concatenation based on available memory
+        gpu_space_available = initial_gpu_memory - final_gpu_memory
+        concatenate_on_gpu = gpu_space_available > 10  # Need at least 10GB for concatenation
+        
+        if concatenate_on_gpu:
+            logger.info("Performing final concatenation on GPU for speed...")
+            device = torch.cuda.current_device()
+        else:
+            logger.info("Performing final concatenation on CPU due to GPU memory constraints...")
+            device = 'cpu'
+        
+        # Final concatenation of all mini-chunks
+        logger.info("Concatenating all mini-chunks into final representations...")
         final_representations = {}
         
-        for chunk_idx, chunk_path in enumerate(all_saved_chunks):
-            chunk_data = torch.load(chunk_path, map_location='cpu')
-            
-            for layer_name, layer_data in chunk_data.items():
-                if layer_name not in final_representations:
-                    final_representations[layer_name] = []
-                final_representations[layer_name].append(layer_data)
-            
-            # Clean up chunk file
-            chunk_path.unlink()
-            del chunk_data
-            
-            if chunk_idx % 2 == 0:  # Cleanup every 2 chunks
-                torch.cuda.empty_cache()
-                gc.collect()
+        for layer_name in all_representations:
+            if all_representations[layer_name]:
+                # Move all chunks to the same device for concatenation
+                chunks_on_device = []
+                for chunk in all_representations[layer_name]:
+                    if device == 'cpu' and chunk.is_cuda:
+                        chunks_on_device.append(chunk.cpu())
+                    elif device != 'cpu' and not chunk.is_cuda:
+                        chunks_on_device.append(chunk.to(device))
+                    else:
+                        chunks_on_device.append(chunk)
+                
+                final_representations[layer_name] = torch.cat(chunks_on_device, dim=0)
+                # Move final result to CPU to save GPU memory
+                if final_representations[layer_name].is_cuda:
+                    final_representations[layer_name] = final_representations[layer_name].cpu()
+                
+                logger.info(f"Final {layer_name}: {final_representations[layer_name].shape}")
+                del chunks_on_device
         
-        # Final concatenation
-        merged_representations = {}
-        for layer_name, layer_chunks in final_representations.items():
-            merged_representations[layer_name] = torch.cat(layer_chunks, dim=0)
-            logger.info(f"Merged {layer_name}: {merged_representations[layer_name].shape}")
+        if all_final_hidden_states:
+            # Same device handling for final hidden states
+            chunks_on_device = []
+            for chunk in all_final_hidden_states:
+                if device == 'cpu' and chunk.is_cuda:
+                    chunks_on_device.append(chunk.cpu())
+                elif device != 'cpu' and not chunk.is_cuda:
+                    chunks_on_device.append(chunk.to(device))
+                else:
+                    chunks_on_device.append(chunk)
+            
+            final_representations['final_hidden_states'] = torch.cat(chunks_on_device, dim=0)
+            # Move final result to CPU
+            if final_representations['final_hidden_states'].is_cuda:
+                final_representations['final_hidden_states'] = final_representations['final_hidden_states'].cpu()
+            
+            logger.info(f"Final final_hidden_states: {final_representations['final_hidden_states'].shape}")
+            del chunks_on_device
         
-        del final_representations
+        # Cleanup collectors
+        del all_representations, all_final_hidden_states
         torch.cuda.empty_cache()
+        import gc
         gc.collect()
         
-        logger.info("✅ SQuAD v2 chunked processing complete!")
-        return merged_representations
+        logger.info("✅ SQuAD v2 streaming processing complete!")
+        return final_representations
     
     def extract_representations(self, model: torch.nn.Module, step: int) -> Dict[str, torch.Tensor]:
         """Extract representations from the model."""
