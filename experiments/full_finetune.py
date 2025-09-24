@@ -428,8 +428,9 @@ class RepresentationExtractor:
         logger.info(f"✅ Saved metadata to {step_dir / 'metadata.json'}")
         logger.info("✅ SQuAD v2 streaming processing complete!")
         
-        # Return shapes instead of tensors to avoid memory issues
-        return final_representations
+        # Return empty dict since representations are already saved to disk
+        # This avoids memory issues and prevents save_representations from being called again
+        return {}
     
     def _validate_tensor(self, tensor: torch.Tensor, layer_name: str) -> bool:
         """Validate tensor integrity before saving."""
@@ -1176,20 +1177,44 @@ class FullFinetuneExperiment:
             
             for ex in eval_dataset:
                 if ex['input_ids'] is not None and ex['attention_mask'] is not None:
-                    # Convert to tensor if it's a list
+                    # Convert to tensor ensuring proper format
                     if isinstance(ex['input_ids'], list):
-                        input_ids_list.append(torch.tensor(ex['input_ids']))
-                        attention_mask_list.append(torch.tensor(ex['attention_mask']))
+                        input_ids_tensor = torch.tensor(ex['input_ids'], dtype=torch.long)
+                    elif isinstance(ex['input_ids'], torch.Tensor):
+                        input_ids_tensor = ex['input_ids']
                     else:
-                        input_ids_list.append(ex['input_ids'])
-                        attention_mask_list.append(ex['attention_mask'])
+                        input_ids_tensor = torch.tensor([ex['input_ids']], dtype=torch.long)
+                    
+                    if isinstance(ex['attention_mask'], list):
+                        attention_mask_tensor = torch.tensor(ex['attention_mask'], dtype=torch.long)
+                    elif isinstance(ex['attention_mask'], torch.Tensor):
+                        attention_mask_tensor = ex['attention_mask']
+                    else:
+                        attention_mask_tensor = torch.tensor([ex['attention_mask']], dtype=torch.long)
+                    
+                    # Ensure tensors are at least 1D
+                    if input_ids_tensor.dim() == 0:
+                        input_ids_tensor = input_ids_tensor.unsqueeze(0)
+                    if attention_mask_tensor.dim() == 0:
+                        attention_mask_tensor = attention_mask_tensor.unsqueeze(0)
+                    
+                    input_ids_list.append(input_ids_tensor)
+                    attention_mask_list.append(attention_mask_tensor)
                     
                     # Handle labels for classification tasks
                     if 'labels' in ex and ex['labels'] is not None:
-                        if isinstance(ex['labels'], list):
-                            labels_list.append(torch.tensor(ex['labels']))
+                        if isinstance(ex['labels'], (list, int, float)):
+                            labels_tensor = torch.tensor(ex['labels'], dtype=torch.long)
                         else:
-                            labels_list.append(ex['labels'])
+                            labels_tensor = ex['labels']
+                        
+                        # For classification, labels should be scalar
+                        if labels_tensor.dim() > 0 and labels_tensor.numel() == 1:
+                            labels_tensor = labels_tensor.squeeze()
+                        elif labels_tensor.dim() == 0:
+                            pass  # already scalar
+                        
+                        labels_list.append(labels_tensor)
             
             if not input_ids_list:
                 raise ValueError("No valid examples found in eval_dataset")
