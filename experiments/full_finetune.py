@@ -391,6 +391,7 @@ class RepresentationExtractor:
         
         # Save metadata for the completed extraction
         step_dir = self.output_dir / f"step_{step:06d}"
+        step_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
         from datetime import datetime
         import json
         
@@ -686,18 +687,64 @@ class FullFinetuneCallback(TrainerCallback):
         
         # Set validation examples for representation extraction
         if eval_dataset is not None:
-            examples = {
-                'input_ids': torch.tensor([ex['input_ids'] for ex in eval_dataset]),
-                'attention_mask': torch.tensor([ex['attention_mask'] for ex in eval_dataset])
-            }
-            # Handle both classification and QA tasks
-            if 'labels' in eval_dataset[0]:
-                examples['labels'] = torch.tensor([ex['labels'] for ex in eval_dataset])
-            elif 'start_positions' in eval_dataset[0] and 'end_positions' in eval_dataset[0]:
-                examples['start_positions'] = torch.tensor([ex['start_positions'] for ex in eval_dataset])
-                examples['end_positions'] = torch.tensor([ex['end_positions'] for ex in eval_dataset])
-            
-            self.representation_extractor.set_validation_examples(examples)
+            try:
+                # FIXED: Properly handle HuggingFace Dataset tensors
+                if hasattr(eval_dataset, 'data') and hasattr(eval_dataset.data, 'column'):
+                    # Access the underlying data directly for HuggingFace datasets
+                    examples = {
+                        'input_ids': eval_dataset['input_ids'],
+                        'attention_mask': eval_dataset['attention_mask']
+                    }
+                    # Handle both classification and QA tasks
+                    if 'labels' in eval_dataset.column_names:
+                        examples['labels'] = eval_dataset['labels']
+                    elif 'start_positions' in eval_dataset.column_names and 'end_positions' in eval_dataset.column_names:
+                        examples['start_positions'] = eval_dataset['start_positions']
+                        examples['end_positions'] = eval_dataset['end_positions']
+                else:
+                    # Fallback: manually construct tensors, filtering None values
+                    input_ids_list = []
+                    attention_mask_list = []
+                    labels_list = []
+                    start_positions_list = []
+                    end_positions_list = []
+                    
+                    for ex in eval_dataset:
+                        if ex['input_ids'] is not None and ex['attention_mask'] is not None:
+                            input_ids_list.append(ex['input_ids'])
+                            attention_mask_list.append(ex['attention_mask'])
+                            
+                            if 'labels' in ex and ex['labels'] is not None:
+                                labels_list.append(ex['labels'])
+                            elif 'start_positions' in ex and 'end_positions' in ex:
+                                if ex['start_positions'] is not None and ex['end_positions'] is not None:
+                                    start_positions_list.append(ex['start_positions'])
+                                    end_positions_list.append(ex['end_positions'])
+                    
+                    if not input_ids_list:
+                        raise ValueError("No valid examples found in eval_dataset")
+                    
+                    examples = {
+                        'input_ids': torch.stack(input_ids_list),
+                        'attention_mask': torch.stack(attention_mask_list)
+                    }
+                    
+                    # Add labels/positions if found
+                    if labels_list:
+                        examples['labels'] = torch.stack(labels_list)
+                    elif start_positions_list and end_positions_list:
+                        examples['start_positions'] = torch.stack(start_positions_list)
+                        examples['end_positions'] = torch.stack(end_positions_list)
+                
+                self.representation_extractor.set_validation_examples(examples)
+                
+            except Exception as e:
+                logger.error(f"Failed to set validation examples: {e}")
+                logger.error(f"eval_dataset type: {type(eval_dataset)}")
+                if len(eval_dataset) > 0:
+                    logger.error(f"First example keys: {list(eval_dataset[0].keys())}")
+                # Continue without representation extraction rather than failing completely
+                logger.warning("Continuing without representation extraction due to validation example setup failure")
     
     def on_step_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Called at the end of each training step."""
@@ -966,8 +1013,8 @@ class FullFinetuneExperiment:
         
         # Use same model type as training
         task_type = self.config['tasks'][task_name].get('type', 'classification')
-        if task_type == 'qa':
-            base_model = AutoModelForCausalLM.from_pretrained(
+        if task_type in ['qa', 'question_answering']:
+            base_model = AutoModelForQuestionAnswering.from_pretrained(
                 model_name,
                 dtype=getattr(torch, self.config['model']['dtype']),
                 device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
@@ -996,19 +1043,62 @@ class FullFinetuneExperiment:
             "base_pretrained"
         )
         
-        # Set validation examples
-        examples = {
-            'input_ids': torch.tensor([ex['input_ids'] for ex in eval_dataset]),
-            'attention_mask': torch.tensor([ex['attention_mask'] for ex in eval_dataset])
-        }
-        if 'labels' in eval_dataset[0]:
-            examples['labels'] = torch.tensor([ex['labels'] for ex in eval_dataset])
-        
-        base_extractor.set_validation_examples(examples)
-        
-        # Extract and save base representations
-        representations = base_extractor.extract_representations(base_model, step=0)
-        base_extractor.save_representations(representations, step=0)
+        # FIXED: Properly extract tensors from HuggingFace Dataset
+        # The issue was trying to create tensors from already-tensorized data
+        try:
+            # Convert HuggingFace Dataset to tensors properly
+            input_ids_list = []
+            attention_mask_list = []
+            labels_list = []
+            
+            for ex in eval_dataset:
+                if ex['input_ids'] is not None and ex['attention_mask'] is not None:
+                    # Convert to tensor if it's a list
+                    if isinstance(ex['input_ids'], list):
+                        input_ids_list.append(torch.tensor(ex['input_ids']))
+                        attention_mask_list.append(torch.tensor(ex['attention_mask']))
+                    else:
+                        input_ids_list.append(ex['input_ids'])
+                        attention_mask_list.append(ex['attention_mask'])
+                    
+                    # Handle labels for classification tasks
+                    if 'labels' in ex and ex['labels'] is not None:
+                        if isinstance(ex['labels'], list):
+                            labels_list.append(torch.tensor(ex['labels']))
+                        else:
+                            labels_list.append(ex['labels'])
+            
+            if not input_ids_list:
+                raise ValueError("No valid examples found in eval_dataset")
+            
+            # Stack the tensors
+            input_ids = torch.stack(input_ids_list)
+            attention_mask = torch.stack(attention_mask_list)
+            
+            examples = {
+                'input_ids': input_ids,
+                'attention_mask': attention_mask,
+            }
+            
+            # Add labels if present (for classification tasks)
+            if labels_list:
+                examples['labels'] = torch.stack(labels_list)
+            
+            logger.info(f"Successfully prepared {input_ids.shape[0]} validation examples for {task_name}")
+            base_extractor.set_validation_examples(examples)
+            
+            # Extract and save base representations
+            representations = base_extractor.extract_representations(base_model, step=0)
+            base_extractor.save_representations(representations, step=0)
+            
+        except Exception as e:
+            logger.error(f"Failed to extract base model representations for {task_name}: {e}")
+            logger.error(f"eval_dataset type: {type(eval_dataset)}")
+            logger.error(f"eval_dataset length: {len(eval_dataset)}")
+            if len(eval_dataset) > 0:
+                logger.error(f"First example keys: {list(eval_dataset[0].keys())}")
+                logger.error(f"First example input_ids type: {type(eval_dataset[0]['input_ids'])}")
+            raise
         
         # Clean up
         del base_model
