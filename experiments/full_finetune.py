@@ -703,6 +703,19 @@ class FullFinetuneCallback(TrainerCallback):
         """Called at the end of each training step."""
         model = kwargs.get('model')
         step = state.global_step
+        logs = kwargs.get('logs', {})
+        
+        # Log training metrics (since we disabled Trainer's automatic wandb reporting)
+        if wandb.run is not None and logs:
+            # Log basic training metrics at logging intervals
+            if step % args.logging_steps == 0:
+                training_metrics = {}
+                for key, value in logs.items():
+                    if isinstance(value, (int, float)):
+                        training_metrics[f"train/{key}"] = value
+                
+                if training_metrics:
+                    wandb.log(training_metrics, step=step, commit=False)
         
         # Log gradient statistics
         if step % self.gradient_monitor.log_every_steps == 0:
@@ -732,6 +745,17 @@ class FullFinetuneCallback(TrainerCallback):
         """Called during evaluation."""
         step = state.global_step
         logger.info(f"Evaluation at step {step}")
+        
+        # Log evaluation metrics (since we disabled Trainer's automatic wandb reporting)
+        metrics = kwargs.get('metrics', {})
+        if wandb.run is not None and metrics:
+            eval_metrics = {}
+            for key, value in metrics.items():
+                if isinstance(value, (int, float)) and key.startswith('eval_'):
+                    eval_metrics[key] = value
+            
+            if eval_metrics:
+                wandb.log(eval_metrics, step=step, commit=False)
         
         # Extract representations during evaluation
         model = kwargs.get('model')
@@ -1152,8 +1176,8 @@ class FullFinetuneExperiment:
                 fp16=False,  # Disabled when using bfloat16 dtype to avoid conflicts
                 bf16=False,  # Let model dtype handle precision
                 
-                # Reporting
-                report_to=["wandb"],
+                # Reporting - disable automatic wandb reporting to avoid step conflicts with custom callback
+                report_to=[],  # Let custom callback handle wandb logging
                 logging_dir=str(output_dir / "logs"),
                 
                 # Reproducibility
@@ -1205,7 +1229,8 @@ class FullFinetuneExperiment:
             
             # Log initial memory stats
             initial_memory = memory_profiler.get_memory_stats()
-            wandb.log({f"initial_memory/{k}": v for k, v in initial_memory.items()})
+            if wandb.run is not None:
+                wandb.log({f"initial_memory/{k}": v for k, v in initial_memory.items()}, commit=False)
             
             # Train the model (with resume support)
             logger.info(f"Starting training for {task_name}...")
@@ -1236,7 +1261,8 @@ class FullFinetuneExperiment:
             
             # Final memory profiling
             final_memory = memory_profiler.get_memory_stats()
-            wandb.log({f"final_memory/{k}": v for k, v in final_memory.items()})
+            if wandb.run is not None:
+                wandb.log({f"final_memory/{k}": v for k, v in final_memory.items()}, commit=False)
             
             # Extract final representations (if enabled)
             if representation_extractor is not None:
@@ -1264,12 +1290,13 @@ class FullFinetuneExperiment:
             }
             
             # Log final results
-            wandb.log({
-                "final_train_loss": results["train_loss"],
-                "final_eval_loss": results["eval_loss"],
-                "training_time_seconds": training_time,
-                "total_steps": trainer.state.global_step
-            })
+            if wandb.run is not None:
+                wandb.log({
+                    "final_train_loss": results["train_loss"],
+                    "final_eval_loss": results["eval_loss"],
+                    "training_time_seconds": training_time,
+                    "total_steps": trainer.state.global_step
+                }, commit=False)
             
             logger.info(f"✓ Completed full fine-tuning: {task_name}")
             logger.info(f"  Train loss: {results['train_loss']:.4f}")
