@@ -245,10 +245,11 @@ class RepresentationExtractor:
                 for layer_name in all_layer_outputs:
                     if all_layer_outputs[layer_name]:
                         representations[layer_name] = torch.cat(all_layer_outputs[layer_name], dim=0)
-                        # Immediate cleanup of batch data after concatenation
-                        del all_layer_outputs[layer_name]
-                        if self.task_name == 'squad_v2':
-                            torch.cuda.empty_cache()
+                
+                # Clean up batch data after all concatenations (avoid dict iteration error)
+                del all_layer_outputs
+                if self.task_name == 'squad_v2':
+                    torch.cuda.empty_cache()
                 
                 if all_final_hidden_states:
                     representations['final_hidden_states'] = torch.cat(all_final_hidden_states, dim=0)
