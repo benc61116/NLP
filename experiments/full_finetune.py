@@ -515,10 +515,22 @@ class RepresentationExtractor:
                     gc.collect()
                     logger.info(f"SQuAD v2 processing complete, concatenating {len(self.config.save_layers)} layers...")
                 
-                # Concatenate all batch results
+                # Concatenate all batch results (pad to same length first)
                 for layer_name in all_layer_outputs:
                     if all_layer_outputs[layer_name]:
-                        representations[layer_name] = torch.cat(all_layer_outputs[layer_name], dim=0)
+                        # Find max sequence length across all batches
+                        max_seq_len = max(tensor.shape[1] for tensor in all_layer_outputs[layer_name])
+                        
+                        # Pad all tensors to the same length
+                        padded_tensors = []
+                        for tensor in all_layer_outputs[layer_name]:
+                            if tensor.shape[1] < max_seq_len:
+                                # Pad sequence dimension to match max length
+                                padding = (0, 0, 0, max_seq_len - tensor.shape[1])  # (left, right, top, bottom)
+                                tensor = torch.nn.functional.pad(tensor, padding, value=0)
+                            padded_tensors.append(tensor)
+                        
+                        representations[layer_name] = torch.cat(padded_tensors, dim=0)
                 
                 # Clean up batch data after all concatenations (avoid dict iteration error)
                 del all_layer_outputs
@@ -526,7 +538,19 @@ class RepresentationExtractor:
                     torch.cuda.empty_cache()
                 
                 if all_final_hidden_states:
-                    representations['final_hidden_states'] = torch.cat(all_final_hidden_states, dim=0)
+                    # Find max sequence length for final hidden states
+                    max_seq_len = max(tensor.shape[1] for tensor in all_final_hidden_states)
+                    
+                    # Pad all final hidden state tensors to the same length
+                    padded_final_tensors = []
+                    for tensor in all_final_hidden_states:
+                        if tensor.shape[1] < max_seq_len:
+                            # Pad sequence dimension to match max length
+                            padding = (0, 0, 0, max_seq_len - tensor.shape[1])
+                            tensor = torch.nn.functional.pad(tensor, padding, value=0)
+                        padded_final_tensors.append(tensor)
+                    
+                    representations['final_hidden_states'] = torch.cat(padded_final_tensors, dim=0)
                     del all_final_hidden_states
                     if self.task_name == 'squad_v2':
                         torch.cuda.empty_cache()

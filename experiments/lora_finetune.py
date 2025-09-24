@@ -214,13 +214,37 @@ class LoRARepresentationExtractor:
                     del batch_input_ids, batch_attention_mask, outputs
                     torch.cuda.empty_cache()
                 
-                # Concatenate all batch results
+                # Concatenate all batch results (pad to same length first)
                 for layer_name in all_layer_outputs:
                     if all_layer_outputs[layer_name]:
-                        representations[layer_name] = torch.cat(all_layer_outputs[layer_name], dim=0)
+                        # Find max sequence length across all batches
+                        max_seq_len = max(tensor.shape[1] for tensor in all_layer_outputs[layer_name])
+                        
+                        # Pad all tensors to the same length
+                        padded_tensors = []
+                        for tensor in all_layer_outputs[layer_name]:
+                            if tensor.shape[1] < max_seq_len:
+                                # Pad sequence dimension to match max length
+                                padding = (0, 0, 0, max_seq_len - tensor.shape[1])
+                                tensor = torch.nn.functional.pad(tensor, padding, value=0)
+                            padded_tensors.append(tensor)
+                        
+                        representations[layer_name] = torch.cat(padded_tensors, dim=0)
                 
                 if all_final_hidden_states:
-                    representations['final_hidden_states'] = torch.cat(all_final_hidden_states, dim=0)
+                    # Find max sequence length for final hidden states
+                    max_seq_len = max(tensor.shape[1] for tensor in all_final_hidden_states)
+                    
+                    # Pad all final hidden state tensors to the same length
+                    padded_final_tensors = []
+                    for tensor in all_final_hidden_states:
+                        if tensor.shape[1] < max_seq_len:
+                            # Pad sequence dimension to match max length
+                            padding = (0, 0, 0, max_seq_len - tensor.shape[1])
+                            tensor = torch.nn.functional.pad(tensor, padding, value=0)
+                        padded_final_tensors.append(tensor)
+                    
+                    representations['final_hidden_states'] = torch.cat(padded_final_tensors, dim=0)
             
             # Extract LoRA-specific representations
             if self.config.save_adapter_weights and hasattr(model, 'peft_config'):
@@ -979,183 +1003,4 @@ class LoRAExperiment:
             eval_result = trainer.evaluate()
             
             # Compute final adapter statistics BEFORE merging to avoid warnings
-            final_adapter_stats = {}
-            if hasattr(model, 'peft_config'):
-                lora_analyzer = LoRAAnalyzer(model)
-                final_adapter_stats = lora_analyzer.compute_adapter_statistics()
-                logger.debug(f"Final adapter statistics computed: {len(final_adapter_stats)} metrics")
-            
-            # Test LoRA merge equivalence
-            merge_results = {}
-            if self.lora_config.merge_test_enabled:
-                merge_results = self.test_lora_merge_equivalence(model, eval_dataset)
-            
-            # Save the LoRA adapter
-            adapter_save_path = output_dir / "final_adapter"
-            model.save_pretrained(str(adapter_save_path))
-            
-            # Mark experiment as completed
-            self.checkpoint_manager.save_experiment_progress(
-                task_name, "lora", seed, "completed", str(adapter_save_path)
-            )
-            
-            # Extract final representations
-            final_representations = representation_extractor.extract_lora_representations(
-                model, trainer.state.global_step
-            )
-            representation_extractor.save_representations(
-                final_representations, trainer.state.global_step
-            )
-            
-            # Final efficiency analysis
-            final_efficiency = parameter_tracker.get_efficiency_metrics()
-            
-            # Compile results
-            results = {
-                "task_name": task_name,
-                "method": "lora",
-                "experiment_type": experiment_type,
-                "seed": seed,
-                "lora_config": {
-                    "rank": rank,
-                    "alpha": alpha,
-                    "target_modules": target_modules,
-                    "dropout": self.lora_config.dropout
-                },
-                "hyperparameters": hyperparams,
-                "train_runtime": training_time,
-                "train_loss": train_result.metrics.get("train_loss", 0),
-                "eval_loss": eval_result.get("eval_loss", 0),
-                "eval_metrics": {k: v for k, v in eval_result.items() if k.startswith("eval_")},
-                "efficiency_metrics": final_efficiency,
-                "final_adapter_statistics": final_adapter_stats,
-                "merge_test_results": merge_results,
-                "adapter_path": str(adapter_save_path),
-                "representation_path": str(representation_extractor.output_dir),
-                "total_steps": trainer.state.global_step,
-                "final_learning_rate": trainer.lr_scheduler.get_last_lr()[0] if trainer.lr_scheduler else learning_rate,
-            }
-            
-            # Log final results
-            wandb.log({
-                "final_train_loss": results["train_loss"],
-                "final_eval_loss": results["eval_loss"],
-                "training_time_seconds": training_time,
-                "total_steps": trainer.state.global_step,
-                **{f"final_efficiency/{k}": v for k, v in final_efficiency.items()},
-                **{f"merge_test/{k}": v for k, v in merge_results.items() if isinstance(v, (int, float, bool))}
-            })
-            
-            logger.info(f"✓ Completed LoRA experiment: {task_name} ({experiment_type})")
-            logger.info(f"  Train loss: {results['train_loss']:.4f}")
-            logger.info(f"  Eval loss: {results['eval_loss']:.4f}")
-            logger.info(f"  Training time: {training_time:.2f}s")
-            logger.info(f"  Trainable params: {final_efficiency['trainable_parameters']:,} ({final_efficiency['trainable_parameter_ratio']:.6f})")
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"✗ LoRA experiment failed: {task_name} ({experiment_type}) - {e}")
-            
-            # Mark experiment as failed
-            self.checkpoint_manager.save_experiment_progress(
-                task_name, "lora", seed, "failed"
-            )
-            
-            return {
-                "task_name": task_name,
-                "method": "lora",
-                "experiment_type": experiment_type,
-                "seed": seed,
-                "error": str(e)
-            }
-        
-        finally:
-            # Clean up
-            if 'model' in locals():
-                del model
-            torch.cuda.empty_cache()
-            wandb.finish()
-    
-    def run_hyperparameter_sweep(self, task_name: str) -> List[Dict[str, Any]]:
-        """Run hyperparameter sweep for LoRA as specified in requirements."""
-        logger.info(f"Running LoRA hyperparameter sweep for {task_name}")
-        
-        results = []
-        
-        # Grid search over learning rates and seeds
-        for learning_rate in self.lora_config.learning_rates:
-            for seed in [42, 1337, 2024]:  # Multiple seeds for reproducibility
-                logger.info(f"Running LoRA sweep: LR={learning_rate}, seed={seed}")
-                
-                result = self.run_single_experiment(
-                    task_name=task_name,
-                    seed=seed,
-                    target_modules=self.lora_config.target_modules_standard,
-                    learning_rate=learning_rate,
-                    experiment_type=f"sweep_lr{learning_rate}_seed{seed}"
-                )
-                results.append(result)
-        
-        return results
-    
-
-
-def main():
-    """Main function for running LoRA experiments."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="LoRA fine-tuning experiments for Llama-2-1.3B")
-    parser.add_argument("--task", choices=["mrpc", "squad_v2", "sst2", "rte"], 
-                       help="Task to run", required=True)
-    parser.add_argument("--mode", choices=["single", "sweep", "ablation"], 
-                       default="single", help="Experiment mode")
-    parser.add_argument("--ablation-type", choices=["rank", "alpha", "modules"],
-                       help="Type of ablation study")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--config", default="shared/config.yaml", help="Config file path")
-    parser.add_argument("--learning-rate", type=float, help="Override learning rate")
-    parser.add_argument("--rank", type=int, help="Override LoRA rank")
-    parser.add_argument("--alpha", type=int, help="Override LoRA alpha")
-    parser.add_argument("--target-modules", nargs="+", help="Override target modules")
-    
-    args = parser.parse_args()
-    
-    # Initialize experiment
-    experiment = LoRAExperiment(args.config)
-    
-    # Ensure model is set to TinyLlama for all experiments  
-    experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
-    
-    if args.mode == "ablation":
-        if not args.ablation_type:
-            print("Error: --ablation-type required for ablation mode")
-            return
-        # Run ablation study
-        results = experiment.run_ablation_study(args.task, args.ablation_type, args.seed)
-        print(f"LoRA ablation study completed with {len(results)} runs")
-    
-    elif args.mode == "sweep":
-        # Run hyperparameter sweep
-        results = experiment.run_hyperparameter_sweep(args.task)
-        print(f"LoRA sweep completed with {len(results)} runs")
-    
-    else:
-        # Run single experiment
-        hyperparams = {}
-        if args.learning_rate:
-            hyperparams['learning_rate'] = args.learning_rate
-        
-        # LoRA-specific overrides
-        target_modules = args.target_modules or experiment.lora_config.target_modules_standard
-        rank = args.rank or experiment.lora_config.rank
-        alpha = args.alpha or experiment.lora_config.alpha
-        
-        result = experiment.run_single_experiment(
-            args.task, args.seed, target_modules, rank, alpha, "manual", **hyperparams
-        )
-        print(f"LoRA experiment completed: {result}")
-
-
-if __name__ == "__main__":
-    main()
+            final_adapter_stats = {
