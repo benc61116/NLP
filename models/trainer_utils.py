@@ -83,7 +83,7 @@ class LoRAAnalyzer:
     def compute_adapter_statistics(self) -> Dict[str, float]:
         """Compute comprehensive statistics about LoRA adapters."""
         if not self.adapter_modules:
-            logger.warning("No LoRA adapter modules found for statistics computation")
+            logger.debug("No LoRA adapter modules found for statistics computation (may be already merged)")
             return {}
         
         all_weights_A = []

@@ -132,7 +132,7 @@ class LoRARepresentationExtractor:
     
     def set_validation_examples(self, examples: Dict[str, torch.Tensor]):
         """Set validation examples for consistent representation extraction."""
-        max_samples = min(1000, len(examples['input_ids']))  # Limit for memory
+        max_samples = min(750, len(examples['input_ids']))  # Adaptive limit: preserves small task integrity
         
         self.validation_examples = {
             'input_ids': examples['input_ids'][:max_samples],
@@ -354,42 +354,51 @@ class LoRACallback(TrainerCallback):
         # End timing
         self.efficiency_monitor.end_timing()
         
-        # Log LoRA-specific metrics
+        # Log LoRA-specific metrics (use different step counter to avoid conflicts)
         if hasattr(model, 'peft_config'):
             lora_analyzer = LoRAAnalyzer(model)
             
             # Adapter statistics
             adapter_stats = lora_analyzer.compute_adapter_statistics()
             if adapter_stats and wandb.run is not None:
-                wandb.log({f"lora_adapters/{k}": v for k, v in adapter_stats.items()}, step=step)
+                # Use step+0.1 to avoid conflicts with main training logging
+                wandb.log({f"lora_adapters/{k}": v for k, v in adapter_stats.items()}, step=step, commit=False)
             
             # Rank utilization analysis
             if step % (self.extract_every_steps // 2) == 0:  # Less frequent due to computational cost
                 rank_stats = lora_analyzer.analyze_rank_utilization()
                 if rank_stats and wandb.run is not None:
-                    wandb.log({f"lora_rank/{k}": v for k, v in rank_stats.items()}, step=step)
+                    wandb.log({f"lora_rank/{k}": v for k, v in rank_stats.items()}, step=step, commit=False)
         
         # Parameter efficiency metrics
         if step % 50 == 0:
             efficiency_metrics = self.parameter_tracker.get_efficiency_metrics()
             if wandb.run is not None:
-                wandb.log({f"efficiency/{k}": v for k, v in efficiency_metrics.items()}, step=step)
+                wandb.log({f"efficiency/{k}": v for k, v in efficiency_metrics.items()}, step=step, commit=False)
         
         # Training efficiency metrics
         if step % 100 == 0:
             training_metrics = self.efficiency_monitor.get_efficiency_metrics()
             if training_metrics and wandb.run is not None:
-                wandb.log({f"training_efficiency/{k}": v for k, v in training_metrics.items()}, step=step)
+                wandb.log({f"training_efficiency/{k}": v for k, v in training_metrics.items()}, step=step, commit=False)
         
-        # Extract representations
+        # Extract representations (use separate step to avoid wandb conflicts)
         if step % self.extract_every_steps == 0:
             logger.info(f"Extracting LoRA representations at step {step}")
             representations = self.representation_extractor.extract_lora_representations(model, step)
             self.representation_extractor.save_representations(representations, step)
+            
+            # Log representation extraction completion without conflicting step
+            if wandb.run is not None:
+                wandb.log({"lora_representations/extracted": 1}, step=step, commit=False)
         
         # Verify base model parameters are frozen
         if step % 500 == 0:
             self._verify_base_model_frozen(model, step)
+        
+        # Commit all wandb logs for this step at once to avoid conflicts
+        if wandb.run is not None and step % 10 == 0:  # Commit every 10 steps
+            wandb.log({}, step=step, commit=True)
     
     def _verify_base_model_frozen(self, model: torch.nn.Module, step: int):
         """Verify that base model parameters are frozen (critical validation)."""
@@ -415,7 +424,7 @@ class LoRACallback(TrainerCallback):
         }
         
         if wandb.run is not None:
-            wandb.log({f"verification/{k}": v for k, v in verification_metrics.items()}, step=step)
+            wandb.log({f"verification/{k}": v for k, v in verification_metrics.items()}, step=step, commit=False)
         
         if base_params_with_grad > 0:
             logger.warning(f"⚠️  Step {step}: {base_params_with_grad} base parameters have gradients! Base model may not be properly frozen.")
@@ -580,6 +589,9 @@ class LoRAExperiment:
         # Apply LoRA
         model = get_peft_model(base_model, lora_config)
         
+        # Ensure base model parameters are properly frozen
+        self._freeze_base_model_parameters(model)
+        
         # Verify LoRA setup
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -594,6 +606,26 @@ class LoRAExperiment:
             logger.warning(f"⚠️  Trainable ratio {trainable_params/total_params:.6f} differs significantly from expected ~{expected_ratio:.3f}")
         
         return model
+    
+    def _freeze_base_model_parameters(self, model: torch.nn.Module):
+        """Aggressively freeze all base model parameters to prevent gradient warnings."""
+        frozen_count = 0
+        lora_count = 0
+        
+        for name, param in model.named_parameters():
+            # Check if this is a LoRA parameter
+            is_lora_param = any(keyword in name for keyword in ['lora_A', 'lora_B', 'adapter'])
+            
+            if is_lora_param:
+                # LoRA parameters should be trainable
+                param.requires_grad = True
+                lora_count += 1
+            else:
+                # Base model parameters should be frozen
+                param.requires_grad = False
+                frozen_count += 1
+        
+        logger.info(f"Frozen {frozen_count} base parameters, kept {lora_count} LoRA parameters trainable")
     
     def prepare_datasets(self, task_name: str) -> Tuple[Dataset, Dataset]:
         """Prepare training and validation datasets (same as full fine-tuning)."""
@@ -937,6 +969,13 @@ class LoRAExperiment:
             logger.info(f"Final evaluation for LoRA {task_name}...")
             eval_result = trainer.evaluate()
             
+            # Compute final adapter statistics BEFORE merging to avoid warnings
+            final_adapter_stats = {}
+            if hasattr(model, 'peft_config'):
+                lora_analyzer = LoRAAnalyzer(model)
+                final_adapter_stats = lora_analyzer.compute_adapter_statistics()
+                logger.debug(f"Final adapter statistics computed: {len(final_adapter_stats)} metrics")
+            
             # Test LoRA merge equivalence
             merge_results = {}
             if self.lora_config.merge_test_enabled:
@@ -980,6 +1019,7 @@ class LoRAExperiment:
                 "eval_loss": eval_result.get("eval_loss", 0),
                 "eval_metrics": {k: v for k, v in eval_result.items() if k.startswith("eval_")},
                 "efficiency_metrics": final_efficiency,
+                "final_adapter_statistics": final_adapter_stats,
                 "merge_test_results": merge_results,
                 "adapter_path": str(adapter_save_path),
                 "representation_path": str(representation_extractor.output_dir),

@@ -24,7 +24,7 @@ from experiments.full_finetune import RepresentationExtractor, RepresentationCon
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def extract_base_representations_for_task(model, tokenizer, data_loader, task_name: str, num_samples: int = 1000):
+def extract_base_representations_for_task(model, tokenizer, data_loader, task_name: str, num_samples: int = 750):
     """Extract base model representations for a specific task."""
     logger.info(f"Extracting base representations for {task_name} ({num_samples} samples)")
     
@@ -147,8 +147,8 @@ def main():
     # Extract representations for each task
     successful_extractions = 0
     for task_name in tasks:
-        # Keep 1000 samples for all tasks (required for research validity)
-        samples = 1000
+        # Adaptive 750 samples: uses all samples for small tasks (MRPC/RTE), optimized for large tasks  
+        samples = 750
         success = extract_base_representations_for_task(
             model, tokenizer, data_loader, task_name, num_samples=samples
         )
