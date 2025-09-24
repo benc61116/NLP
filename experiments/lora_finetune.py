@@ -79,8 +79,12 @@ class QADataCollator:
         # Extract each field
         input_ids = [f["input_ids"] for f in features]
         attention_mask = [f["attention_mask"] for f in features]
-        start_positions = [f["start_positions"] for f in features]
-        end_positions = [f["end_positions"] for f in features]
+        start_positions = [f.get("start_positions", 0) for f in features]
+        end_positions = [f.get("end_positions", 0) for f in features]
+        
+        # Handle None values for unanswerable questions in SQuAD v2
+        start_positions = [pos if pos is not None else 0 for pos in start_positions]
+        end_positions = [pos if pos is not None else 0 for pos in end_positions]
         
         # Pad input_ids and attention_mask
         max_length = max(len(ids) for ids in input_ids)
