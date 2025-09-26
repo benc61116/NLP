@@ -812,53 +812,72 @@ class FullFinetuneCallback(TrainerCallback):
         # Set validation examples for representation extraction
         if eval_dataset is not None:
             try:
-                # FIXED: Properly handle HuggingFace Dataset tensors
-                if hasattr(eval_dataset, 'data') and hasattr(eval_dataset.data, 'column'):
-                    # Access the underlying data directly for HuggingFace datasets
-                    examples = {
-                        'input_ids': eval_dataset['input_ids'],
-                        'attention_mask': eval_dataset['attention_mask']
-                    }
-                    # Handle both classification and QA tasks
-                    if 'labels' in eval_dataset.column_names:
-                        examples['labels'] = eval_dataset['labels']
-                    elif 'start_positions' in eval_dataset.column_names and 'end_positions' in eval_dataset.column_names:
-                        examples['start_positions'] = eval_dataset['start_positions']
-                        examples['end_positions'] = eval_dataset['end_positions']
-                else:
-                    # Fallback: manually construct tensors, filtering None values
-                    input_ids_list = []
-                    attention_mask_list = []
-                    labels_list = []
-                    start_positions_list = []
-                    end_positions_list = []
-                    
-                    for ex in eval_dataset:
-                        if ex['input_ids'] is not None and ex['attention_mask'] is not None:
-                            input_ids_list.append(ex['input_ids'])
-                            attention_mask_list.append(ex['attention_mask'])
+                # FIXED: Properly handle HuggingFace Dataset tensors - always convert to tensors
+                # Fallback: manually construct tensors, filtering None values
+                input_ids_list = []
+                attention_mask_list = []
+                labels_list = []
+                start_positions_list = []
+                end_positions_list = []
+                
+                for ex in eval_dataset:
+                    if ex['input_ids'] is not None and ex['attention_mask'] is not None:
+                        # Convert to tensor ensuring proper format
+                        if isinstance(ex['input_ids'], list):
+                            input_ids_tensor = torch.tensor(ex['input_ids'], dtype=torch.long)
+                        elif isinstance(ex['input_ids'], torch.Tensor):
+                            input_ids_tensor = ex['input_ids']
+                        else:
+                            input_ids_tensor = torch.tensor([ex['input_ids']], dtype=torch.long)
+                        
+                        if isinstance(ex['attention_mask'], list):
+                            attention_mask_tensor = torch.tensor(ex['attention_mask'], dtype=torch.long)
+                        elif isinstance(ex['attention_mask'], torch.Tensor):
+                            attention_mask_tensor = ex['attention_mask']
+                        else:
+                            attention_mask_tensor = torch.tensor([ex['attention_mask']], dtype=torch.long)
+                        
+                        # Ensure tensors are at least 1D
+                        if input_ids_tensor.dim() == 0:
+                            input_ids_tensor = input_ids_tensor.unsqueeze(0)
+                        if attention_mask_tensor.dim() == 0:
+                            attention_mask_tensor = attention_mask_tensor.unsqueeze(0)
+                        
+                        input_ids_list.append(input_ids_tensor)
+                        attention_mask_list.append(attention_mask_tensor)
+                        
+                        if 'labels' in ex and ex['labels'] is not None:
+                            if isinstance(ex['labels'], (list, int, float)):
+                                labels_tensor = torch.tensor(ex['labels'], dtype=torch.long)
+                            else:
+                                labels_tensor = ex['labels']
                             
-                            if 'labels' in ex and ex['labels'] is not None:
-                                labels_list.append(ex['labels'])
-                            elif 'start_positions' in ex and 'end_positions' in ex:
-                                if ex['start_positions'] is not None and ex['end_positions'] is not None:
-                                    start_positions_list.append(ex['start_positions'])
-                                    end_positions_list.append(ex['end_positions'])
-                    
-                    if not input_ids_list:
-                        raise ValueError("No valid examples found in eval_dataset")
-                    
-                    examples = {
-                        'input_ids': torch.stack(input_ids_list),
-                        'attention_mask': torch.stack(attention_mask_list)
-                    }
-                    
-                    # Add labels/positions if found
-                    if labels_list:
-                        examples['labels'] = torch.stack(labels_list)
-                    elif start_positions_list and end_positions_list:
-                        examples['start_positions'] = torch.stack(start_positions_list)
-                        examples['end_positions'] = torch.stack(end_positions_list)
+                            # For classification, labels should be scalar
+                            if labels_tensor.dim() > 0 and labels_tensor.numel() == 1:
+                                labels_tensor = labels_tensor.squeeze()
+                            elif labels_tensor.dim() == 0:
+                                pass  # already scalar
+                            
+                            labels_list.append(labels_tensor)
+                        elif 'start_positions' in ex and 'end_positions' in ex:
+                            if ex['start_positions'] is not None and ex['end_positions'] is not None:
+                                start_positions_list.append(torch.tensor(ex['start_positions'], dtype=torch.long))
+                                end_positions_list.append(torch.tensor(ex['end_positions'], dtype=torch.long))
+                
+                if not input_ids_list:
+                    raise ValueError("No valid examples found in eval_dataset")
+                
+                examples = {
+                    'input_ids': torch.stack(input_ids_list),
+                    'attention_mask': torch.stack(attention_mask_list)
+                }
+                
+                # Add labels/positions if found
+                if labels_list:
+                    examples['labels'] = torch.stack(labels_list)
+                elif start_positions_list and end_positions_list:
+                    examples['start_positions'] = torch.stack(start_positions_list)
+                    examples['end_positions'] = torch.stack(end_positions_list)
                 
                 self.representation_extractor.set_validation_examples(examples)
                 
