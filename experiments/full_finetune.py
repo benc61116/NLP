@@ -409,7 +409,6 @@ class RepresentationExtractor:
         # Save metadata for the completed extraction
         step_dir = self.output_dir / f"step_{step:06d}"
         step_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
-        from datetime import datetime
         import json
         
         metadata = {
@@ -1696,7 +1695,6 @@ class FullFinetuneExperiment:
             try:
                 import subprocess
                 import shutil
-                from datetime import datetime
                 
                 # Always cleanup representations from THIS run (keep only final step)
                 logger.info(f"🧹 Cleaning representations from completed run: {task_name} seed {seed}")
