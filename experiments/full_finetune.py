@@ -867,9 +867,38 @@ class FullFinetuneCallback(TrainerCallback):
                 if not input_ids_list:
                     raise ValueError("No valid examples found in eval_dataset")
                 
+                # Handle variable-length sequences (same as base model extraction fix)
+                try:
+                    input_ids = torch.stack(input_ids_list)
+                    attention_mask = torch.stack(attention_mask_list)
+                except RuntimeError as e:
+                    if "stack expects each tensor to be equal size" in str(e):
+                        # Pad to max length for variable-length sequences
+                        max_len = max(len(ids) for ids in input_ids_list)
+                        padded_input_ids = []
+                        padded_attention_mask = []
+                        
+                        for ids, mask in zip(input_ids_list, attention_mask_list):
+                            pad_len = max_len - len(ids)
+                            if pad_len > 0:
+                                pad_id = 0  # Use 0 as pad token ID
+                                padded_ids = torch.cat([ids, torch.full((pad_len,), pad_id, dtype=torch.long)])
+                                padded_mask = torch.cat([mask, torch.zeros(pad_len, dtype=torch.long)])
+                            else:
+                                padded_ids = ids
+                                padded_mask = mask
+                            
+                            padded_input_ids.append(padded_ids)
+                            padded_attention_mask.append(padded_mask)
+                        
+                        input_ids = torch.stack(padded_input_ids)
+                        attention_mask = torch.stack(padded_attention_mask)
+                    else:
+                        raise
+                
                 examples = {
-                    'input_ids': torch.stack(input_ids_list),
-                    'attention_mask': torch.stack(attention_mask_list)
+                    'input_ids': input_ids,
+                    'attention_mask': attention_mask
                 }
                 
                 # Add labels/positions if found
