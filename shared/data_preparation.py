@@ -192,8 +192,8 @@ class TaskDataLoader:
         else:
             dataset = self.datasets[task_name][split]
         
-        contexts = []
-        questions = []
+        input_ids_list = []
+        attention_mask_list = []
         start_positions = []
         end_positions = []
         
@@ -202,39 +202,63 @@ class TaskDataLoader:
             question = example["question"]
             answers = example["answers"]
             
-            contexts.append(context)
-            questions.append(question)
+            # Tokenize question and context separately to get offsets
+            tokenized = self.tokenizer(
+                question,
+                context,
+                truncation=True,
+                max_length=self.max_length,
+                return_offsets_mapping=True,
+                padding=False  # We'll handle padding in the collator
+            )
             
-            # Handle answer positions (simplified for this experiment)
+            input_ids_list.append(tokenized["input_ids"])
+            attention_mask_list.append(tokenized["attention_mask"])
+            
+            # Handle answer positions with proper token alignment
             if answers["text"] and len(answers["text"]) > 0:
                 # Use first answer for simplicity
-                start_pos = answers["answer_start"][0]
+                answer_start_char = answers["answer_start"][0]
                 answer_text = answers["text"][0]
-                end_pos = start_pos + len(answer_text)
-                start_positions.append(start_pos)
-                end_positions.append(end_pos)
+                answer_end_char = answer_start_char + len(answer_text)
+                
+                # Find token positions that correspond to character positions
+                offset_mapping = tokenized["offset_mapping"]
+                start_token = None
+                end_token = None
+                
+                # Find start token
+                for i, (start_char, end_char) in enumerate(offset_mapping):
+                    if start_char <= answer_start_char < end_char:
+                        start_token = i
+                        break
+                
+                # Find end token (exclusive, so we want the token after the answer)
+                for i, (start_char, end_char) in enumerate(offset_mapping):
+                    if start_char < answer_end_char <= end_char:
+                        end_token = i
+                        break
+                
+                # Validation and fallback
+                if start_token is not None and end_token is not None and start_token <= end_token:
+                    start_positions.append(start_token)
+                    end_positions.append(end_token)
+                else:
+                    # Fallback: mark as unanswerable
+                    start_positions.append(0)  # CLS token
+                    end_positions.append(0)
             else:
                 # No answer (SQuAD v2 has unanswerable questions)
-                start_positions.append(0)
+                start_positions.append(0)  # CLS token for unanswerable
                 end_positions.append(0)
         
-        # Tokenize question-context pairs
-        tokenized = self.tokenizer(
-            questions,
-            contexts,
-            truncation=True,
-            padding=True,
-            max_length=self.max_length,
-            return_tensors="pt"
-        )
-        
         return {
-            "input_ids": tokenized["input_ids"],
-            "attention_mask": tokenized["attention_mask"],
+            "input_ids": input_ids_list,
+            "attention_mask": attention_mask_list,
             "start_positions": torch.tensor(start_positions, dtype=torch.long),
             "end_positions": torch.tensor(end_positions, dtype=torch.long),
             "task_name": task_name,
-            "num_samples": len(contexts)
+            "num_samples": len(input_ids_list)
         }
     
     def get_all_task_samples(self, num_samples_per_task: int = 10, split: str = "train", seed: int = 42) -> Dict:

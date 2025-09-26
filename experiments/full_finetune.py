@@ -1238,20 +1238,68 @@ class FullFinetuneExperiment:
             if not input_ids_list:
                 raise ValueError("No valid examples found in eval_dataset")
             
-            # Stack the tensors
-            input_ids = torch.stack(input_ids_list)
-            attention_mask = torch.stack(attention_mask_list)
+            # Handle tensor stacking based on task type
+            if task_type in ['qa', 'question_answering']:
+                # For QA tasks, use the QADataCollator to handle padding
+                collator = QADataCollator(self.tokenizer, padding=True)
+                
+                # Create features in the format expected by the collator
+                features = []
+                for i in range(len(input_ids_list)):
+                    feature = {
+                        'input_ids': input_ids_list[i],
+                        'attention_mask': attention_mask_list[i],
+                        'start_positions': 0,  # Dummy values for base model extraction
+                        'end_positions': 0
+                    }
+                    features.append(feature)
+                
+                # Use collator to create properly padded batch
+                batch = collator(features)
+                examples = {
+                    'input_ids': batch['input_ids'],
+                    'attention_mask': batch['attention_mask'],
+                }
+            else:
+                # For classification tasks, pad manually or use stack if all same length
+                try:
+                    input_ids = torch.stack(input_ids_list)
+                    attention_mask = torch.stack(attention_mask_list)
+                except RuntimeError as e:
+                    if "stack expects each tensor to be equal size" in str(e):
+                        # Pad to max length
+                        max_len = max(len(ids) for ids in input_ids_list)
+                        padded_input_ids = []
+                        padded_attention_mask = []
+                        
+                        for ids, mask in zip(input_ids_list, attention_mask_list):
+                            pad_len = max_len - len(ids)
+                            if pad_len > 0:
+                                pad_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
+                                padded_ids = torch.cat([ids, torch.full((pad_len,), pad_id, dtype=torch.long)])
+                                padded_mask = torch.cat([mask, torch.zeros(pad_len, dtype=torch.long)])
+                            else:
+                                padded_ids = ids
+                                padded_mask = mask
+                            
+                            padded_input_ids.append(padded_ids)
+                            padded_attention_mask.append(padded_mask)
+                        
+                        input_ids = torch.stack(padded_input_ids)
+                        attention_mask = torch.stack(padded_attention_mask)
+                    else:
+                        raise
+                
+                examples = {
+                    'input_ids': input_ids,
+                    'attention_mask': attention_mask,
+                }
+                
+                # Add labels if present (for classification tasks)
+                if labels_list:
+                    examples['labels'] = torch.stack(labels_list)
             
-            examples = {
-                'input_ids': input_ids,
-                'attention_mask': attention_mask,
-            }
-            
-            # Add labels if present (for classification tasks)
-            if labels_list:
-                examples['labels'] = torch.stack(labels_list)
-            
-            logger.info(f"Successfully prepared {input_ids.shape[0]} validation examples for {task_name}")
+            logger.info(f"Successfully prepared {examples['input_ids'].shape[0]} validation examples for {task_name}")
             base_extractor.set_validation_examples(examples)
             
             # Extract and save base representations
@@ -1299,7 +1347,7 @@ class FullFinetuneExperiment:
                     'values': [8, 16]
                 },
                 'warmup_ratio': {
-                    'value': 0.1
+                    'value': 0.03  # Reduced to prevent gradient explosion
                 },
                 'num_train_epochs': {
                     'value': 3
@@ -1435,7 +1483,7 @@ class FullFinetuneExperiment:
                 # Optimization
                 learning_rate=learning_rate,
                 weight_decay=self.config['training']['weight_decay'],
-                warmup_ratio=hyperparams.get('warmup_ratio', 0.1),
+                warmup_ratio=hyperparams.get('warmup_ratio', 0.03),
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 
                 # Evaluation and saving
