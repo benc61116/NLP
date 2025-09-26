@@ -70,7 +70,7 @@ def get_wandb_settings():
     return wandb.Settings(
         _disable_stats=True,
         _disable_meta=True,
-        _tmp_dir=str(Path.cwd() / 'wandb_temp')
+        # Note: temp directory is set via WANDB_TMPDIR environment variable in setup_wandb_directories()
     )
 
 def initialize_wandb_with_cleanup(project, name, config, mode="online"):
@@ -105,8 +105,7 @@ def initialize_wandb_with_cleanup(project, name, config, mode="online"):
                 project=project,
                 name=name,
                 config=config,
-                mode="offline",
-                settings=wandb.Settings(_tmp_dir=str(Path.cwd() / 'wandb_temp'))
+                mode="offline"
             )
             logger.info(f"✅ Wandb initialized (offline): {name}")
             return True

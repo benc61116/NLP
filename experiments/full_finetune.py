@@ -1440,8 +1440,7 @@ class FullFinetuneExperiment:
                 # Initialize in offline mode as fallback
                 wandb.init(mode="offline",
                           project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
-                          name=run_name,
-                          settings=wandb.Settings(_tmp_dir=str(Path.cwd() / 'wandb_temp')))
+                          name=run_name)
         else:
             # Update wandb config with hyperparameters for sweep runs
             wandb.config.update({
