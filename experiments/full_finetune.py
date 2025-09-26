@@ -1376,7 +1376,7 @@ class FullFinetuneExperiment:
                     'values': [8, 16]
                 },
                 'warmup_ratio': {
-                    'value': 0.03  # Reduced to prevent gradient explosion
+                    'value': 0.01  # Further reduced to prevent gradient explosion
                 },
                 'num_train_epochs': {
                     'value': 3
@@ -1512,7 +1512,7 @@ class FullFinetuneExperiment:
                 # Optimization
                 learning_rate=learning_rate,
                 weight_decay=self.config['training']['weight_decay'],
-                warmup_ratio=hyperparams.get('warmup_ratio', 0.03),
+                warmup_ratio=hyperparams.get('warmup_ratio', 0.01),
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 
                 # Evaluation and saving

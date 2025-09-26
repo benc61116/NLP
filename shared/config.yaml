@@ -43,7 +43,7 @@ training:
   
   # Optimization
   weight_decay: 0.01
-  warmup_ratio: 0.03  # Reduced from 0.1 to prevent gradient explosion in QA tasks
+  warmup_ratio: 0.01  # Further reduced to prevent gradient explosion in QA tasks
   lr_scheduler_type: "cosine"
   optim: "adamw_torch"
   
