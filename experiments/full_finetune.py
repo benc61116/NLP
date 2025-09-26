@@ -1355,10 +1355,10 @@ class FullFinetuneExperiment:
         task_config = self.config['tasks'][task_name]
         
         if task_config['type'] == 'classification':
-            learning_rates = [1e-5, 2e-5]
+            learning_rates = [3e-6, 5e-6]  # Reduced to prevent gradient explosion
             sequence_length = 512
         else:  # question_answering
-            learning_rates = [2e-6, 3e-6]  # Reduced for stability
+            learning_rates = [2e-6, 3e-6]  # Reduced to prevent gradient explosion (matches remote fix)
             sequence_length = 768
         
         sweep_config = {
@@ -1512,9 +1512,9 @@ class FullFinetuneExperiment:
                 # Optimization
                 learning_rate=learning_rate,
                 weight_decay=self.config['training']['weight_decay'],
-                warmup_ratio=hyperparams.get('warmup_ratio', 0.03),  # Increased from 0.01 to 0.03 for stability
+                warmup_ratio=hyperparams.get('warmup_ratio', 0.1),  # Increased to 0.1 for better gradient stability
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
-                max_grad_norm=1.0,  # Add gradient clipping to prevent gradient explosion
+                max_grad_norm=0.3,  # Very aggressive gradient clipping to prevent gradient explosion
                 
                 # Evaluation and saving
                 eval_strategy="steps",  # Updated parameter name
@@ -1531,8 +1531,8 @@ class FullFinetuneExperiment:
                 # Performance optimizations
                 gradient_checkpointing=True,
                 dataloader_pin_memory=True,
-                fp16=False,  # Disabled when using bfloat16 dtype to avoid conflicts
-                bf16=False,  # Let model dtype handle precision
+                fp16=False,  # Disabled for gradient stability
+                bf16=True,   # Use bf16 for better gradient stability than fp16
                 
                 # Reporting - disable automatic wandb reporting to avoid step conflicts with custom callback
                 report_to=[],  # Let custom callback handle wandb logging

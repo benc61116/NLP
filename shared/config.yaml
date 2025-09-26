@@ -6,7 +6,7 @@ model:
   name: "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"  # 1.1B Llama-2 architecture, no auth needed
   max_length: 512
   device_map: "auto"
-  dtype: "float16"  # Use float16 instead of bfloat16 for better compatibility
+  dtype: "bfloat16"  # Use bfloat16 for better gradient stability
   max_memory_percent: 95  # Use 95% of GPU memory - balanced efficiency
   classification_max_length: 512
   qa_max_length: 768
@@ -33,20 +33,20 @@ training:
   # Batch sizes (adjust based on GPU memory)
   per_device_train_batch_size: 1  # Reduced for memory efficiency
   per_device_eval_batch_size: 2   # Reduced for memory efficiency  
-  gradient_accumulation_steps: 8  # Increased to maintain effective batch size
+  gradient_accumulation_steps: 4  # Reduced to help with gradient stability
   
-  # Learning rates (as specified in requirements)
+  # Learning rates (reduced to prevent gradient explosion)
   learning_rate: 0.0002      # Higher for LoRA
-  full_finetune_learning_rate_classification: [0.00001, 0.00002]  # Classification tasks (MRPC, SST-2, RTE)
-  full_finetune_learning_rate_qa: [0.000002, 0.000003]  # QA tasks (SQuAD v2) - reduced for stability
-  full_finetune_learning_rate: 0.00002  # Default full fine-tuning LR
+  full_finetune_learning_rate_classification: [0.000003, 0.000005]  # Classification tasks (MRPC, SST-2, RTE) - REDUCED
+  full_finetune_learning_rate_qa: [0.000002, 0.000003]  # QA tasks (SQuAD v2) - REDUCED (matches remote fix)
+  full_finetune_learning_rate: 0.000005  # Default full fine-tuning LR - REDUCED
   
   # Optimization
   weight_decay: 0.01
-  warmup_ratio: 0.03  # Increased from 0.01 to 0.03 for better training stability
+  warmup_ratio: 0.1  # Increased to 0.1 for better training stability and gradient control
   lr_scheduler_type: "cosine"
   optim: "adamw_torch"
-  max_grad_norm: 1.0  # Gradient clipping to prevent gradient explosion
+  max_grad_norm: 0.3  # VERY AGGRESSIVE gradient clipping for stronger gradient explosion prevention
   
   # Training duration
   num_train_epochs: 3
