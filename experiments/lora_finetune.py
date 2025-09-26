@@ -478,11 +478,12 @@ class LoRACallback(TrainerCallback):
                 logger.warning(f"Failed to verify frozen parameters at step {step}: {e}")
         
         # Log all metrics at once to prevent step order conflicts
+        # Don't specify step to avoid conflicts with trainer's internal step counter
         if wandb.run is not None and metrics_to_log:
             try:
-                wandb.log(metrics_to_log, step=step)
+                wandb.log(metrics_to_log)
             except Exception as e:
-                logger.warning(f"Failed to log metrics to wandb at step {step}: {e}")
+                logger.warning(f"Failed to log metrics to wandb: {e}")
     
     def _verify_base_model_frozen(self, model: torch.nn.Module, step: int):
         """Verify that base model parameters are frozen (critical validation)."""
@@ -519,7 +520,7 @@ class LoRACallback(TrainerCallback):
         }
         
         if wandb.run is not None:
-            wandb.log({f"verification/{k}": v for k, v in verification_metrics.items()}, step=step, commit=False)
+            wandb.log({f"verification/{k}": v for k, v in verification_metrics.items()})
         
         if base_params_with_grad > 0:
             logger.warning(f"⚠️  Step {step}: {base_params_with_grad} base parameters have gradients! Base model may not be properly frozen.")
