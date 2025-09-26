@@ -1512,8 +1512,9 @@ class FullFinetuneExperiment:
                 # Optimization
                 learning_rate=learning_rate,
                 weight_decay=self.config['training']['weight_decay'],
-                warmup_ratio=hyperparams.get('warmup_ratio', 0.01),
+                warmup_ratio=hyperparams.get('warmup_ratio', 0.03),  # Increased from 0.01 to 0.03 for stability
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
+                max_grad_norm=1.0,  # Add gradient clipping to prevent gradient explosion
                 
                 # Evaluation and saving
                 eval_strategy="steps",  # Updated parameter name

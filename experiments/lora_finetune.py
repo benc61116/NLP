@@ -920,6 +920,7 @@ class LoRAExperiment:
                 weight_decay=self.config['training']['weight_decay'],
                 warmup_ratio=self.lora_config.warmup_ratio,  # 6% as specified
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
+                max_grad_norm=self.config['training'].get('max_grad_norm', 1.0),  # Add gradient clipping
                 
                 # Evaluation and saving
                 eval_strategy="steps",

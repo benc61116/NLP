@@ -177,6 +177,7 @@ class ExperimentRunner:
             warmup_ratio=self.config['training']['warmup_ratio'],
             lr_scheduler_type=self.config['training']['lr_scheduler_type'],
             optim=self.config['training']['optim'],
+            max_grad_norm=self.config['training'].get('max_grad_norm', 1.0),  # Gradient clipping
             
             # Evaluation and saving
             eval_strategy=self.config['training']['eval_strategy'],
