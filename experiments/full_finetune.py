@@ -1318,21 +1318,30 @@ class FullFinetuneExperiment:
             timestamp = datetime.now().strftime("%H%M%S")
             run_name = f"full_ft_{task_name}_seed{seed}_{timestamp}"
             
-            wandb.init(
-                project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
-                entity=self.config['wandb']['entity'],
-                name=run_name,
-                group=f"full_finetune_{task_name}",
-                job_type="full_finetune",
-                tags=["full_finetune", task_name, f"seed_{seed}"],
-                config={
-                    **self.config,
-                    "task_name": task_name,
-                    "method": "full_finetune",
-                    "seed": seed,
-                    **hyperparams
-                }
-            )
+            try:
+                wandb.init(
+                    project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
+                    entity=self.config['wandb']['entity'],
+                    name=run_name,
+                    group=f"full_finetune_{task_name}",
+                    job_type="full_finetune",
+                    tags=["full_finetune", task_name, f"seed_{seed}"],
+                    config={
+                        **self.config,
+                        "task_name": task_name,
+                        "method": "full_finetune",
+                        "seed": seed,
+                        **hyperparams
+                    },
+                    settings=wandb.Settings(_disable_stats=True, _disable_meta=True)  # Reduce upload load
+                )
+                logger.info(f"✓ Wandb initialized for run: {run_name}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize wandb: {e}. Continuing with offline mode.")
+                # Initialize in offline mode as fallback
+                wandb.init(mode="offline",
+                          project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
+                          name=run_name)
         else:
             # Update wandb config with hyperparameters for sweep runs
             wandb.config.update({
@@ -1376,11 +1385,23 @@ class FullFinetuneExperiment:
             output_dir = self.output_dir / f"full_ft_{task_name}_seed{seed}"
             output_dir.mkdir(exist_ok=True)
             
-            # Apply hyperparameters
-            learning_rate = hyperparams.get('learning_rate', 
-                                          self.config['training']['full_finetune_learning_rate'])
+            # Apply hyperparameters - use task-specific learning rates
+            task_config = self.config['tasks'][task_name]
+            if task_config['type'] == 'classification':
+                # Use classification-specific learning rate
+                default_lr = self.config['training']['full_finetune_learning_rate_classification'][0]  # 1e-5
+            elif task_config['type'] == 'question_answering':
+                # Use QA-specific learning rate (lower for stability)
+                default_lr = self.config['training']['full_finetune_learning_rate_qa'][0]  # 5e-6
+            else:
+                # Fallback to generic rate
+                default_lr = self.config['training']['full_finetune_learning_rate']
+            
+            learning_rate = hyperparams.get('learning_rate', default_lr)
             batch_size = hyperparams.get('per_device_train_batch_size',
                                        self.config['training']['per_device_train_batch_size'])
+            
+            logger.info(f"Using learning rate: {learning_rate} for task: {task_name}")
             
             training_args = TrainingArguments(
                 output_dir=str(output_dir),
@@ -1438,8 +1459,7 @@ class FullFinetuneExperiment:
                 data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
             # Create custom callback (conditional based on representation extraction)
-            # Skip callbacks for QA tasks temporarily to debug
-            if representation_extractor is not None and task_config['type'] not in ['qa', 'question_answering']:
+            if representation_extractor is not None:
                 custom_callback = FullFinetuneCallback(
                     representation_extractor=representation_extractor,
                     gradient_monitor=gradient_monitor,
