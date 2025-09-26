@@ -38,7 +38,7 @@ training:
   # Learning rates (as specified in requirements)
   learning_rate: 0.0002      # Higher for LoRA
   full_finetune_learning_rate_classification: [0.00001, 0.00002]  # Classification tasks (MRPC, SST-2, RTE)
-  full_finetune_learning_rate_qa: [0.000005, 0.00001]  # QA tasks (SQuAD v2)
+  full_finetune_learning_rate_qa: [0.000002, 0.000003]  # QA tasks (SQuAD v2) - reduced for stability
   full_finetune_learning_rate: 0.00002  # Default full fine-tuning LR
   
   # Optimization

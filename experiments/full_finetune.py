@@ -1358,7 +1358,7 @@ class FullFinetuneExperiment:
             learning_rates = [1e-5, 2e-5]
             sequence_length = 512
         else:  # question_answering
-            learning_rates = [5e-6, 1e-5]
+            learning_rates = [2e-6, 3e-6]  # Reduced for stability
             sequence_length = 768
         
         sweep_config = {
