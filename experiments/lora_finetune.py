@@ -382,51 +382,76 @@ class LoRACallback(TrainerCallback):
         # End timing
         self.efficiency_monitor.end_timing()
         
-        # Log LoRA-specific metrics (use different step counter to avoid conflicts)
-        if hasattr(model, 'peft_config'):
-            lora_analyzer = LoRAAnalyzer(model)
-            
-            # Adapter statistics
-            adapter_stats = lora_analyzer.compute_adapter_statistics()
-            if adapter_stats and wandb.run is not None:
-                # Use step+0.1 to avoid conflicts with main training logging
-                wandb.log({f"lora_adapters/{k}": v for k, v in adapter_stats.items()}, step=step, commit=False)
-            
-            # Rank utilization analysis
-            if step % (self.extract_every_steps // 2) == 0:  # Less frequent due to computational cost
-                rank_stats = lora_analyzer.analyze_rank_utilization()
-                if rank_stats and wandb.run is not None:
-                    wandb.log({f"lora_rank/{k}": v for k, v in rank_stats.items()}, step=step, commit=False)
+        # Collect all metrics to log together (prevents step conflicts)
+        metrics_to_log = {}
+        
+        # Log LoRA-specific metrics (only if model is available and has PEFT config)
+        if model is not None and hasattr(model, 'peft_config'):
+            try:
+                lora_analyzer = LoRAAnalyzer(model)
+                
+                # Adapter statistics
+                adapter_stats = lora_analyzer.compute_adapter_statistics()
+                if adapter_stats:
+                    for k, v in adapter_stats.items():
+                        metrics_to_log[f"lora_adapters/{k}"] = v
+                
+                # Rank utilization analysis (less frequent due to computational cost)
+                if step % (self.extract_every_steps // 2) == 0:
+                    rank_stats = lora_analyzer.analyze_rank_utilization()
+                    if rank_stats:
+                        for k, v in rank_stats.items():
+                            metrics_to_log[f"lora_rank/{k}"] = v
+            except Exception as e:
+                logger.warning(f"Failed to extract LoRA metrics at step {step}: {e}")
         
         # Parameter efficiency metrics
         if step % 50 == 0:
-            efficiency_metrics = self.parameter_tracker.get_efficiency_metrics()
-            if wandb.run is not None:
-                wandb.log({f"efficiency/{k}": v for k, v in efficiency_metrics.items()}, step=step, commit=False)
+            try:
+                efficiency_metrics = self.parameter_tracker.get_efficiency_metrics()
+                if efficiency_metrics:
+                    for k, v in efficiency_metrics.items():
+                        metrics_to_log[f"efficiency/{k}"] = v
+            except Exception as e:
+                logger.warning(f"Failed to extract efficiency metrics at step {step}: {e}")
         
         # Training efficiency metrics
         if step % 100 == 0:
-            training_metrics = self.efficiency_monitor.get_efficiency_metrics()
-            if training_metrics and wandb.run is not None:
-                wandb.log({f"training_efficiency/{k}": v for k, v in training_metrics.items()}, step=step, commit=False)
+            try:
+                training_metrics = self.efficiency_monitor.get_efficiency_metrics()
+                if training_metrics:
+                    for k, v in training_metrics.items():
+                        metrics_to_log[f"training_efficiency/{k}"] = v
+            except Exception as e:
+                logger.warning(f"Failed to extract training efficiency metrics at step {step}: {e}")
         
-        # Extract representations (use separate step to avoid wandb conflicts)
-        if step % self.extract_every_steps == 0:
-            logger.info(f"Extracting LoRA representations at step {step}")
-            representations = self.representation_extractor.extract_lora_representations(model, step)
-            self.representation_extractor.save_representations(representations, step)
-            
-            # Log representation extraction completion without conflicting step
-            if wandb.run is not None:
-                wandb.log({"lora_representations/extracted": 1}, step=step, commit=False)
+        # Extract representations (only if extractor and model are available)
+        if (step % self.extract_every_steps == 0 and 
+            self.representation_extractor is not None and 
+            model is not None):
+            try:
+                logger.info(f"Extracting LoRA representations at step {step}")
+                representations = self.representation_extractor.extract_lora_representations(model, step)
+                self.representation_extractor.save_representations(representations, step)
+                
+                # Log representation extraction completion
+                metrics_to_log["lora_representations/extracted"] = 1
+            except Exception as e:
+                logger.warning(f"Failed to extract representations at step {step}: {e}")
         
-        # Verify base model parameters are frozen
-        if step % 500 == 0:
-            self._verify_base_model_frozen(model, step)
+        # Verify base model parameters are frozen (only if model is available)
+        if step % 500 == 0 and model is not None:
+            try:
+                self._verify_base_model_frozen(model, step)
+            except Exception as e:
+                logger.warning(f"Failed to verify frozen parameters at step {step}: {e}")
         
-        # Commit all wandb logs for this step at once to avoid conflicts
-        if wandb.run is not None and step % 10 == 0:  # Commit every 10 steps
-            wandb.log({}, step=step, commit=True)
+        # Log all metrics at once to prevent step order conflicts
+        if wandb.run is not None and metrics_to_log:
+            try:
+                wandb.log(metrics_to_log, step=step)
+            except Exception as e:
+                logger.warning(f"Failed to log metrics to wandb at step {step}: {e}")
     
     def _verify_base_model_frozen(self, model: torch.nn.Module, step: int):
         """Verify that base model parameters are frozen (critical validation)."""
@@ -435,10 +460,21 @@ class LoRACallback(TrainerCallback):
         lora_params_with_grad = 0
         
         for name, param in model.named_parameters():
-            if 'lora_' in name:
+            # Use same logic as freezing function to determine what should be trainable
+            should_train = any(keyword in name for keyword in [
+                'lora_',  # All LoRA parameters (lora_A, lora_B, etc.)
+                'adapter',  # Adapter parameters
+                'classifier',  # Task-specific classification heads
+                'score',  # Scoring layers
+                'qa_outputs'  # Question-answering output layers
+            ])
+            
+            if should_train:
+                # This is a parameter that should be trainable (LoRA or task-specific)
                 if param.requires_grad:
                     lora_params_with_grad += 1
             else:
+                # This is a true base model parameter that should be frozen
                 total_base_params += 1
                 if param.requires_grad:
                     base_params_with_grad += 1
@@ -648,9 +684,13 @@ class LoRAExperiment:
         
         for name, param in model.named_parameters():
             # Check if this is a parameter that should remain trainable
+            # Use more robust matching consistent with monitoring code
             should_train = any(keyword in name for keyword in [
-                'lora_A', 'lora_B', 'adapter',  # LoRA parameters
-                'classifier', 'score', 'qa_outputs'  # Task-specific heads
+                'lora_',  # All LoRA parameters (lora_A, lora_B, etc.)
+                'adapter',  # Adapter parameters
+                'classifier',  # Task-specific classification heads
+                'score',  # Scoring layers
+                'qa_outputs'  # Question-answering output layers
             ])
             
             if should_train:

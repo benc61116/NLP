@@ -1408,12 +1408,12 @@ class FullFinetuneExperiment:
         # Override seed in config
         self.config['reproducibility']['seed'] = seed
         
+        # Create run name (always needed for training args)
+        timestamp = datetime.now().strftime("%H%M%S")
+        run_name = f"full_ft_{task_name}_seed{seed}_{timestamp}"
+        
         # Initialize wandb if not skipped (for sweep runs, wandb is already initialized)
         if not skip_wandb_init:
-            # Create run name
-            timestamp = datetime.now().strftime("%H%M%S")
-            run_name = f"full_ft_{task_name}_seed{seed}_{timestamp}"
-            
             try:
                 wandb.init(
                     project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),

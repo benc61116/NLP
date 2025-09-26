@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ParameterEfficiencyTracker:
     """Tracks parameter efficiency metrics for LoRA vs full fine-tuning."""
     
-    def __init__(self, model: torch.nn.Module, method: str):
+    def __init__(self, model: Optional[torch.nn.Module], method: str):
         self.model = model
         self.method = method
         self.total_params = self.count_total_parameters()
@@ -25,14 +25,27 @@ class ParameterEfficiencyTracker:
         
     def count_total_parameters(self) -> int:
         """Count total parameters in the model."""
+        if self.model is None:
+            return 0
         return sum(p.numel() for p in self.model.parameters())
     
     def count_trainable_parameters(self) -> int:
         """Count trainable parameters in the model."""
+        if self.model is None:
+            return 0
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
     
     def get_efficiency_metrics(self) -> Dict[str, float]:
         """Get parameter efficiency metrics."""
+        if self.model is None:
+            return {
+                'total_parameters': 0,
+                'trainable_parameters': 0,
+                'trainable_parameter_ratio': 0.0,
+                'efficiency_score': 0.0,
+                'method': self.method
+            }
+            
         trainable_ratio = self.trainable_params / self.total_params if self.total_params > 0 else 0
         
         return {
@@ -740,7 +753,17 @@ class LoRAValidationSuite:
         unfrozen_params = []
         
         for name, param in self.model.named_parameters():
-            if not any(x in name for x in ['lora_', 'adapter_']):
+            # Use consistent logic: parameters that should NOT be trainable
+            should_train = any(keyword in name for keyword in [
+                'lora_',  # All LoRA parameters (lora_A, lora_B, etc.)
+                'adapter',  # Adapter parameters  
+                'classifier',  # Task-specific classification heads
+                'score',  # Scoring layers
+                'qa_outputs'  # Question-answering output layers
+            ])
+            
+            if not should_train:
+                # This is a true base model parameter that should be frozen
                 total_base_params += 1
                 if param.requires_grad:
                     base_params_with_grad += 1
