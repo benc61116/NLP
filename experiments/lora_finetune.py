@@ -360,12 +360,43 @@ class LoRACallback(TrainerCallback):
         
         # Set validation examples for representation extraction
         if eval_dataset is not None:
+            # Handle variable-length sequences (same fix as full fine-tuning)
+            input_ids_list = [ex['input_ids'] for ex in eval_dataset]
+            attention_mask_list = [ex['attention_mask'] for ex in eval_dataset]
+            
+            try:
+                # Try direct stacking first
+                input_ids = torch.stack([torch.tensor(ids) for ids in input_ids_list])
+                attention_mask = torch.stack([torch.tensor(mask) for mask in attention_mask_list])
+            except RuntimeError as e:
+                if "stack expects each tensor to be equal size" in str(e):
+                    # Pad to max length for variable-length sequences
+                    max_len = max(len(ids) for ids in input_ids_list)
+                    padded_input_ids = []
+                    padded_attention_mask = []
+                    for ids, mask in zip(input_ids_list, attention_mask_list):
+                        pad_len = max_len - len(ids)
+                        if pad_len > 0:
+                            pad_id = 0  # Use 0 as pad token ID
+                            padded_ids = torch.cat([torch.tensor(ids), torch.full((pad_len,), pad_id, dtype=torch.long)])
+                            padded_mask = torch.cat([torch.tensor(mask), torch.zeros(pad_len, dtype=torch.long)])
+                        else:
+                            padded_ids = torch.tensor(ids)
+                            padded_mask = torch.tensor(mask)
+                        padded_input_ids.append(padded_ids)
+                        padded_attention_mask.append(padded_mask)
+                    input_ids = torch.stack(padded_input_ids)
+                    attention_mask = torch.stack(padded_attention_mask)
+                else:
+                    raise
+            
             examples = {
-                'input_ids': torch.tensor([ex['input_ids'] for ex in eval_dataset]),
-                'attention_mask': torch.tensor([ex['attention_mask'] for ex in eval_dataset])
+                'input_ids': input_ids,
+                'attention_mask': attention_mask
             }
             if 'labels' in eval_dataset[0]:
-                examples['labels'] = torch.tensor([ex['labels'] for ex in eval_dataset])
+                labels_list = [ex['labels'] for ex in eval_dataset]
+                examples['labels'] = torch.tensor(labels_list)
             
             self.representation_extractor.set_validation_examples(examples)
     
@@ -776,11 +807,40 @@ class LoRAExperiment:
         """Test LoRA merge equivalence as required in validation."""
         logger.info("Testing LoRA merge equivalence...")
         
-        # Create test input
+        # Create test input (handle variable-length sequences)
         test_examples = eval_dataset.select(range(min(10, len(eval_dataset))))
+        input_ids_list = [ex['input_ids'] for ex in test_examples]
+        attention_mask_list = [ex['attention_mask'] for ex in test_examples]
+        
+        try:
+            # Try direct stacking first
+            test_input_ids = torch.stack([torch.tensor(ids) for ids in input_ids_list])
+            test_attention_mask = torch.stack([torch.tensor(mask) for mask in attention_mask_list])
+        except RuntimeError as e:
+            if "stack expects each tensor to be equal size" in str(e):
+                # Pad to max length for variable-length sequences
+                max_len = max(len(ids) for ids in input_ids_list)
+                padded_input_ids = []
+                padded_attention_mask = []
+                for ids, mask in zip(input_ids_list, attention_mask_list):
+                    pad_len = max_len - len(ids)
+                    if pad_len > 0:
+                        pad_id = 0  # Use 0 as pad token ID
+                        padded_ids = torch.cat([torch.tensor(ids), torch.full((pad_len,), pad_id, dtype=torch.long)])
+                        padded_mask = torch.cat([torch.tensor(mask), torch.zeros(pad_len, dtype=torch.long)])
+                    else:
+                        padded_ids = torch.tensor(ids)
+                        padded_mask = torch.tensor(mask)
+                    padded_input_ids.append(padded_ids)
+                    padded_attention_mask.append(padded_mask)
+                test_input_ids = torch.stack(padded_input_ids)
+                test_attention_mask = torch.stack(padded_attention_mask)
+            else:
+                raise
+        
         test_input = {
-            'input_ids': torch.tensor([ex['input_ids'] for ex in test_examples]).to(model.device),
-            'attention_mask': torch.tensor([ex['attention_mask'] for ex in test_examples]).to(model.device)
+            'input_ids': test_input_ids.to(model.device),
+            'attention_mask': test_attention_mask.to(model.device)
         }
         
         # Test merge equivalence
