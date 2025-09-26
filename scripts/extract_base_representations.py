@@ -24,7 +24,7 @@ from experiments.full_finetune import RepresentationExtractor, RepresentationCon
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def extract_base_representations_for_task(model, tokenizer, data_loader, task_name: str, num_samples: int = 750):
+def extract_base_representations_for_task(model, tokenizer, data_loader, task_name: str, num_samples: int = 750, model_name: str = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"):
     """Extract base model representations for a specific task."""
     logger.info(f"Extracting base representations for {task_name} ({num_samples} samples)")
     
@@ -56,12 +56,53 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
         )
         
         # Prepare validation examples for representation extraction
+        # FIXED: prepare_qa_data returns a dict with lists, not a Dataset to iterate over
+        input_ids_list = eval_dataset['input_ids']  # List of lists
+        attention_mask_list = eval_dataset['attention_mask']  # List of lists
+        
+        # Convert lists to tensors
+        input_ids_tensors = []
+        attention_mask_tensors = []
+        
+        for ids, mask in zip(input_ids_list, attention_mask_list):
+            input_ids_tensors.append(torch.tensor(ids, dtype=torch.long))
+            attention_mask_tensors.append(torch.tensor(mask, dtype=torch.long))
+        
+        # Handle variable-length sequences with manual padding (simpler approach)
+        try:
+            input_ids = torch.stack(input_ids_tensors)
+            attention_mask = torch.stack(attention_mask_tensors)
+        except RuntimeError as e:
+            if "stack expects each tensor to be equal size" in str(e):
+                # Pad to max length for variable-length sequences
+                max_len = max(len(ids) for ids in input_ids_tensors)
+                padded_input_ids = []
+                padded_attention_mask = []
+                for ids, mask in zip(input_ids_tensors, attention_mask_tensors):
+                    pad_len = max_len - len(ids)
+                    if pad_len > 0:
+                        pad_id = 0  # Use 0 as pad token ID
+                        padded_ids = torch.cat([ids, torch.full((pad_len,), pad_id, dtype=torch.long)])
+                        padded_mask = torch.cat([mask, torch.zeros(pad_len, dtype=torch.long)])
+                    else:
+                        padded_ids = ids
+                        padded_mask = mask
+                    padded_input_ids.append(padded_ids)
+                    padded_attention_mask.append(padded_mask)
+                input_ids = torch.stack(padded_input_ids)
+                attention_mask = torch.stack(padded_attention_mask)
+            else:
+                raise
+        
         examples = {
-            'input_ids': eval_dataset['input_ids'],
-            'attention_mask': eval_dataset['attention_mask']
+            'input_ids': input_ids,
+            'attention_mask': attention_mask
         }
-        if 'labels' in eval_dataset:
-            examples['labels'] = eval_dataset['labels']
+        
+        # Handle labels if present for QA tasks
+        if 'start_positions' in eval_dataset and 'end_positions' in eval_dataset:
+            examples['start_positions'] = eval_dataset['start_positions']
+            examples['end_positions'] = eval_dataset['end_positions']
         
         extractor.set_validation_examples(examples)
         
@@ -155,7 +196,7 @@ def main():
         # Adaptive 750 samples: uses all samples for small tasks (MRPC/RTE), optimized for large tasks  
         samples = 750
         success = extract_base_representations_for_task(
-            model, tokenizer, data_loader, task_name, num_samples=samples
+            model, tokenizer, data_loader, task_name, num_samples=samples, model_name=model_name
         )
         if success:
             successful_extractions += 1
