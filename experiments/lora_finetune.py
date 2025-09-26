@@ -1145,6 +1145,50 @@ class LoRAExperiment:
                 del model
             torch.cuda.empty_cache()
             wandb.finish()
+            
+            # Auto-cleanup after each completed LoRA task+seed run to prevent disk space issues
+            try:
+                import subprocess
+                import shutil
+                from datetime import datetime
+                
+                # Always cleanup LoRA adapters from THIS run (keep only final checkpoint)
+                logger.info(f"🧹 Cleaning LoRA adapters from completed run: {task_name} seed {seed}")
+                
+                # Find the current LoRA experiment directory (most recent)
+                results_dirs = sorted([d for d in Path("results").glob("lora_finetune_*") if d.is_dir()], 
+                                    key=lambda x: x.stat().st_mtime, reverse=True)
+                
+                if results_dirs:
+                    current_experiment = results_dirs[0]
+                    cleanup_cmd = [
+                        'python', 'scripts/cleanup_experiment.py', 
+                        '--experiment', str(current_experiment),
+                        '--mode', 'checkpoints'  # Clean intermediate checkpoints but keep final
+                    ]
+                    result = subprocess.run(cleanup_cmd, cwd=Path.cwd(), capture_output=True, text=True)
+                    if result.returncode == 0:
+                        logger.info("✅ Post-LoRA cleanup completed successfully")
+                    else:
+                        logger.warning(f"LoRA cleanup warning: {result.stderr}")
+                
+                # Check disk usage and cleanup if needed
+                total, used, free = shutil.disk_usage('/')
+                usage_percent = (used / total) * 100
+                logger.info(f"💾 Disk usage after LoRA cleanup: {usage_percent:.1f}%")
+                
+                if usage_percent > 70:  # Cleanup older experiments if still high
+                    logger.info(f"🧹 Disk usage still high ({usage_percent:.1f}%), cleaning older experiments...")
+                    old_cleanup_cmd = [
+                        'python', 'scripts/auto_cleanup.py', 
+                        '--task', task_name,
+                        '--results-dir', 'results'
+                    ]
+                    subprocess.run(old_cleanup_cmd, cwd=Path.cwd(), capture_output=True)
+                    logger.info("✅ Additional LoRA cleanup completed")
+                    
+            except Exception as e:
+                logger.warning(f"LoRA auto-cleanup failed (non-critical): {e}")
     
     def run_hyperparameter_sweep(self, task_name: str) -> List[Dict[str, Any]]:
         """Run hyperparameter sweep for LoRA as specified in requirements."""

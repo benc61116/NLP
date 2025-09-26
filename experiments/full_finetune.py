@@ -1415,6 +1415,10 @@ class FullFinetuneExperiment:
         # Initialize wandb if not skipped (for sweep runs, wandb is already initialized)
         if not skip_wandb_init:
             try:
+                # Configure wandb to use project-specific temp directories
+                from wandb_config import setup_wandb_directories, get_wandb_settings
+                setup_wandb_directories()
+                
                 wandb.init(
                     project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
                     entity=self.config['wandb']['entity'],
@@ -1429,7 +1433,7 @@ class FullFinetuneExperiment:
                         "seed": seed,
                         **hyperparams
                     },
-                    settings=wandb.Settings(_disable_stats=True, _disable_meta=True)  # Reduce upload load
+                    settings=get_wandb_settings()  # Use optimized settings with custom temp dirs
                 )
                 logger.info(f"✓ Wandb initialized for run: {run_name}")
             except Exception as e:
@@ -1437,7 +1441,8 @@ class FullFinetuneExperiment:
                 # Initialize in offline mode as fallback
                 wandb.init(mode="offline",
                           project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
-                          name=run_name)
+                          name=run_name,
+                          settings=wandb.Settings(_tmp_dir=str(Path.cwd() / 'wandb_temp')))
         else:
             # Update wandb config with hyperparameters for sweep runs
             wandb.config.update({
@@ -1686,6 +1691,51 @@ class FullFinetuneExperiment:
             # Only finish wandb if we initialized it in this method (not for sweep runs)
             if not skip_wandb_init:
                 wandb.finish()
+            
+            # Auto-cleanup after each completed task+seed run to prevent disk space issues
+            try:
+                import subprocess
+                import shutil
+                from datetime import datetime
+                
+                # Always cleanup representations from THIS run (keep only final step)
+                logger.info(f"🧹 Cleaning representations from completed run: {task_name} seed {seed}")
+                experiment_dir = Path("results") / f"full_finetune_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                
+                # Find the current experiment directory (most recent)
+                results_dirs = sorted([d for d in Path("results").glob("full_finetune_*") if d.is_dir()], 
+                                    key=lambda x: x.stat().st_mtime, reverse=True)
+                
+                if results_dirs:
+                    current_experiment = results_dirs[0]
+                    cleanup_cmd = [
+                        'python', 'scripts/cleanup_experiment.py', 
+                        '--experiment', str(current_experiment),
+                        '--mode', 'representations'  # Clean representations but keep final step
+                    ]
+                    result = subprocess.run(cleanup_cmd, cwd=Path.cwd(), capture_output=True, text=True)
+                    if result.returncode == 0:
+                        logger.info("✅ Post-run cleanup completed successfully")
+                    else:
+                        logger.warning(f"Cleanup warning: {result.stderr}")
+                
+                # Also check disk usage and cleanup old experiments if needed
+                total, used, free = shutil.disk_usage('/')
+                usage_percent = (used / total) * 100
+                logger.info(f"💾 Disk usage after cleanup: {usage_percent:.1f}%")
+                
+                if usage_percent > 70:  # Cleanup older experiments if still high
+                    logger.info(f"🧹 Disk usage still high ({usage_percent:.1f}%), cleaning older experiments...")
+                    old_cleanup_cmd = [
+                        'python', 'scripts/auto_cleanup.py', 
+                        '--task', task_name,
+                        '--results-dir', 'results'
+                    ]
+                    subprocess.run(old_cleanup_cmd, cwd=Path.cwd(), capture_output=True)
+                    logger.info("✅ Additional cleanup completed")
+                    
+            except Exception as e:
+                logger.warning(f"Auto-cleanup failed (non-critical): {e}")
     
     def run_hyperparameter_sweep(self, task_name: str) -> List[Dict[str, Any]]:
         """Run hyperparameter sweep for a task."""
