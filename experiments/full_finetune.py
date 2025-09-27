@@ -77,6 +77,9 @@ class QADataCollator:
         start_positions = [pos if pos is not None else 0 for pos in start_positions]
         end_positions = [pos if pos is not None else 0 for pos in end_positions]
         
+        # Handle answerability labels for SQuAD v2 (if present)
+        answerability_labels = [f.get("answerability_labels", 0) for f in features]
+        
         # Pad input_ids and attention_mask
         max_length = max(len(ids) for ids in input_ids)
         
@@ -1064,14 +1067,26 @@ class FullFinetuneExperiment:
         if task_name and task_name in self.config['tasks']:
             task_type = self.config['tasks'][task_name].get('type', 'classification')
             if task_type in ['qa', 'question_answering']:
-                # For QA tasks, use QuestionAnswering model with QA head
-                model = AutoModelForQuestionAnswering.from_pretrained(
-                    model_name,
-                    dtype=getattr(torch, self.config['model']['dtype']),
-                    device_map="auto" if torch.cuda.is_available() else None,
-                    max_memory=max_memory,
-                    trust_remote_code=True
-                )
+                # For SQuAD v2, use model with answerability head
+                if task_name == 'squad_v2':
+                    from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
+                    model = SquadV2QuestionAnsweringModel(
+                        model_name,
+                        answerability_weight=1.0
+                    )
+                    # Apply dtype and device settings
+                    model = model.to(dtype=getattr(torch, self.config['model']['dtype']))
+                    if torch.cuda.is_available():
+                        model = model.cuda()
+                else:
+                    # For other QA tasks, use standard QA model
+                    model = AutoModelForQuestionAnswering.from_pretrained(
+                        model_name,
+                        dtype=getattr(torch, self.config['model']['dtype']),
+                        device_map="auto" if torch.cuda.is_available() else None,
+                        max_memory=max_memory,
+                        trust_remote_code=True
+                    )
             else:  # classification tasks
                 num_labels = self.config['tasks'][task_name].get('num_labels', 2)
                 model = AutoModelForSequenceClassification.from_pretrained(
@@ -1185,12 +1200,20 @@ class FullFinetuneExperiment:
         # Use same model type as training
         task_type = self.config['tasks'][task_name].get('type', 'classification')
         if task_type in ['qa', 'question_answering']:
-            base_model = AutoModelForQuestionAnswering.from_pretrained(
-                model_name,
-                dtype=getattr(torch, self.config['model']['dtype']),
-                device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
-                trust_remote_code=True
-            )
+            if task_name == 'squad_v2':
+                from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
+                base_model = SquadV2QuestionAnsweringModel(
+                    model_name,
+                    answerability_weight=1.0
+                )
+                base_model = base_model.to(dtype=getattr(torch, self.config['model']['dtype']))
+            else:
+                base_model = AutoModelForQuestionAnswering.from_pretrained(
+                    model_name,
+                    dtype=getattr(torch, self.config['model']['dtype']),
+                    device_map=self.config['model']['device_map'] if torch.cuda.is_available() else None,
+                    trust_remote_code=True
+                )
         else:  # classification tasks
             num_labels = self.config['tasks'][task_name].get('num_labels', 2)
             base_model = AutoModelForSequenceClassification.from_pretrained(

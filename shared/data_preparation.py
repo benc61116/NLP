@@ -176,14 +176,17 @@ class TaskDataLoader:
         }
     
     def prepare_qa_data(self, split: str = "train", num_samples: Optional[int] = None) -> Dict:
-        """Prepare data for question answering task (SQuAD v2).
+        """Prepare data for question answering task (SQuAD v2) with answerability labels.
+        
+        This implements the proper SQuAD v2 data preparation that prevents shortcut learning
+        by separating span extraction from answerability classification.
         
         Args:
             split: Dataset split
             num_samples: If provided, sample this many examples
             
         Returns:
-            Dictionary with tokenized inputs and answer information
+            Dictionary with tokenized inputs, answer positions, and answerability labels
         """
         task_name = "squad_v2"
         
@@ -196,6 +199,7 @@ class TaskDataLoader:
         attention_mask_list = []
         start_positions = []
         end_positions = []
+        answerability_labels = []  # NEW: Separate answerability classification
         
         for example in dataset:
             context = example["context"]
@@ -215,9 +219,11 @@ class TaskDataLoader:
             input_ids_list.append(tokenized["input_ids"])
             attention_mask_list.append(tokenized["attention_mask"])
             
-            # Handle answer positions with proper token alignment
-            if answers["text"] and len(answers["text"]) > 0:
-                # Use first answer for simplicity
+            # Determine answerability first
+            has_answer = answers["text"] and len(answers["text"]) > 0
+            
+            if has_answer:
+                # ANSWERABLE QUESTION: Extract span positions
                 answer_start_char = answers["answer_start"][0]
                 answer_text = answers["text"][0]
                 answer_end_char = answer_start_char + len(answer_text)
@@ -239,24 +245,30 @@ class TaskDataLoader:
                         end_token = i
                         break
                 
-                # Validation and fallback
+                # Validation and proper handling
                 if start_token is not None and end_token is not None and start_token <= end_token:
+                    # Valid span found
                     start_positions.append(start_token)
                     end_positions.append(end_token)
+                    answerability_labels.append(1)  # 1 = answerable
                 else:
-                    # Fallback: mark as unanswerable
-                    start_positions.append(0)  # CLS token
+                    # Could not map answer to tokens - treat as unanswerable 
+                    # (This is a fallback for rare tokenization edge cases)
+                    start_positions.append(0)  # CLS token (ignored during loss calculation)
                     end_positions.append(0)
+                    answerability_labels.append(0)  # 0 = unanswerable
             else:
-                # No answer (SQuAD v2 has unanswerable questions)
-                start_positions.append(0)  # CLS token for unanswerable
+                # UNANSWERABLE QUESTION: No valid span exists
+                start_positions.append(0)  # CLS token (ignored during loss calculation) 
                 end_positions.append(0)
+                answerability_labels.append(0)  # 0 = unanswerable
         
         return {
             "input_ids": input_ids_list,
             "attention_mask": attention_mask_list,
             "start_positions": torch.tensor(start_positions, dtype=torch.long),
             "end_positions": torch.tensor(end_positions, dtype=torch.long),
+            "answerability_labels": torch.tensor(answerability_labels, dtype=torch.long),  # NEW
             "task_name": task_name,
             "num_samples": len(input_ids_list)
         }
