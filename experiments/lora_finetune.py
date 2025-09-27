@@ -1211,7 +1211,6 @@ class LoRAExperiment:
             try:
                 import subprocess
                 import shutil
-                from datetime import datetime
                 
                 # Always cleanup LoRA adapters from THIS run (keep only final checkpoint)
                 logger.info(f"🧹 Cleaning LoRA adapters from completed run: {task_name} seed {seed}")
