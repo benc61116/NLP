@@ -68,7 +68,7 @@ This research project investigates two critical questions in parameter-efficient
 
 ## Phase-Based Execution Plan
 
-### Phase 0: Methodology Validation & Baselines (3-4 hours runtime)
+### Phase 0: Methodology Validation & Baselines (7-10 hours runtime)
 
 **Purpose**: Validate all components work correctly before expensive experiments
 
@@ -82,15 +82,15 @@ This research project investigates two critical questions in parameter-efficient
 
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
-| **Sanity Checks** | SQuAD v2 overfitting test | MRPC, SST-2, RTE overfitting | 30 min |
-| **Baselines** | SQuAD v2 majority/random | Classification majority/random | 20 min |
-| **Base Representations** | - | Extract from all tasks | 1 hour |
-| **Infrastructure Test** | SQuAD v2 architecture validation | Memory profiling all tasks | 30 min |
-| **Total** | ~1.5 hours | ~2 hours | - |
+| **Sanity Checks** | SQuAD v2 overfitting test | MRPC, SST-2, RTE overfitting | 1.25 hours |
+| **Baselines** | SQuAD v2 majority/random | Classification majority/random | 50 min |
+| **Base Representations** | - | Extract from all tasks | 6.25 hours |
+| **Infrastructure Test** | SQuAD v2 architecture validation | Memory profiling all tasks | 1.25 hours |
+| **Total** | ~3.75 hours | ~5 hours | - |
 
 **Note**: No zero-shot evaluation needed - introduces prompt engineering complexity irrelevant to LoRA vs Full FT comparison.
 
-### Phase 1: Hyperparameter Optimization (8-10 hours runtime)
+### Phase 1: Hyperparameter Optimization (20-25 hours runtime)
 
 **Purpose**: Find optimal hyperparameters using systematic search
 
@@ -104,11 +104,11 @@ This research project investigates two critical questions in parameter-efficient
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
 | **Sweeps** | | | |
-| - Full FT | SQuAD v2 sweep (100 trials) | MRPC + SST-2 + RTE sweeps | 3 hours |
-| - LoRA | SQuAD v2 LoRA sweep | MRPC + SST-2 + RTE LoRA | 2.5 hours |
-| **Analysis** | Analyze SQuAD v2 sweeps | Analyze 3 classification tasks | 30 min |
-| **Validation** | Test optimal configs (3 seeds) | Test optimal configs | 1 hour |
-| **Total** | ~6.5-7 hours | ~6.5-7 hours | - |
+| - Full FT | SQuAD v2 sweep (100 trials) | MRPC + SST-2 + RTE sweeps | 7.5 hours |
+| - LoRA | SQuAD v2 LoRA sweep | MRPC + SST-2 + RTE LoRA | 6.25 hours |
+| **Analysis** | Analyze SQuAD v2 sweeps | Analyze 3 classification tasks | 1.25 hours |
+| **Validation** | Test optimal configs (3 seeds) | Test optimal configs | 2.5 hours |
+| **Total** | ~16-17 hours | ~16-17 hours | - |
 
 **Note**: SQuAD v2 is computationally heavier (~3x) than classification tasks, so 1 QA task ≈ 3 classification tasks in runtime.
 
@@ -117,7 +117,7 @@ This research project investigates two critical questions in parameter-efficient
 - Performance gaps between best/worst >5% ✓
 - Consistent results across validation seeds ✓
 
-### Phase 2: Production Experiments (10-12 hours runtime)
+### Phase 2: Production Experiments (25-30 hours runtime)
 
 **Purpose**: Execute main experiments with optimal hyperparameters
 
@@ -131,16 +131,16 @@ This research project investigates two critical questions in parameter-efficient
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
 | **Full Fine-tuning** | | | |
-| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 4 hours |
-| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 30 min |
+| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 10 hours |
+| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 1.25 hours |
 | **LoRA** | | | |
-| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 3 hours |
-| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 30 min |
+| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 7.5 hours |
+| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 1.25 hours |
 | **Checkpointing** | Save best models | Save best models | - |
 | **Cleanup** | Automated cleanup | Automated cleanup | - |
-| **Total** | ~8 hours | ~8 hours | - |
+| **Total** | ~20 hours | ~20 hours | - |
 
-### Phase 3: Analysis & Synthesis (4-5 hours runtime)
+### Phase 3: Analysis & Synthesis (10-12 hours runtime)
 
 **Purpose**: Comprehensive analysis and hypothesis testing
 
@@ -153,11 +153,11 @@ This research project investigates two critical questions in parameter-efficient
 
 | Component | VM1 | VM2 | Time |
 |-----------|-----|-----|------|
-| **Drift Analysis** | All SQuAD v2 layer analysis | All classification analysis | 1.5 hours |
-| **Performance Analysis** | Statistical tests for SQuAD | Statistical tests for class. | 30 min |
-| **Deployment Bench** | vLLM multi-adapter testing | - | 1.5 hours |
+| **Drift Analysis** | All SQuAD v2 layer analysis | All classification analysis | 3.75 hours |
+| **Performance Analysis** | Statistical tests for SQuAD | Statistical tests for class. | 45 min |
+| **Deployment Bench** | vLLM multi-adapter testing | - | 3.75 hours |
 | **Synthesis** | Combined analysis on single VM | (VM2 can shut down) | 1 hour |
-| **Total** | ~4 hours | ~2 hours (then shutdown) | - |
+| **Total** | ~8.5 hours | ~4 hours (then shutdown) | - |
 
 ## Technical Implementation Requirements
 
@@ -205,15 +205,15 @@ def test_all_hypotheses(results):
 
 ## Resource Requirements & Timeline
 
-**Total Runtime**: ~25-31 hours across 2 VMs
+**Total Runtime**: ~62-77 hours across 2 VMs
 
 **Hardware Requirements**:
-- 2 VMs with A100 40GB GPUs (or similar)
-- ~100GB storage per VM
-- TinyLlama-1.1B model (2GB memory footprint)
+- 2 VMs with L4 24GB GPUs
+- ~100GB storage per VM  
+- TinyLlama-1.1B model (2GB memory footprint, fits comfortably in 24GB)
 
 **Phase Timeline**:
-- Phase 0: 3-4 hours (validation & baselines)
+- Phase 0: 3-10 hours (validation & baselines)
 - Phase 1: 8-10 hours (hyperparameter optimization)
 - Phase 2: 10-12 hours (production experiments)
 - Phase 3: 4-5 hours (analysis & synthesis)
@@ -221,7 +221,7 @@ def test_all_hypotheses(results):
 ## Key Methodological Features
 
 1. **Sanity Checks** (Phase 0): Prove all models can overfit to catch bugs early
-2. **Proper Baselines**: Random, majority, and zero-shot for context
+2. **Proper Baselines**: Random, majority
 3. **Systematic Optimization**: Either W&B sweeps (current) or Optuna (upgrade)
 4. **Statistical Rigor**: Multiple seeds, hypothesis testing, effect sizes
 5. **Balanced Execution**: No dependencies between VMs within phases
@@ -258,7 +258,7 @@ Based on the current codebase analysis, here's the prioritized implementation pl
 
 ### Immediate Priority (Phase 0 Requirements)
 
-#### 1. Create Phase 0 VM Scripts (~30 minutes)
+#### 1. Create Phase 0 VM Scripts (~1.25 hoursutes)
 **Note**: All baselines already implemented in `experiments/baselines.py`:
 **✅ Have**: `shared/sanity_checks.py`, `experiments/baselines.py`, `scripts/extract_base_representations.py`  
 **❌ Need**: `scripts/phase0/` directory + 2 shell scripts
@@ -284,7 +284,7 @@ python scripts/extract_base_representations.py --tasks all
 
 ### Phase 1 Enhancements (Optional but Recommended)
 
-#### 3. Optuna Integration (~4 hours)
+#### 3. Optuna Integration (~10 hours)
 ```python
 # Create experiments/optuna_optimization.py
 import optuna
@@ -357,7 +357,7 @@ python experiments/optuna_optimization.py --task $TASK --method $METHOD --trials
 
 ### Phase 3 Critical Implementations
 
-#### 6. Comprehensive Drift Analysis (~4 hours)
+#### 6. Comprehensive Drift Analysis (~10 hours)
 ```python
 **✅ Have**: `RepresentationMetrics` class in `shared/metrics.py` with CKA + cosine similarity  
 **❌ Need**: `experiments/drift_analysis.py` pipeline to orchestrate comparisons  
@@ -432,7 +432,7 @@ class DriftAnalyzer:
         }
 ```
 
-#### 7. vLLM Deployment Benchmarking (~3 hours)
+#### 7. vLLM Deployment Benchmarking (~7.5 hours)
 ```python
 **✅ Have**: `PRODUCTION_DEPLOYMENT_GUIDE.md` with vLLM setup instructions  
 **❌ Need**: `experiments/deployment_benchmark.py` for automated latency/throughput measurement  
@@ -771,7 +771,7 @@ This research project investigates two critical questions in parameter-efficient
 
 ## Phase-Based Execution Plan
 
-### Phase 0: Methodology Validation & Baselines (3-4 hours runtime)
+### Phase 0: Methodology Validation & Baselines (7-10 hours runtime)
 
 **Purpose**: Validate all components work correctly before expensive experiments
 
@@ -785,15 +785,15 @@ This research project investigates two critical questions in parameter-efficient
 
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
-| **Sanity Checks** | SQuAD v2 overfitting test | MRPC, SST-2, RTE overfitting | 30 min |
-| **Baselines** | SQuAD v2 majority/random | Classification majority/random | 20 min |
-| **Base Representations** | - | Extract from all tasks | 1 hour |
-| **Infrastructure Test** | SQuAD v2 architecture validation | Memory profiling all tasks | 30 min |
-| **Total** | ~1.5 hours | ~2 hours | - |
+| **Sanity Checks** | SQuAD v2 overfitting test | MRPC, SST-2, RTE overfitting | 1.25 hours |
+| **Baselines** | SQuAD v2 majority/random | Classification majority/random | 50 min |
+| **Base Representations** | - | Extract from all tasks | 6.25 hours |
+| **Infrastructure Test** | SQuAD v2 architecture validation | Memory profiling all tasks | 1.25 hours |
+| **Total** | ~3.75 hours | ~5 hours | - |
 
 **Note**: No zero-shot evaluation needed - introduces prompt engineering complexity irrelevant to LoRA vs Full FT comparison.
 
-### Phase 1: Hyperparameter Optimization (8-10 hours runtime)
+### Phase 1: Hyperparameter Optimization (20-25 hours runtime)
 
 **Purpose**: Find optimal hyperparameters using systematic search
 
@@ -807,11 +807,11 @@ This research project investigates two critical questions in parameter-efficient
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
 | **Sweeps** | | | |
-| - Full FT | SQuAD v2 sweep (100 trials) | MRPC + SST-2 + RTE sweeps | 3 hours |
-| - LoRA | SQuAD v2 LoRA sweep | MRPC + SST-2 + RTE LoRA | 2.5 hours |
-| **Analysis** | Analyze SQuAD v2 sweeps | Analyze 3 classification tasks | 30 min |
-| **Validation** | Test optimal configs (3 seeds) | Test optimal configs | 1 hour |
-| **Total** | ~6.5-7 hours | ~6.5-7 hours | - |
+| - Full FT | SQuAD v2 sweep (100 trials) | MRPC + SST-2 + RTE sweeps | 7.5 hours |
+| - LoRA | SQuAD v2 LoRA sweep | MRPC + SST-2 + RTE LoRA | 6.25 hours |
+| **Analysis** | Analyze SQuAD v2 sweeps | Analyze 3 classification tasks | 1.25 hours |
+| **Validation** | Test optimal configs (3 seeds) | Test optimal configs | 2.5 hours |
+| **Total** | ~16-17 hours | ~16-17 hours | - |
 
 **Note**: SQuAD v2 is computationally heavier (~3x) than classification tasks, so 1 QA task ≈ 3 classification tasks in runtime.
 
@@ -820,7 +820,7 @@ This research project investigates two critical questions in parameter-efficient
 - Performance gaps between best/worst >5% ✓
 - Consistent results across validation seeds ✓
 
-### Phase 2: Production Experiments (10-12 hours runtime)
+### Phase 2: Production Experiments (25-30 hours runtime)
 
 **Purpose**: Execute main experiments with optimal hyperparameters
 
@@ -834,16 +834,16 @@ This research project investigates two critical questions in parameter-efficient
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
 | **Full Fine-tuning** | | | |
-| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 4 hours |
-| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 30 min |
+| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 10 hours |
+| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 1.25 hours |
 | **LoRA** | | | |
-| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 3 hours |
-| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 30 min |
+| - Training | SQuAD v2 × 3 seeds | MRPC + SST-2 + RTE × 3 seeds | 7.5 hours |
+| - Evaluation | SQuAD v2 test evaluation | Classification test eval | 1.25 hours |
 | **Checkpointing** | Save best models | Save best models | - |
 | **Cleanup** | Automated cleanup | Automated cleanup | - |
-| **Total** | ~8 hours | ~8 hours | - |
+| **Total** | ~20 hours | ~20 hours | - |
 
-### Phase 3: Analysis & Synthesis (4-5 hours runtime)
+### Phase 3: Analysis & Synthesis (10-12 hours runtime)
 
 **Purpose**: Comprehensive analysis and hypothesis testing
 
@@ -856,11 +856,11 @@ This research project investigates two critical questions in parameter-efficient
 
 | Component | VM1 | VM2 | Time |
 |-----------|-----|-----|------|
-| **Drift Analysis** | All SQuAD v2 layer analysis | All classification analysis | 1.5 hours |
-| **Performance Analysis** | Statistical tests for SQuAD | Statistical tests for class. | 30 min |
-| **Deployment Bench** | vLLM multi-adapter testing | - | 1.5 hours |
+| **Drift Analysis** | All SQuAD v2 layer analysis | All classification analysis | 3.75 hours |
+| **Performance Analysis** | Statistical tests for SQuAD | Statistical tests for class. | 45 min |
+| **Deployment Bench** | vLLM multi-adapter testing | - | 3.75 hours |
 | **Synthesis** | Combined analysis on single VM | (VM2 can shut down) | 1 hour |
-| **Total** | ~4 hours | ~2 hours (then shutdown) | - |
+| **Total** | ~8.5 hours | ~4 hours (then shutdown) | - |
 
 ## Technical Implementation Requirements
 
@@ -908,15 +908,15 @@ def test_all_hypotheses(results):
 
 ## Resource Requirements & Timeline
 
-**Total Runtime**: ~25-31 hours across 2 VMs
+**Total Runtime**: ~62-77 hours across 2 VMs
 
 **Hardware Requirements**:
-- 2 VMs with A100 40GB GPUs (or similar)
-- ~100GB storage per VM
-- TinyLlama-1.1B model (2GB memory footprint)
+- 2 VMs with L4 24GB GPUs
+- ~100GB storage per VM  
+- TinyLlama-1.1B model (2GB memory footprint, fits comfortably in 24GB)
 
 **Phase Timeline**:
-- Phase 0: 3-4 hours (validation & baselines)
+- Phase 0: 3-10 hours (validation & baselines)
 - Phase 1: 8-10 hours (hyperparameter optimization)
 - Phase 2: 10-12 hours (production experiments)
 - Phase 3: 4-5 hours (analysis & synthesis)
@@ -961,11 +961,11 @@ Based on the current codebase analysis, here's the prioritized implementation pl
 
 ### Immediate Priority (Phase 0 Requirements)
 
-#### 1. Create Phase 0 VM Scripts (~30 minutes)
+#### 1. Create Phase 0 VM Scripts (~1.25 hoursutes)
 **Note**: All baselines already implemented in `experiments/baselines.py`:
 **✅ Have**: `shared/sanity_checks.py`, `experiments/baselines.py`, `scripts/extract_base_representations.py`  
 **❌ Need**: `scripts/phase0/` directory + 2 shell scripts
-```bash
+   ```bash
 # Create scripts/phase0/vm1_validation.sh
 #!/bin/bash
 # VM1: SQuAD v2 validation
@@ -987,7 +987,7 @@ python scripts/extract_base_representations.py --tasks all
 
 ### Phase 1 Enhancements (Optional but Recommended)
 
-#### 3. Optuna Integration (~4 hours)
+#### 3. Optuna Integration (~10 hours)
 ```python
 # Create experiments/optuna_optimization.py
 import optuna
@@ -1060,7 +1060,7 @@ python experiments/optuna_optimization.py --task $TASK --method $METHOD --trials
 
 ### Phase 3 Critical Implementations
 
-#### 6. Comprehensive Drift Analysis (~4 hours)
+#### 6. Comprehensive Drift Analysis (~10 hours)
 ```python
 **✅ Have**: `RepresentationMetrics` class in `shared/metrics.py` with CKA + cosine similarity  
 **❌ Need**: `experiments/drift_analysis.py` pipeline to orchestrate comparisons  
@@ -1135,7 +1135,7 @@ class DriftAnalyzer:
         }
 ```
 
-#### 7. vLLM Deployment Benchmarking (~3 hours)
+#### 7. vLLM Deployment Benchmarking (~7.5 hours)
 ```python
 **✅ Have**: `PRODUCTION_DEPLOYMENT_GUIDE.md` with vLLM setup instructions  
 **❌ Need**: `experiments/deployment_benchmark.py` for automated latency/throughput measurement  
@@ -1228,7 +1228,7 @@ class DeploymentBenchmark:
 ```
 
 #### 8. Statistical Hypothesis Testing Framework (~2 hours)
-```python
+   ```python
 **✅ Have**: Bootstrap and statistical functions in `shared/metrics.py`  
 **❌ Need**: `analysis/` directory + `hypothesis_testing.py` for comprehensive testing pipeline  
 # Create analysis/hypothesis_testing.py
