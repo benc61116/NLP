@@ -1,5 +1,7 @@
 # Wandb local files
 wandb/
+wandb_cache/
+wandb_temp/
 
 # Python
 __pycache__/
