@@ -10,7 +10,14 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import time
 import os
-from .data_preparation import TaskDataLoader
+try:
+    from .data_preparation import TaskDataLoader
+except ImportError:
+    # For direct execution, use absolute import
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from shared.data_preparation import TaskDataLoader
 import yaml
 import logging
 
@@ -500,5 +507,32 @@ def run_sanity_checks(config_path: str = "shared/config.yaml") -> bool:
 
 
 if __name__ == "__main__":
-    success = run_sanity_checks()
-    exit(0 if success else 1)
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Run sanity checks for NLP experiments")
+    parser.add_argument("--task", type=str, help="Specific task to test overfitting on")
+    parser.add_argument("--num-samples", type=int, help="Number of samples for overfitting test")
+    parser.add_argument("--config", default="shared/config.yaml", help="Config file path")
+    
+    args = parser.parse_args()
+    
+    if args.task:
+        # Run specific task overfitting test
+        checker = ModelSanityChecker(args.config)
+        checker.initialize_components()
+        
+        # Override num_samples if provided
+        if args.num_samples:
+            checker.num_samples = args.num_samples
+            
+        print(f"Running overfitting test for {args.task}...")
+        success = checker.check_overfitting_capability(args.task, "lora")
+        if success:
+            print(f"✅ {args.task} overfitting test passed")
+        else:
+            print(f"⚠️ {args.task} overfitting test had issues")
+        exit(0 if success else 1)
+    else:
+        # Run comprehensive sanity checks
+        success = run_sanity_checks()
+        exit(0 if success else 1)
