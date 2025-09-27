@@ -666,14 +666,23 @@ class LoRAExperiment:
         # Choose model type based on task
         task_type = self.config['tasks'][task_name].get('type', 'classification')
         if task_type in ['qa', 'question_answering']:
-            # For QA tasks, use QuestionAnswering model with QA head
-            base_model = AutoModelForQuestionAnswering.from_pretrained(
-                model_name,
-                dtype=getattr(torch, self.config['model']['dtype']),
-                device_map="auto" if torch.cuda.is_available() else None,
-                max_memory=max_memory,
-                trust_remote_code=True
-            )
+            # For SQuAD v2, use model with answerability head
+            if task_name == 'squad_v2':
+                from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
+                base_model = SquadV2QuestionAnsweringModel(
+                    model_name,
+                    answerability_weight=1.0
+                )
+                base_model = base_model.to(dtype=getattr(torch, self.config['model']['dtype']))
+            else:
+                # For other QA tasks, use standard QA model
+                base_model = AutoModelForQuestionAnswering.from_pretrained(
+                    model_name,
+                    dtype=getattr(torch, self.config['model']['dtype']),
+                    device_map="auto" if torch.cuda.is_available() else None,
+                    max_memory=max_memory,
+                    trust_remote_code=True
+                )
         else:  # classification tasks
             num_labels = self.config['tasks'][task_name].get('num_labels', 2)
             base_model = AutoModelForSequenceClassification.from_pretrained(
