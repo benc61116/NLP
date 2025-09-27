@@ -103,6 +103,7 @@ class QADataCollator:
             "attention_mask": torch.tensor(padded_attention_mask, dtype=torch.long),
             "start_positions": torch.tensor(start_positions, dtype=torch.long),
             "end_positions": torch.tensor(end_positions, dtype=torch.long),
+            "answerability_labels": torch.tensor(answerability_labels, dtype=torch.long),
         }
         
         return batch

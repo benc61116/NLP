@@ -43,6 +43,28 @@ class SquadV2QuestionAnsweringModel(nn.Module):
         
         logger.info(f"Initialized SQuAD v2 model with answerability head (weight: {answerability_weight})")
     
+    def gradient_checkpointing_enable(self, **kwargs):
+        """Enable gradient checkpointing for the underlying QA model."""
+        if hasattr(self.qa_model, 'gradient_checkpointing_enable'):
+            self.qa_model.gradient_checkpointing_enable(**kwargs)
+    
+    def gradient_checkpointing_disable(self, **kwargs):
+        """Disable gradient checkpointing for the underlying QA model."""
+        if hasattr(self.qa_model, 'gradient_checkpointing_disable'):
+            self.qa_model.gradient_checkpointing_disable(**kwargs)
+    
+    def get_input_embeddings(self):
+        """Get input embeddings from the underlying QA model."""
+        return self.qa_model.get_input_embeddings()
+    
+    def set_input_embeddings(self, value):
+        """Set input embeddings for the underlying QA model."""
+        return self.qa_model.set_input_embeddings(value)
+    
+    def resize_token_embeddings(self, new_num_tokens):
+        """Resize token embeddings for the underlying QA model."""
+        return self.qa_model.resize_token_embeddings(new_num_tokens)
+    
     def forward(self, input_ids, attention_mask=None, start_positions=None, 
                 end_positions=None, answerability_labels=None, **kwargs):
         """
