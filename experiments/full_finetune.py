@@ -1812,6 +1812,8 @@ def main():
     parser.add_argument("--config", default="shared/config.yaml", help="Config file path")
     parser.add_argument("--learning-rate", type=float, help="Override learning rate")
     parser.add_argument("--batch-size", type=int, help="Override batch size")
+    parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
+    parser.add_argument("--epochs", type=int, help="Override number of training epochs")
     parser.add_argument("--no-base-representations", action="store_true", 
                        help="Disable base model representation extraction (for VM1/VM2)")
     
@@ -1845,6 +1847,10 @@ def main():
             hyperparams['learning_rate'] = args.learning_rate
         if args.batch_size:
             hyperparams['per_device_train_batch_size'] = args.batch_size
+        if args.warmup_ratio:
+            hyperparams['warmup_ratio'] = args.warmup_ratio
+        if args.epochs:
+            hyperparams['num_train_epochs'] = args.epochs
         
         result = experiment.run_single_experiment(args.task, args.seed, **hyperparams)
         print(f"Experiment completed: {result}")

@@ -1288,8 +1288,14 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--config", default="shared/config.yaml", help="Config file path")
     parser.add_argument("--learning-rate", type=float, help="Override learning rate")
-    parser.add_argument("--rank", type=int, help="Override LoRA rank")
-    parser.add_argument("--alpha", type=int, help="Override LoRA alpha")
+    parser.add_argument("--batch-size", type=int, help="Override batch size")
+    parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
+    parser.add_argument("--epochs", type=int, help="Override number of training epochs")
+    parser.add_argument("--lora-r", type=int, help="Override LoRA rank")
+    parser.add_argument("--lora-alpha", type=int, help="Override LoRA alpha")
+    parser.add_argument("--lora-dropout", type=float, help="Override LoRA dropout")
+    parser.add_argument("--rank", type=int, help="Override LoRA rank (legacy)")
+    parser.add_argument("--alpha", type=int, help="Override LoRA alpha (legacy)")
     parser.add_argument("--target-modules", nargs="+", help="Override target modules")
     
     args = parser.parse_args()
@@ -1318,11 +1324,18 @@ def main():
         hyperparams = {}
         if args.learning_rate:
             hyperparams['learning_rate'] = args.learning_rate
+        if args.batch_size:
+            hyperparams['per_device_train_batch_size'] = args.batch_size
+        if args.warmup_ratio:
+            hyperparams['warmup_ratio'] = args.warmup_ratio
+        if args.epochs:
+            hyperparams['num_train_epochs'] = args.epochs
         
-        # LoRA-specific overrides
+        # LoRA-specific overrides (support both new and legacy argument names)
         target_modules = args.target_modules or experiment.lora_config.target_modules_standard
-        rank = args.rank or experiment.lora_config.rank
-        alpha = args.alpha or experiment.lora_config.alpha
+        rank = args.lora_r or args.rank or experiment.lora_config.rank
+        alpha = args.lora_alpha or args.alpha or experiment.lora_config.alpha
+        dropout = args.lora_dropout or experiment.lora_config.dropout
         
         result = experiment.run_single_experiment(
             args.task, args.seed, target_modules, rank, alpha, "manual", **hyperparams
