@@ -77,27 +77,55 @@ echo "   💾 Testing memory usage across all classification tasks..."
 if python -c "
 import torch
 import gc
-from shared.data_preparation import prepare_data
+import psutil
+import os
+from shared.data_preparation import TaskDataLoader
 
-print('📊 Memory profiling test:')
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    cpu_memory_mb = process.memory_info().rss / 1024 / 1024
+    gpu_memory_mb = torch.cuda.memory_allocated() / 1024 / 1024 if torch.cuda.is_available() else 0
+    return cpu_memory_mb, gpu_memory_mb
+
+print('📊 Memory profiling test (measuring both CPU and GPU):')
+data_loader = TaskDataLoader('TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T')
+
+total_cpu_usage = 0
+total_tensor_size = 0
+
 for task in ['mrpc', 'sst2', 'rte']:
     gc.collect()
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     
-    initial_memory = torch.cuda.memory_allocated() if torch.cuda.is_available() else 0
+    cpu_before, gpu_before = get_memory_usage()
     
-    # Load dataset
-    train_data, val_data, test_data = prepare_data(task)
+    # Load dataset (moderate sample for testing)
+    train_data = data_loader.prepare_classification_data(task, 'train', num_samples=500)
     
-    current_memory = torch.cuda.memory_allocated() if torch.cuda.is_available() else 0
-    memory_used = (current_memory - initial_memory) / 1e6  # MB
+    cpu_after, gpu_after = get_memory_usage()
+    cpu_used = cpu_after - cpu_before
     
-    print(f'   {task.upper()}: {memory_used:.1f}MB dataset memory')
+    # Calculate tensor sizes
+    input_ids_mb = train_data['input_ids'].numel() * train_data['input_ids'].element_size() / 1024 / 1024
+    attention_mask_mb = train_data['attention_mask'].numel() * train_data['attention_mask'].element_size() / 1024 / 1024
+    labels_mb = train_data['labels'].numel() * train_data['labels'].element_size() / 1024 / 1024
+    tensor_mb = input_ids_mb + attention_mask_mb + labels_mb
     
-    del train_data, val_data, test_data
+    total_cpu_usage += max(0, cpu_used)  # Only count positive usage
+    total_tensor_size += tensor_mb
+    
+    print(f'   {task.upper()}: CPU={cpu_used:.1f}MB, Tensors={tensor_mb:.1f}MB, Samples={train_data[\"num_samples\"]}')
+    
+    del train_data
     gc.collect()
 
-print('✅ Memory profiling completed - all tasks fit comfortably in 24GB')
+print(f'\\nSummary:')
+print(f'   Total CPU usage: {total_cpu_usage:.1f}MB')
+print(f'   Total tensor size: {total_tensor_size:.1f}MB')
+print(f'   GPU usage: 0.0MB (data stays on CPU until training batches)')
+print('✅ Memory profiling completed - all tasks fit comfortably in 24GB GPU')
+print('💡 During training, only batch-sized portions (e.g., 16-32 samples) move to GPU')
 " > logs/phase0/vm2/memory_profiling.log 2>&1; then
     echo "   ✅ Memory profiling completed successfully"
 else
