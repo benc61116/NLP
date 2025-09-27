@@ -1840,6 +1840,8 @@ def main():
     parser.add_argument("--epochs", type=int, help="Override number of training epochs")
     parser.add_argument("--no-base-representations", action="store_true", 
                        help="Disable base model representation extraction (for VM1/VM2)")
+    parser.add_argument("--sanity-check", action="store_true", 
+                       help="Run quick sanity check (10 samples, 2 epochs, no wandb)")
     
     args = parser.parse_args()
     
@@ -1853,6 +1855,25 @@ def main():
     # Override base model representation extraction if requested
     if args.no_base_representations:
         experiment.config['training']['extract_base_model_representations'] = False
+    
+    # Handle sanity check mode
+    if args.sanity_check:
+        import os
+        os.environ["WANDB_MODE"] = "disabled"
+        # Override config for quick sanity check
+        experiment.config['training'].update({
+            'num_train_epochs': 2,
+            'per_device_train_batch_size': 4,
+            'evaluation_strategy': 'no',
+            'save_strategy': 'no',
+            'logging_steps': 1,
+            'extract_base_model_representations': False,
+        })
+        # Override dataset sizes in config for ALL tasks
+        for task_name in experiment.config['tasks']:
+            experiment.config['tasks'][task_name]['max_samples_train'] = 10
+            experiment.config['tasks'][task_name]['max_samples_eval'] = 5
+        print("🧪 SANITY CHECK MODE: 10 samples, 2 epochs, no wandb")
     
     if args.mode == "demo":
         # Run validation demo

@@ -1306,6 +1306,8 @@ def main():
     parser.add_argument("--rank", type=int, help="Override LoRA rank (legacy)")
     parser.add_argument("--alpha", type=int, help="Override LoRA alpha (legacy)")
     parser.add_argument("--target-modules", nargs="+", help="Override target modules")
+    parser.add_argument("--sanity-check", action="store_true", 
+                       help="Run quick sanity check (10 samples, 2 epochs, no wandb)")
     
     args = parser.parse_args()
     
@@ -1314,6 +1316,26 @@ def main():
     
     # Ensure model is set to TinyLlama for all experiments  
     experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+    
+    # Handle sanity check mode
+    if args.sanity_check:
+        import os
+        os.environ["WANDB_MODE"] = "disabled"
+        # Override config for quick sanity check
+        experiment.config['training'].update({
+            'num_train_epochs': 2,
+            'per_device_train_batch_size': 4,
+            'evaluation_strategy': 'no',
+            'save_strategy': 'no',
+            'logging_steps': 1,
+            'extract_base_model_representations': False,
+            'save_final_representations': False,
+        })
+        # Override dataset sizes in config for ALL tasks
+        for task_name in experiment.config['tasks']:
+            experiment.config['tasks'][task_name]['max_samples_train'] = 10
+            experiment.config['tasks'][task_name]['max_samples_eval'] = 5
+        print("🧪 SANITY CHECK MODE: 10 samples, 2 epochs, no wandb")
     
     if args.mode == "ablation":
         if not args.ablation_type:

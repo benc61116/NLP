@@ -67,7 +67,7 @@ class BaselineExperiments:
         
         # Configuration
         self.tasks = ['mrpc', 'sst2', 'rte', 'squad_v2']
-        self.random_seeds = [42, 123, 456, 789, 999]  # 5 seeds for robust evaluation
+        self.random_seeds = [42, 1337, 2024]  # 3 seeds matching production experiments
         self.model_name = "microsoft/DialoGPT-small"  # Use publicly available model for demo
         
         # Initialize W&B (will be configured per experiment)
@@ -331,7 +331,7 @@ class BaselineExperiments:
     
     # ========== BASELINE 2: RANDOM BASELINE ==========
     
-    def random_baseline(self, task_name: str, num_seeds: int = 5) -> Dict[str, Any]:
+    def random_baseline(self, task_name: str, num_seeds: int = 3) -> Dict[str, Any]:
         """Implement random baseline with proper class distribution matching.
         
         Args:
@@ -386,7 +386,7 @@ class BaselineExperiments:
                 baseline_name=f"random_seed_{seed}"
             )
             
-            # Log to W&B
+            # Log to W&B  
             wandb.log({
                 "accuracy": comprehensive_metrics['metrics']['accuracy'],
                 "f1_score": comprehensive_metrics['metrics']['f1_binary'],

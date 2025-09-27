@@ -12,9 +12,16 @@ echo "3. Production experiments using optimal hyperparameters"
 echo "==============================================="
 
 # Setup environment
+# Auto-detect workspace directory (works on any VM)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$WORKSPACE_DIR"
+export PYTHONPATH="$WORKSPACE_DIR:$PYTHONPATH"
+
 export WANDB_PROJECT=NLP-Phase1-Optuna
 export WANDB_ENTITY=galavny-tel-aviv-university
-export PYTHONPATH=/home/benc6116/workspace/NLP:$PYTHONPATH
+
+echo "🔧 Running on workspace: $WORKSPACE_DIR"
 
 # Clear GPU memory cache
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
