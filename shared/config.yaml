@@ -125,7 +125,7 @@ sanity_check:
   # LoRA typically needs higher base rates, Full FT needs lower rates
   task_multipliers_lora:
     mrpc: 4                # ✅ Works well at 0.0008 (4x base LoRA LR)
-    sst2: 0.5              # ✅ Works at 0.0001 (literature-aligned)
+    sst2: 0.1              # 😱 EXTREME: Even 0.00005 exploding! Try 0.00002
     rte: 0.5               # ✅ Works at 0.0001 (ultra-conservative)
     squad_v2: 1            # 🧪 TESTING: Base LoRA LR 2e-4 (literature-aligned)
     
