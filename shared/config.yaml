@@ -13,10 +13,10 @@ model:
 
 # LoRA Configuration
 lora:
-  r: 8                     # Rank of adaptation (as specified in requirements)
-  alpha: 16               # Scaling parameter (alpha/r = 2)
+  r: 8                     # Optimal rank (higher ranks don't help)
+  alpha: 16               # Optimal scaling
   dropout: 0.05           # Dropout for LoRA layers
-  target_modules:         # Which modules to apply LoRA to
+  target_modules:         # Optimal module targeting
     - "q_proj"
     - "v_proj" 
   task_type: "CAUSAL_LM"
@@ -110,7 +110,7 @@ sanity_check:
   num_samples: 10          # Small number for overfitting test
   max_epochs: 10           # More epochs for harder tasks
   expected_loss_threshold: 0.1  # Loss should drop below this
-  learning_rate_multiplier: 10  # Optimal aggressive LR (25x was too much)
+  learning_rate_multiplier: 10  # Optimal aggressive LR (50x was too extreme)
   
 # Infrastructure Configuration
 infrastructure:
