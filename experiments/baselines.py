@@ -291,14 +291,29 @@ class BaselineExperiments:
         return comprehensive_metrics
     
     def _majority_class_qa_baseline(self, task_name: str) -> Dict[str, Any]:
-        """Majority class baseline for SQuAD v2 (always predict 'no answer')."""
+        """Majority class baseline for SQuAD v2 (predict majority answerability class)."""
         logger.info(f"Running majority class baseline for {task_name} (QA)")
         
         train_data, val_data = self.get_dataset_splits(task_name)
         
-        # For SQuAD v2, the "majority class" strategy is to always predict "no answer"
-        # since there are unanswerable questions
-        predictions = ["no answer"] * val_data['num_samples']
+        # Determine the true majority class from the training data
+        train_impossible = train_data.get('is_impossible', [])
+        if train_impossible:
+            unanswerable_ratio = sum(train_impossible) / len(train_impossible)
+            if unanswerable_ratio > 0.5:
+                # Majority is unanswerable
+                predictions = ["no answer"] * val_data['num_samples']
+                strategy = f"always_no_answer (unanswerable={unanswerable_ratio:.1%})"
+            else:
+                # Majority is answerable - predict a generic answer
+                predictions = ["answer"] * val_data['num_samples']  
+                strategy = f"always_answerable (answerable={1-unanswerable_ratio:.1%})"
+        else:
+            # Fallback: assume majority is answerable (typical for SQuAD v2)
+            predictions = ["answer"] * val_data['num_samples']
+            strategy = "always_answerable (fallback)"
+        
+        logger.info(f"Majority strategy: {strategy}")
         
         # Use the real answers and impossibility flags from the dataset
         true_answers = val_data['answers']

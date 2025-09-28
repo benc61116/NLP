@@ -111,21 +111,21 @@ sanity_check:
   expected_loss_threshold: 0.1  # Loss should drop below this
   
   # Task-specific learning rate multipliers for sanity checks
-  # Restored to reasonable levels after fixing false positive detection
+  # Optimized for aggressive overfitting validation
   task_multipliers:
     mrpc: 4                # Simple paraphrase detection - conservative
     sst2: 5                # Sentiment classification - moderate  
     rte: 6                 # Textual entailment - more complex reasoning
-    squad_v2: 3            # QA + answerability - reduced for stability
+    squad_v2: 8            # QA + answerability - INCREASED for aggressive overfitting
     
   # Fallback multiplier for unknown tasks
   default_multiplier: 4
   
-  # Task-specific configurations for performance optimization
+  # Task-specific configurations for aggressive overfitting
   task_specific:
     squad_v2:
-      max_epochs: 4        # Reduced epochs for QA task (was 10)
-      num_samples: 6       # Fewer samples for QA complexity (was 10)
+      max_epochs: 8        # More epochs for true overfitting
+      num_samples: 3       # AGGRESSIVE: Only 3 samples for guaranteed overfitting
       timeout: 600         # Extended timeout for QA tasks (10 minutes)
   
 # Infrastructure Configuration

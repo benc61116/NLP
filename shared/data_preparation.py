@@ -263,12 +263,17 @@ class TaskDataLoader:
                 end_positions.append(0)
                 answerability_labels.append(0)  # 0 = unanswerable
         
+        # Convert answerability_labels to is_impossible format (inverted)
+        is_impossible_list = [1 - label for label in answerability_labels]  # 1=answerable -> 0=not_impossible
+        
         return {
             "input_ids": input_ids_list,
             "attention_mask": attention_mask_list,
             "start_positions": torch.tensor(start_positions, dtype=torch.long),
             "end_positions": torch.tensor(end_positions, dtype=torch.long),
-            "answerability_labels": torch.tensor(answerability_labels, dtype=torch.long),  # NEW
+            "answerability_labels": torch.tensor(answerability_labels, dtype=torch.long),  # For training
+            "is_impossible": is_impossible_list,  # For baseline compatibility (inverted)
+            "answers": [example["answers"]["text"] for example in dataset],  # For baseline metrics
             "task_name": task_name,
             "num_samples": len(input_ids_list)
         }
