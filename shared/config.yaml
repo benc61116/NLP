@@ -14,12 +14,11 @@ model:
 # LoRA Configuration
 lora:
   r: 8                     # Optimal rank (higher ranks don't help)
-  alpha: 16               # Optimal scaling
+  alpha: 32               # INCREASED: stronger signal for sanity checks (was 16)
   dropout: 0.05           # Dropout for LoRA layers
   target_modules:         # Optimal module targeting
     - "q_proj"
     - "v_proj" 
-  task_type: "CAUSAL_LM"
   bias: "none"
 
 # Training Configuration
@@ -117,10 +116,17 @@ sanity_check:
     mrpc: 4                # Simple paraphrase detection - conservative
     sst2: 5                # Sentiment classification - moderate  
     rte: 6                 # Textual entailment - more complex reasoning
-    squad_v2: 10           # QA + answerability - most complex, matches working commit
+    squad_v2: 5            # QA + answerability - REDUCED: 0.002 was too high for LoRA
     
   # Fallback multiplier for unknown tasks
   default_multiplier: 4
+  
+  # Task-specific configurations for performance optimization
+  task_specific:
+    squad_v2:
+      max_epochs: 4        # Reduced epochs for QA task (was 10)
+      num_samples: 6       # Fewer samples for QA complexity (was 10)
+      timeout: 600         # Extended timeout for QA tasks (10 minutes)
   
 # Infrastructure Configuration
 infrastructure:

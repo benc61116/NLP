@@ -1608,7 +1608,7 @@ class FullFinetuneExperiment:
                 logging_steps=50,
                 
                 # Model selection
-                load_best_model_at_end=self.config['training'].get('evaluation_strategy', 'steps') != 'no',
+                load_best_model_at_end=self.config['training'].get('load_best_model_at_end', self.config['training'].get('evaluation_strategy', 'steps') != 'no'),
                 metric_for_best_model="eval_loss",
                 greater_is_better=False,
                 
@@ -1950,12 +1950,23 @@ def main():
         task_multiplier = task_multipliers.get(args.task, default_multiplier)
         sanity_lr = base_lr * task_multiplier
         
+        # Get task-specific configurations
+        task_specific = sanity_config.get('task_specific', {})
+        task_config = task_specific.get(args.task, {})
+        
+        # Use task-specific values if available, otherwise fall back to global
+        max_epochs = task_config.get('max_epochs', sanity_config.get('max_epochs', 5))
+        num_samples = task_config.get('num_samples', sanity_config.get('num_samples', 10))
+        
+        logger.info(f"📋 Task-specific sanity config for {args.task}: epochs={max_epochs}, samples={num_samples}")
+        
         experiment.config['training'].update({
-            'num_train_epochs': experiment.config.get('sanity_check', {}).get('max_epochs', 5),  # More epochs for overfitting  
+            'num_train_epochs': max_epochs,  # Task-specific epochs for optimal performance
             'learning_rate': sanity_lr,  # CRITICAL FIX: Boost learning rate for sanity checks
             'per_device_train_batch_size': 1,  # Perfect overfitting needs batch size 1
-            'evaluation_strategy': 'no',
+            'evaluation_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation to test overfitting
             'save_strategy': 'no',
+            'load_best_model_at_end': False,  # CRITICAL FIX: Disable to avoid save/eval strategy mismatch
             'logging_steps': 1,
             'extract_base_model_representations': False,
             # CRITICAL: Remove regularization that prevents overfitting
@@ -1965,10 +1976,17 @@ def main():
             'fp16': False,
             'bf16': False,  # No mixed precision to avoid numerical issues
         })
-        # Override dataset sizes in config for ALL tasks
+        # Override dataset sizes with task-specific values
         for task_name in experiment.config['tasks']:
-            experiment.config['tasks'][task_name]['max_samples_train'] = 10
-            experiment.config['tasks'][task_name]['max_samples_eval'] = 5
+            if task_name == args.task:
+                # Use task-specific configuration for current task
+                experiment.config['tasks'][task_name]['max_samples_train'] = num_samples
+                experiment.config['tasks'][task_name]['max_samples_eval'] = num_samples // 2
+            else:
+                # Use global configuration for other tasks
+                global_samples = sanity_config.get('num_samples', 10)
+                experiment.config['tasks'][task_name]['max_samples_train'] = global_samples
+                experiment.config['tasks'][task_name]['max_samples_eval'] = global_samples // 2
         print(f"🧪 SANITY CHECK MODE: 10 samples, {experiment.config['training']['num_train_epochs']} epochs, LR boosted {task_multiplier}x to {sanity_lr:.4f}, no wandb")
     
     # Handle production stability check mode

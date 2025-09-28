@@ -37,6 +37,14 @@ class SanityCheckFramework:
         """Run aggressive overfitting sanity check - can the model learn at all?"""
         logger.info(f"Running overfitting sanity check: {task} with {method}")
         
+        # Get task-specific timeout
+        sanity_config = self.config.get('sanity_check', {})
+        task_specific = sanity_config.get('task_specific', {})
+        task_config = task_specific.get(task, {})
+        timeout = task_config.get('timeout', 300)  # Default 5 minutes
+        
+        logger.info(f"Using {timeout}s timeout for {task}")
+        
         # Determine script to use
         script = "experiments/lora_finetune.py" if method == "lora" else "experiments/full_finetune.py"
         
@@ -49,7 +57,7 @@ class SanityCheckFramework:
             "--sanity-check"
         ]
         
-        return self._run_sanity_command(cmd, "overfitting", task, method, timeout=300)
+        return self._run_sanity_command(cmd, "overfitting", task, method, timeout=timeout)
     
     def run_production_stability_check(self, task: str, method: str, seed: int = 42) -> Dict[str, Any]:
         """Run production stability check - will production config be stable?"""

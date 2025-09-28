@@ -299,8 +299,11 @@ class ModelMerger:
             # Check if this is a PEFT model with merge capability
             if hasattr(model, 'merge_and_unload'):
                 logger.info("Merging LoRA weights using PEFT merge_and_unload...")
-                merged_model = model.merge_and_unload()
-                logger.info("✓ LoRA weights merged using PEFT")
+                # CRITICAL FIX: Create a copy first to avoid destroying original adapters
+                import copy
+                model_copy = copy.deepcopy(model)
+                merged_model = model_copy.merge_and_unload()
+                logger.info("✓ LoRA weights merged using PEFT (from model copy)")
                 return merged_model
             
             elif hasattr(model, 'merge_adapter'):
