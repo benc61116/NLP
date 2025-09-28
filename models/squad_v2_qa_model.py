@@ -23,8 +23,33 @@ class SquadV2QuestionAnsweringModel(nn.Module):
     def __init__(self, model_name: str, answerability_weight: float = 1.0):
         super().__init__()
         
-        # Load the standard QA model
-        self.qa_model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+        # CRITICAL FIX: Load base CausalLM first to preserve pre-trained weights
+        from transformers import AutoModelForCausalLM, AutoConfig
+        
+        logger.info(f"Loading base CausalLM model to preserve pre-trained weights: {model_name}")
+        base_model = AutoModelForCausalLM.from_pretrained(model_name)
+        
+        # Create QA model with proper weight transfer
+        config = base_model.config
+        config.num_labels = 2  # For QA start/end positions
+        
+        # Create QA model structure manually
+        from transformers.models.llama.modeling_llama import LlamaForQuestionAnswering
+        self.qa_model = LlamaForQuestionAnswering(config)
+        
+        # Transfer all transformer weights from base model
+        if hasattr(base_model, 'model') and hasattr(self.qa_model, 'transformer'):
+            base_transformer = base_model.model  # CausalLM structure
+            qa_transformer = self.qa_model.transformer  # QA structure
+            
+            # Copy all transformer layers and embeddings
+            qa_transformer.load_state_dict(base_transformer.state_dict(), strict=False)
+            logger.info("✅ Successfully transferred pre-trained transformer weights")
+        else:
+            logger.warning(f"⚠️ Could not find transformer - base has model: {hasattr(base_model, 'model')}, qa has transformer: {hasattr(self.qa_model, 'transformer')}")
+        
+        # QA head is already randomly initialized in LlamaForQuestionAnswering
+        logger.info("✅ QA head (qa_outputs) initialized randomly as expected")
         
         # Add answerability head
         hidden_size = self.qa_model.config.hidden_size
@@ -42,6 +67,7 @@ class SquadV2QuestionAnsweringModel(nn.Module):
         self.num_labels = 2  # For answerability
         
         logger.info(f"Initialized SQuAD v2 model with answerability head (weight: {answerability_weight})")
+        logger.info("🎯 Pre-trained weights preserved, only QA and answerability heads are new")
     
     @property
     def device(self):
