@@ -1515,8 +1515,9 @@ def main():
         
         experiment.config['training'].update({
             'num_train_epochs': 1,  # Just 1 epoch to test initial stability
-            'evaluation_strategy': 'no',
+            'evaluation_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation for production stability
             'save_strategy': 'no',
+            'load_best_model_at_end': False,  # CRITICAL FIX: Disable to avoid save/eval strategy mismatch
             'logging_steps': 1,
             'extract_base_model_representations': False,
             'save_final_representations': False,

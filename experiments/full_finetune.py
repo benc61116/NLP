@@ -1575,9 +1575,17 @@ class FullFinetuneExperiment:
                 # Fallback to generic rate
                 default_lr = self.config['training']['full_finetune_learning_rate']
             
-            # Use config learning rate, especially for sanity checks  
-            config_lr = self.config['training']['learning_rate']
-            learning_rate = hyperparams.get('learning_rate', config_lr)
+            # Use task-specific learning rate for production, config rate for sanity checks
+            if 'learning_rate' in hyperparams:
+                # Explicit hyperparameter override (sanity checks)
+                learning_rate = hyperparams['learning_rate']
+            elif hasattr(self, '_is_sanity_check') and self._is_sanity_check:
+                # Sanity checks use config learning rate
+                config_lr = self.config['training']['learning_rate']
+                learning_rate = config_lr
+            else:
+                # Production and production stability use task-specific learning rate
+                learning_rate = default_lr
             batch_size = hyperparams.get('per_device_train_batch_size',
                                        self.config['training']['per_device_train_batch_size'])
             
@@ -1950,6 +1958,9 @@ def main():
         task_multiplier = task_multipliers.get(args.task, default_multiplier)
         sanity_lr = base_lr * task_multiplier
         
+        # Mark as sanity check for learning rate logic
+        experiment._is_sanity_check = True
+        
         # Get task-specific configurations
         task_specific = sanity_config.get('task_specific', {})
         task_config = task_specific.get(args.task, {})
@@ -1993,13 +2004,16 @@ def main():
     if args.production_stability:
         import os
         os.environ["WANDB_MODE"] = "disabled"
+        # Mark as production stability for learning rate logic
+        experiment._is_production_stability = True
         # Use production hyperparameters on small dataset to test stability
         print("⚡ PRODUCTION STABILITY MODE: Using production hyperparameters on 64 samples")
         
         experiment.config['training'].update({
             'num_train_epochs': 1,  # Just 1 epoch to test initial stability
-            'evaluation_strategy': 'no',
+            'evaluation_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation for production stability
             'save_strategy': 'no',
+            'load_best_model_at_end': False,  # CRITICAL FIX: Disable to avoid save/eval strategy mismatch
             'logging_steps': 1,
             'extract_base_model_representations': False,
             # Keep production hyperparameters - DON'T modify LR, weight_decay, batch_size, etc.
