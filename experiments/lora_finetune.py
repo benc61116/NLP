@@ -1456,11 +1456,14 @@ def main():
         base_lr = experiment.config['training']['learning_rate']
         # Get task-specific learning rate multiplier for sanity checks
         sanity_config = experiment.config.get('sanity_check', {})
+        
+        # Try method-specific multipliers first, then fall back to general task_multipliers
+        lora_multipliers = sanity_config.get('task_multipliers_lora', {})
         task_multipliers = sanity_config.get('task_multipliers', {})
         default_multiplier = sanity_config.get('default_multiplier', 4)
         
-        # Use task-specific multiplier if available, otherwise use default
-        sanity_lr_multiplier = task_multipliers.get(args.task, default_multiplier)
+        # Use LoRA-specific multiplier if available, otherwise fall back
+        sanity_lr_multiplier = lora_multipliers.get(args.task) or task_multipliers.get(args.task, default_multiplier)
         sanity_lr = base_lr * sanity_lr_multiplier
         
         # Get task-specific configurations

@@ -1570,7 +1570,7 @@ class FullFinetuneExperiment:
                 default_lr = self.config['training']['full_finetune_learning_rate_classification'][0]  # 1e-5
             elif task_config['type'] == 'question_answering':
                 # Use QA-specific learning rate (lower for stability)
-                default_lr = self.config['training']['full_finetune_learning_rate_qa'][0]  # 5e-6
+                default_lr = self.config['training']['full_finetune_learning_rate_qa'][0]  # 2e-5 (literature-aligned)
             else:
                 # Fallback to generic rate
                 default_lr = self.config['training']['full_finetune_learning_rate']
@@ -1945,17 +1945,20 @@ def main():
         if task_config['type'] == 'classification':
             base_lr = experiment.config['training']['full_finetune_learning_rate_classification'][0]  # 3e-6
         elif task_config['type'] == 'question_answering':
-            base_lr = experiment.config['training']['full_finetune_learning_rate_qa'][0]  # 2e-6 (lower for QA stability)
+            base_lr = experiment.config['training']['full_finetune_learning_rate_qa'][0]  # 2e-5 (literature-aligned QA rate)
         else:
             base_lr = experiment.config['training']['full_finetune_learning_rate']  # 5e-6 fallback
         
         # Get task-specific learning rate multiplier for sanity checks
         sanity_config = experiment.config.get('sanity_check', {})
+        
+        # Try method-specific multipliers first, then fall back to general task_multipliers
+        fullft_multipliers = sanity_config.get('task_multipliers_fullft', {})
         task_multipliers = sanity_config.get('task_multipliers', {})
         default_multiplier = sanity_config.get('default_multiplier', 4)
         
-        # Use task-specific multiplier if available, otherwise use default
-        task_multiplier = task_multipliers.get(args.task, default_multiplier)
+        # Use Full FT-specific multiplier if available, otherwise fall back
+        task_multiplier = fullft_multipliers.get(args.task) or task_multipliers.get(args.task, default_multiplier)
         sanity_lr = base_lr * task_multiplier
         
         # Mark as sanity check for learning rate logic

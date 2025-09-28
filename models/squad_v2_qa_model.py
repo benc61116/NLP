@@ -17,42 +17,31 @@ class SquadV2QuestionAnsweringModel(nn.Module):
     """
     SQuAD v2 model that extends standard QA model with answerability head.
     
-    Integrates seamlessly with existing experiment framework.
+    ARCHITECTURAL FIX: Use direct pretrained QA model + add answerability head
     """
     
     def __init__(self, model_name: str, answerability_weight: float = 1.0):
         super().__init__()
         
-        # CRITICAL FIX: Load base CausalLM first to preserve pre-trained weights
-        from transformers import AutoModelForCausalLM, AutoConfig
+        # ARCHITECTURAL FIX: Load CausalLM and manually add QA head (preserves pretrained weights)
+        from transformers import AutoModelForCausalLM
+        import torch.nn as nn
         
-        logger.info(f"Loading base CausalLM model to preserve pre-trained weights: {model_name}")
+        logger.info(f"Loading PRETRAINED CausalLM model: {model_name}")
         base_model = AutoModelForCausalLM.from_pretrained(model_name)
         
-        # Create QA model with proper weight transfer
-        config = base_model.config
-        config.num_labels = 2  # For QA start/end positions
+        # Extract the base transformer (preserves all pretrained weights)
+        self.transformer = base_model.model  # LlamaModel with pretrained weights
         
-        # Create QA model structure manually
-        from transformers.models.llama.modeling_llama import LlamaForQuestionAnswering
-        self.qa_model = LlamaForQuestionAnswering(config)
+        # Manually add QA head (like LlamaForQuestionAnswering)
+        hidden_size = base_model.config.hidden_size
+        self.qa_outputs = nn.Linear(hidden_size, 2)  # start/end positions
         
-        # Transfer all transformer weights from base model
-        if hasattr(base_model, 'model') and hasattr(self.qa_model, 'transformer'):
-            base_transformer = base_model.model  # CausalLM structure
-            qa_transformer = self.qa_model.transformer  # QA structure
-            
-            # Copy all transformer layers and embeddings
-            qa_transformer.load_state_dict(base_transformer.state_dict(), strict=False)
-            logger.info("✅ Successfully transferred pre-trained transformer weights")
-        else:
-            logger.warning(f"⚠️ Could not find transformer - base has model: {hasattr(base_model, 'model')}, qa has transformer: {hasattr(self.qa_model, 'transformer')}")
+        logger.info("✅ Transformer loaded with pretrained weights")
+        logger.info("✅ QA head (qa_outputs) initialized randomly for fine-tuning")
         
-        # QA head is already randomly initialized in LlamaForQuestionAnswering
-        logger.info("✅ QA head (qa_outputs) initialized randomly as expected")
-        
-        # Add answerability head
-        hidden_size = self.qa_model.config.hidden_size
+        # Add answerability head  
+        hidden_size = base_model.config.hidden_size
         self.answerability_classifier = nn.Sequential(
             nn.Linear(hidden_size, hidden_size // 4),
             nn.ReLU(),
@@ -63,38 +52,39 @@ class SquadV2QuestionAnsweringModel(nn.Module):
         self.answerability_weight = answerability_weight
         
         # Expose config and other attributes for compatibility
-        self.config = self.qa_model.config
+        self.config = base_model.config
+        self.config.num_labels = 2  # For QA positions
         self.num_labels = 2  # For answerability
         
         logger.info(f"Initialized SQuAD v2 model with answerability head (weight: {answerability_weight})")
-        logger.info("🎯 Pre-trained weights preserved, only QA and answerability heads are new")
+        logger.info("🎯 FIXED: Pretrained transformer weights preserved, only QA + answerability heads are new")
     
     @property
     def device(self):
-        """Get the device of the underlying QA model."""
-        return self.qa_model.device
+        """Get the device of the underlying transformer model."""
+        return self.transformer.device
     
     def gradient_checkpointing_enable(self, **kwargs):
-        """Enable gradient checkpointing for the underlying QA model."""
-        if hasattr(self.qa_model, 'gradient_checkpointing_enable'):
-            self.qa_model.gradient_checkpointing_enable(**kwargs)
+        """Enable gradient checkpointing for the underlying transformer."""
+        if hasattr(self.transformer, 'gradient_checkpointing_enable'):
+            self.transformer.gradient_checkpointing_enable(**kwargs)
     
     def gradient_checkpointing_disable(self, **kwargs):
-        """Disable gradient checkpointing for the underlying QA model."""
-        if hasattr(self.qa_model, 'gradient_checkpointing_disable'):
-            self.qa_model.gradient_checkpointing_disable(**kwargs)
+        """Disable gradient checkpointing for the underlying transformer."""
+        if hasattr(self.transformer, 'gradient_checkpointing_disable'):
+            self.transformer.gradient_checkpointing_disable(**kwargs)
     
     def get_input_embeddings(self):
-        """Get input embeddings from the underlying QA model."""
-        return self.qa_model.get_input_embeddings()
+        """Get input embeddings from the underlying transformer."""
+        return self.transformer.get_input_embeddings()
     
     def set_input_embeddings(self, value):
-        """Set input embeddings for the underlying QA model."""
-        return self.qa_model.set_input_embeddings(value)
+        """Set input embeddings for the underlying transformer."""
+        return self.transformer.set_input_embeddings(value)
     
     def resize_token_embeddings(self, new_num_tokens):
-        """Resize token embeddings for the underlying QA model."""
-        return self.qa_model.resize_token_embeddings(new_num_tokens)
+        """Resize token embeddings for the underlying transformer."""
+        return self.transformer.resize_token_embeddings(new_num_tokens)
     
     def forward(self, input_ids, attention_mask=None, start_positions=None, 
                 end_positions=None, answerability_labels=None, **kwargs):
@@ -112,21 +102,56 @@ class SquadV2QuestionAnsweringModel(nn.Module):
             Dictionary with logits and losses
         """
         
-        # Get QA model outputs
-        qa_outputs = self.qa_model(
+        # Get transformer outputs (manually implement QA forward pass)
+        transformer_outputs = self.transformer(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            start_positions=start_positions,
-            end_positions=end_positions,
             return_dict=True,
             output_hidden_states=True
         )
+        
+        # Extract last hidden state and apply QA head
+        last_hidden_state = transformer_outputs.last_hidden_state
+        qa_logits = self.qa_outputs(last_hidden_state)
+        
+        # Split into start and end logits
+        start_logits = qa_logits[:, :, 0]
+        end_logits = qa_logits[:, :, 1]
+        
+        # Create QA outputs structure (compatible with original)
+        qa_outputs = type('QAOutputs', (), {
+            'start_logits': start_logits,
+            'end_logits': end_logits,
+            'hidden_states': transformer_outputs.hidden_states,
+            'attentions': getattr(transformer_outputs, 'attentions', None),
+            'loss': None  # Will be calculated below
+        })()
+        
+        # Calculate QA loss if positions provided
+        if start_positions is not None and end_positions is not None:
+            import torch.nn as nn
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-1)
+            start_loss = loss_fct(start_logits, start_positions)
+            end_loss = loss_fct(end_logits, end_positions)
+            qa_outputs.loss = (start_loss + end_loss) / 2
         
         # Get hidden states for answerability classification
         hidden_states = qa_outputs.hidden_states[-1]  # Last layer
         
         # Use mean pooling for answerability (captures full context)
-        pooled_output = torch.mean(hidden_states, dim=1)  # [batch_size, hidden_size]
+        # Apply attention mask to avoid pooling over padding tokens
+        if attention_mask is not None:
+            # Expand attention mask to match hidden_states dimensions
+            attention_mask_expanded = attention_mask.unsqueeze(-1).expand(hidden_states.size()).float()
+            # Zero out hidden states for padded tokens
+            hidden_states_masked = hidden_states * attention_mask_expanded
+            # Sum and normalize by actual sequence length
+            sum_embeddings = torch.sum(hidden_states_masked, dim=1)
+            sum_mask = torch.sum(attention_mask_expanded, dim=1)
+            pooled_output = sum_embeddings / sum_mask
+        else:
+            pooled_output = torch.mean(hidden_states, dim=1)  # [batch_size, hidden_size]
+            
         answerability_logits = self.answerability_classifier(pooled_output)
         
         # ROOT CAUSE FIX: Ensure all output values are valid tensors, never None
@@ -196,33 +221,52 @@ class SquadV2QuestionAnsweringModel(nn.Module):
     
     def save_pretrained(self, save_directory, **kwargs):
         """Save model for compatibility with Trainer."""
-        # Save the QA model
-        self.qa_model.save_pretrained(save_directory, **kwargs)
+        import os
+        os.makedirs(save_directory, exist_ok=True)
         
-        # Save answerability head separately
-        answerability_path = f"{save_directory}/answerability_head.pt"
+        # Save the transformer (preserving pretrained structure)
+        from transformers import LlamaForCausalLM
+        
+        # Reconstruct CausalLM for saving
+        causal_model = LlamaForCausalLM(self.config)
+        causal_model.model = self.transformer
+        causal_model.save_pretrained(save_directory, **kwargs)
+        
+        # Save QA and answerability heads separately
+        heads_path = f"{save_directory}/qa_heads.pt"
         torch.save({
+            'qa_outputs': self.qa_outputs.state_dict(),
             'answerability_classifier': self.answerability_classifier.state_dict(),
             'answerability_weight': self.answerability_weight
-        }, answerability_path)
+        }, heads_path)
     
     @classmethod
     def from_pretrained(cls, model_path, **kwargs):
         """Load model for compatibility with Trainer."""
-        # Load the QA model
-        qa_model = AutoModelForQuestionAnswering.from_pretrained(model_path, **kwargs)
+        from transformers import AutoModelForCausalLM
+        import torch
+        
+        # Load the base CausalLM model (preserves pretrained weights)
+        base_model = AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
         
         # Create new instance
         instance = cls.__new__(cls)
         super(SquadV2QuestionAnsweringModel, instance).__init__()
-        instance.qa_model = qa_model
         
-        # Try to load answerability head
+        # Extract transformer and create QA head
+        instance.transformer = base_model.model
+        hidden_size = base_model.config.hidden_size
+        instance.qa_outputs = nn.Linear(hidden_size, 2)
+        
+        # Try to load QA and answerability heads
         try:
-            answerability_path = f"{model_path}/answerability_head.pt"
-            checkpoint = torch.load(answerability_path, map_location='cpu')
+            heads_path = f"{model_path}/qa_heads.pt"
+            checkpoint = torch.load(heads_path, map_location='cpu')
             
-            hidden_size = qa_model.config.hidden_size
+            # Load QA head
+            instance.qa_outputs.load_state_dict(checkpoint['qa_outputs'])
+            
+            # Load answerability head
             instance.answerability_classifier = nn.Sequential(
                 nn.Linear(hidden_size, hidden_size // 4),
                 nn.ReLU(),
@@ -232,8 +276,7 @@ class SquadV2QuestionAnsweringModel(nn.Module):
             instance.answerability_classifier.load_state_dict(checkpoint['answerability_classifier'])
             instance.answerability_weight = checkpoint.get('answerability_weight', 1.0)
         except:
-            # Initialize new answerability head if not found
-            hidden_size = qa_model.config.hidden_size
+            # Initialize new heads if not found
             instance.answerability_classifier = nn.Sequential(
                 nn.Linear(hidden_size, hidden_size // 4),
                 nn.ReLU(),
@@ -242,7 +285,8 @@ class SquadV2QuestionAnsweringModel(nn.Module):
             )
             instance.answerability_weight = 1.0
         
-        instance.config = qa_model.config
+        instance.config = base_model.config
+        instance.config.num_labels = 2
         instance.num_labels = 2
         
         return instance

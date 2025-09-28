@@ -37,7 +37,7 @@ training:
   # Learning rates (reduced to prevent gradient explosion)
   learning_rate: 0.0002      # Higher for LoRA
   full_finetune_learning_rate_classification: [0.000003, 0.000005]  # Classification tasks (MRPC, SST-2, RTE) - REDUCED
-  full_finetune_learning_rate_qa: [0.000002, 0.000003]  # QA tasks (SQuAD v2) - REDUCED (matches remote fix)
+  full_finetune_learning_rate_qa: [0.00002, 0.00003]    # QA tasks (SQuAD v2) - LITERATURE ALIGNED (2e-5, 3e-5)
   full_finetune_learning_rate: 0.000005  # Default full fine-tuning LR - REDUCED
   
   # Optimization
@@ -111,15 +111,29 @@ sanity_check:
   expected_loss_threshold: 0.1  # Loss should drop below this
   
   # Task-specific learning rate multipliers for sanity checks
-  # Optimized for aggressive overfitting validation
+  # Optimized for aggressive overfitting validation without gradient explosion
   task_multipliers:
-    mrpc: 4                # Simple paraphrase detection - conservative
-    sst2: 5                # Sentiment classification - moderate  
-    rte: 6                 # Textual entailment - more complex reasoning
-    squad_v2: 8            # QA + answerability - INCREASED for aggressive overfitting
+    mrpc: 4                # Simple paraphrase detection - ✅ CONFIRMED WORKING
+    sst2: 0.5              # Sentiment classification - ULTRA CONSERVATIVE (even 0.0002 LR fails!)  
+    rte: 0.5               # Textual entailment - ULTRA CONSERVATIVE (LoRA failing at 6x)
+    squad_v2: 1            # QA + answerability - MIDDLE GROUND (0.5 too low, 8 too high)
     
   # Fallback multiplier for unknown tasks
   default_multiplier: 4
+  
+  # METHOD-SPECIFIC multipliers (overrides task_multipliers if present)
+  # LoRA typically needs higher base rates, Full FT needs lower rates
+  task_multipliers_lora:
+    mrpc: 4                # ✅ Works well at 0.0008 (4x base LoRA LR)
+    sst2: 0.5              # ✅ Works at 0.0001 (literature-aligned)
+    rte: 0.5               # ✅ Works at 0.0001 (ultra-conservative)
+    squad_v2: 1            # 🧪 TESTING: Base LoRA LR 2e-4 (literature-aligned)
+    
+  task_multipliers_fullft:
+    mrpc: 4                # ✅ Works well (needs testing for optimization)
+    sst2: 0.5              # ✅ Works well (conservative approach)
+    rte: 0.5               # ✅ Works well (conservative approach)
+    squad_v2: 0.5          # 🔧 CONSERVATIVE: Reduce to 1e-5 (Full FT still increasing slightly)
   
   # Task-specific configurations for aggressive overfitting
   task_specific:
