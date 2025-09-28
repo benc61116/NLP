@@ -1402,7 +1402,7 @@ def main():
         # Override config for quick sanity check
         # CRITICAL: Apply learning rate multiplier for aggressive overfitting
         base_lr = experiment.config['training']['learning_rate']
-        sanity_lr_multiplier = experiment.config.get('sanity_check', {}).get('learning_rate_multiplier', 5)
+        sanity_lr_multiplier = experiment.config.get('sanity_check', {}).get('learning_rate_multiplier', 2)  # REDUCED from 5 to 2 to prevent gradient explosion
         sanity_lr = base_lr * sanity_lr_multiplier
         
         experiment.config['training'].update({

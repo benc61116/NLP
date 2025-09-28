@@ -1932,10 +1932,10 @@ def main():
         # Override config for quick sanity check
         # CRITICAL: Apply learning rate multiplier for aggressive overfitting
         # Full fine-tuning needs more conservative LR than LoRA
-        base_lr = experiment.config['training']['learning_rate']
+        base_lr = experiment.config['training']['full_finetune_learning_rate']
         sanity_lr_multiplier = experiment.config.get('sanity_check', {}).get('learning_rate_multiplier', 5)
-        # For full fine-tuning, use very conservative multiplier to avoid gradient explosion
-        sanity_lr_multiplier_fullft = 1  # NO boost for full fine-tuning - use base config rate
+        # For full fine-tuning, use conservative multiplier that enables learning while avoiding explosions
+        sanity_lr_multiplier_fullft = 4  # INCREASED from 1 to 4 to enable basic learning (5e-6 → 2e-5)
         sanity_lr = base_lr * sanity_lr_multiplier_fullft
         
         experiment.config['training'].update({

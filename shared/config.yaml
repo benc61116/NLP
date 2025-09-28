@@ -110,7 +110,7 @@ sanity_check:
   num_samples: 10          # Small number for overfitting test
   max_epochs: 10           # More epochs for harder tasks
   expected_loss_threshold: 0.1  # Loss should drop below this
-  learning_rate_multiplier: 10  # Optimal aggressive LR (50x was too extreme)
+  learning_rate_multiplier: 2  # Conservative multiplier to prevent gradient explosion while enabling learning
   
 # Infrastructure Configuration
 infrastructure:

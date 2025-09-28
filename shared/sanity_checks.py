@@ -46,13 +46,13 @@ def run_legacy_sanity_check(task: str, method: str = "lora") -> bool:
         logger.info(f"✅ Legacy sanity check passed for {task} with {method}")
         if overfitting_result['metrics']:
             logger.info(f"   Final loss: {overfitting_result['metrics'].get('final_loss', 'N/A')}")
-        return True
-    else:
+                return True
+            else:
         logger.error(f"❌ Legacy sanity check failed for {task} with {method}")
         for issue in overfitting_result['issues']:
             logger.error(f"   Issue: {issue}")
-        return False
-
+                    return False
+            
 
 def run_comprehensive_checks(task: str) -> bool:
     """Run comprehensive sanity checks for a task - enhanced version."""
@@ -69,4 +69,4 @@ if __name__ == "__main__":
     
     logger.info(f"Testing {args.task} using production scripts with --sanity-check flag...")
     success = run_comprehensive_checks(args.task)
-    exit(0 if success else 1)
+        exit(0 if success else 1)
