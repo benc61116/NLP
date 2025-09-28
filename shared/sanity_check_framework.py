@@ -183,20 +183,32 @@ class SanityCheckFramework:
         # Look for loss values
         lines = stdout.split('\n') + stderr.split('\n')
         
-        losses = []
+        train_losses = []
+        eval_losses = []
         grad_norms = []
         
         for line in lines:
-            # Extract training loss
-            if 'loss' in line.lower() and ('train' in line.lower() or 'step' in line.lower()):
+            # Extract evaluation losses first (for overfitting detection)
+            if 'eval_loss' in line.lower():
                 try:
-                    # Look for patterns like "loss: 0.123" or "train_loss': 0.123"
                     import re
-                    loss_match = re.search(r'loss[\'"]?\s*[:=]\s*([0-9]*\.?[0-9]+)', line, re.IGNORECASE)
+                    loss_match = re.search(r'eval_loss[\'"]?\s*[:=]\s*([0-9]*\.?[0-9]+)', line, re.IGNORECASE)
                     if loss_match:
                         loss_val = float(loss_match.group(1))
                         if loss_val < 100:  # Filter out obviously wrong values
-                            losses.append(loss_val)
+                            eval_losses.append(loss_val)
+                except:
+                    continue
+            
+            # Extract training losses (exclude eval_loss lines)
+            elif 'train_loss' in line.lower():
+                try:
+                    import re
+                    loss_match = re.search(r'train_loss[\'"]?\s*[:=]\s*([0-9]*\.?[0-9]+)', line, re.IGNORECASE)
+                    if loss_match:
+                        loss_val = float(loss_match.group(1))
+                        if loss_val < 100:  # Filter out obviously wrong values
+                            train_losses.append(loss_val)
                 except:
                     continue
             
@@ -211,13 +223,23 @@ class SanityCheckFramework:
                 except:
                     continue
         
-        # Calculate metrics
-        if losses:
-            metrics['initial_loss'] = losses[0]
-            metrics['final_loss'] = losses[-1]
-            metrics['min_loss'] = min(losses)
-            metrics['loss_reduction'] = losses[0] - losses[-1] if len(losses) > 1 else 0
-            metrics['loss_values'] = losses[-5:]  # Last 5 values
+        # Calculate metrics - prioritize eval_losses for overfitting detection
+        if eval_losses and len(eval_losses) > 1:
+            # Use eval_loss progression for overfitting detection (more reliable)
+            metrics['initial_loss'] = eval_losses[0]
+            metrics['final_loss'] = eval_losses[-1]
+            metrics['min_loss'] = min(eval_losses)
+            metrics['loss_reduction'] = eval_losses[0] - eval_losses[-1]
+            metrics['loss_values'] = eval_losses[-5:]  # Last 5 values
+            metrics['loss_type'] = 'eval'
+        elif train_losses:
+            # Fallback to train_loss if no eval_losses available
+            metrics['initial_loss'] = train_losses[0]
+            metrics['final_loss'] = train_losses[-1]
+            metrics['min_loss'] = min(train_losses)
+            metrics['loss_reduction'] = train_losses[0] - train_losses[-1] if len(train_losses) > 1 else 0
+            metrics['loss_values'] = train_losses[-5:]  # Last 5 values
+            metrics['loss_type'] = 'train'
         
         if grad_norms:
             metrics['max_grad_norm'] = max(grad_norms)
