@@ -30,11 +30,18 @@ except ImportError as e:
     TRANSFORMERS_AVAILABLE = False
 import wandb
 from sklearn.utils import resample
+import yaml
 
 # Add parent directory to path to import shared modules
 sys.path.append(str(Path(__file__).parent.parent))
 from shared.data_preparation import TaskDataLoader
 from shared.metrics import MetricsCalculator, BaselineResultsTracker, get_class_distribution, get_majority_class
+
+def load_shared_config() -> Dict[str, Any]:
+    """Load the shared configuration file."""
+    config_path = Path(__file__).parent.parent / 'shared' / 'config.yaml'
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
@@ -55,9 +62,18 @@ class BaselineExperiments:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Load shared configuration
+        try:
+            self.config = load_shared_config()
+            self.model_name = self.config['model']['name']
+            logger.info(f"Using model from config: {self.model_name}")
+        except Exception as e:
+            logger.warning(f"Could not load shared config: {e}, using fallback model")
+            self.model_name = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+        
         # Initialize components
         try:
-            self.data_loader = TaskDataLoader("microsoft/DialoGPT-small")  # Use publicly available model
+            self.data_loader = TaskDataLoader(self.model_name)
         except Exception as e:
             logger.warning(f"Data loader initialization failed: {e}, using simulated mode")
             self.data_loader = None
@@ -68,7 +84,6 @@ class BaselineExperiments:
         # Configuration
         self.tasks = ['mrpc', 'sst2', 'rte', 'squad_v2']
         self.random_seeds = [42, 1337, 2024]  # 3 seeds matching production experiments
-        self.model_name = "microsoft/DialoGPT-small"  # Use publicly available model for demo
         
         # Initialize W&B (will be configured per experiment)
         self.wandb_project = os.getenv('WANDB_PROJECT', "NLP-Baselines")

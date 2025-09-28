@@ -1909,6 +1909,8 @@ def main():
                        help="Disable base model representation extraction (for VM1/VM2)")
     parser.add_argument("--sanity-check", action="store_true", 
                        help="Run quick sanity check (10 samples, 2 epochs, no wandb)")
+    parser.add_argument("--production-stability", action="store_true",
+                       help="Run production stability check (64 samples, 1 epoch, production hyperparameters)")
     
     args = parser.parse_args()
     
@@ -1956,6 +1958,32 @@ def main():
             experiment.config['tasks'][task_name]['max_samples_train'] = 10
             experiment.config['tasks'][task_name]['max_samples_eval'] = 5
         print(f"🧪 SANITY CHECK MODE: 10 samples, {experiment.config['training']['num_train_epochs']} epochs, LR boosted {sanity_lr_multiplier}x to {sanity_lr:.4f}, no wandb")
+    
+    # Handle production stability check mode
+    if args.production_stability:
+        import os
+        os.environ["WANDB_MODE"] = "disabled"
+        # Use production hyperparameters on small dataset to test stability
+        print("⚡ PRODUCTION STABILITY MODE: Using production hyperparameters on 64 samples")
+        
+        experiment.config['training'].update({
+            'num_train_epochs': 1,  # Just 1 epoch to test initial stability
+            'evaluation_strategy': 'no',
+            'save_strategy': 'no',
+            'logging_steps': 1,
+            'extract_base_model_representations': False,
+            # Keep production hyperparameters - DON'T modify LR, weight_decay, batch_size, etc.
+        })
+        
+        # Override dataset sizes for stability testing
+        for task_name in experiment.config['tasks']:
+            experiment.config['tasks'][task_name]['max_samples_train'] = 64  # 4 batches worth
+            experiment.config['tasks'][task_name]['max_samples_eval'] = 32
+        
+        prod_lr = experiment.config['training']['learning_rate']
+        prod_batch_size = experiment.config['training']['per_device_train_batch_size'] 
+        prod_weight_decay = experiment.config['training']['weight_decay']
+        print(f"🔬 Testing production config: LR={prod_lr:.6f}, batch_size={prod_batch_size}, weight_decay={prod_weight_decay}")
     
     if args.mode == "demo":
         # Run validation demo

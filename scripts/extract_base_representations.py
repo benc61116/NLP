@@ -11,6 +11,7 @@ import sys
 import torch
 import logging
 import argparse
+import yaml
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -20,11 +21,17 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from shared.data_preparation import TaskDataLoader
 from experiments.full_finetune import RepresentationExtractor, RepresentationConfig
 
+def load_shared_config():
+    """Load the shared configuration file."""
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'shared', 'config.yaml')
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def extract_base_representations_for_task(model, tokenizer, data_loader, task_name: str, num_samples: int = 750, model_name: str = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"):
+def extract_base_representations_for_task(model, tokenizer, data_loader, task_name: str, num_samples: int = 750, model_name: str = None):
     """Extract base model representations for a specific task."""
     logger.info(f"Extracting base representations for {task_name} ({num_samples} samples)")
     
@@ -157,8 +164,15 @@ def main():
     
     logger.info("Starting base model representation extraction")
     
-    # Model configuration
-    model_name = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+    # Load model configuration from shared config
+    try:
+        config = load_shared_config()
+        model_name = config['model']['name']
+        logger.info(f"Using model from config: {model_name}")
+    except Exception as e:
+        logger.warning(f"Could not load shared config: {e}, using fallback model")
+        model_name = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+    
     all_tasks = ['mrpc', 'sst2', 'rte', 'squad_v2']
     
     # Select tasks to process

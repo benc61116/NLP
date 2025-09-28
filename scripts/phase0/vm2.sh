@@ -5,6 +5,24 @@ echo "🧪 Phase 0 - VM2: Classification Validation & Base Representations"
 echo "=================================================================="
 echo ""
 
+# Error handling function
+run_critical_step() {
+    local description="$1"
+    local command="$2"
+    local logfile="$3"
+    
+    echo "   Running: $description"
+    if eval "$command" > "$logfile" 2>&1; then
+        echo "   ✅ $description completed successfully"
+        return 0
+    else
+        echo "   ❌ CRITICAL FAILURE: $description failed"
+        echo "   📝 Check log file: $logfile"
+        echo "   🛑 Phase 0 validation FAILED - aborting to prevent wasted compute"
+        exit 1
+    fi
+}
+
 # Set up environment  
 # Auto-detect workspace directory (works on any VM)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,15 +42,18 @@ echo "📊 Logging to wandb project: NLP-Phase0..."
 echo "📝 Detailed logs: logs/phase0/vm2/"
 echo ""
 
+# 0. Validate environment and model consistency
+echo "0️⃣ Running pre-flight validation checks..."
+run_critical_step "Environment setup and validation" "python shared/environment.py" "logs/phase0/vm2/environment_setup.log"
+run_critical_step "Model consistency validation" "python shared/model_validation.py" "logs/phase0/vm2/model_validation.log"
+run_critical_step "Data split and quality validation" "python shared/data_validation.py" "logs/phase0/vm2/data_validation.log"
+echo ""
+
 # 1. Sanity checks for all classification tasks using production code
 echo "1️⃣ Running classification sanity checks (using production experiment classes)..."
 for task in mrpc sst2 rte; do
     echo "   🧪 Testing $task with production code..."
-    if python shared/sanity_checks.py --task $task > logs/phase0/vm2/${task}_sanity_check.log 2>&1; then
-        echo "   ✅ $task sanity check completed"
-    else
-        echo "   ⚠️ $task sanity check had issues"
-    fi
+    run_critical_step "$task sanity check" "python shared/sanity_checks.py --task $task" "logs/phase0/vm2/${task}_sanity_check.log"
 done
 echo ""
 
@@ -40,21 +61,8 @@ echo ""
 echo "2️⃣ Running classification baseline evaluations..."
 for task in mrpc sst2 rte; do
     echo "   📊 $task baselines..."
-    
-    echo "      - Majority class baseline..."
-    if python experiments/baselines.py --task $task --baseline majority > logs/phase0/vm2/${task}_majority_baseline.log 2>&1; then
-        echo "      ✅ Majority baseline completed"
-    else
-        echo "      ⚠️ Majority baseline had issues"
-    fi
-    
-    echo "      - Random baseline..."  
-    if python experiments/baselines.py --task $task --baseline random > logs/phase0/vm2/${task}_random_baseline.log 2>&1; then
-        echo "      ✅ Random baseline completed"
-    else
-        echo "      ⚠️ Random baseline had issues"
-    fi
-    
+    run_critical_step "$task majority baseline" "python experiments/baselines.py --task $task --baseline majority" "logs/phase0/vm2/${task}_majority_baseline.log"
+    run_critical_step "$task random baseline" "python experiments/baselines.py --task $task --baseline random" "logs/phase0/vm2/${task}_random_baseline.log"
     echo "   ✅ $task baselines completed"
 done
 echo ""
@@ -63,12 +71,7 @@ echo ""
 echo "3️⃣ Extracting base model representations..."
 echo "   🔍 This provides the baseline for measuring representational drift"
 echo "   📊 Extracting from all tasks for comprehensive analysis..."
-
-if python scripts/extract_base_representations.py > logs/phase0/vm2/base_representations_extraction.log 2>&1; then
-    echo "   ✅ Base representations extracted and saved"
-else
-    echo "   ⚠️ Base representations extraction had issues"
-fi
+run_critical_step "Base model representations extraction" "python scripts/extract_base_representations.py" "logs/phase0/vm2/base_representations_extraction.log"
 echo ""
 
 # 4. Memory profiling test
