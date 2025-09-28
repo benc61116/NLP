@@ -43,6 +43,11 @@ class SquadV2QuestionAnsweringModel(nn.Module):
         
         logger.info(f"Initialized SQuAD v2 model with answerability head (weight: {answerability_weight})")
     
+    @property
+    def device(self):
+        """Get the device of the underlying QA model."""
+        return self.qa_model.device
+    
     def gradient_checkpointing_enable(self, **kwargs):
         """Enable gradient checkpointing for the underlying QA model."""
         if hasattr(self.qa_model, 'gradient_checkpointing_enable'):
@@ -98,14 +103,23 @@ class SquadV2QuestionAnsweringModel(nn.Module):
         pooled_output = torch.mean(hidden_states, dim=1)  # [batch_size, hidden_size]
         answerability_logits = self.answerability_classifier(pooled_output)
         
-        # Prepare outputs
+        # ROOT CAUSE FIX: Ensure all output values are valid tensors, never None
+        # This prevents _pad_across_processes errors during evaluation
         outputs = {
             "start_logits": qa_outputs.start_logits,
             "end_logits": qa_outputs.end_logits,
             "answerability_logits": answerability_logits,
             "hidden_states": qa_outputs.hidden_states,
-            "attentions": qa_outputs.attentions if hasattr(qa_outputs, 'attentions') else None
         }
+        
+        # Only include attentions if they exist and are not None
+        if hasattr(qa_outputs, 'attentions') and qa_outputs.attentions is not None:
+            outputs["attentions"] = qa_outputs.attentions
+        
+        # ROOT CAUSE FIX: Extract answerability_labels from kwargs if not provided directly
+        # This handles PEFT/LoRA case where custom parameters get filtered out
+        if answerability_labels is None:
+            answerability_labels = kwargs.get('answerability_labels', None)
         
         # Calculate losses during training
         if answerability_labels is not None:

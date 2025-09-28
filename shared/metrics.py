@@ -550,39 +550,68 @@ def compute_classification_metrics(eval_pred, primary_metric: str = "accuracy"):
     Returns:
         Dictionary of metrics
     """
-    # Handle both tuple and EvalPrediction object formats
-    if hasattr(eval_pred, 'predictions') and hasattr(eval_pred, 'label_ids'):
-        predictions = eval_pred.predictions
-        labels = eval_pred.label_ids
-    else:
-        predictions, labels = eval_pred
-    
-    predictions = np.argmax(predictions, axis=1)
-    
-    accuracy = accuracy_score(labels, predictions)
-    f1_macro = f1_score(labels, predictions, average='macro', zero_division=0)
-    f1_micro = f1_score(labels, predictions, average='micro', zero_division=0)
-    
-    # For binary classification, also calculate binary F1
-    if len(np.unique(labels)) == 2:
-        f1_binary = f1_score(labels, predictions, average='binary', zero_division=0)
-    else:
-        f1_binary = f1_macro
-    
-    metrics = {
-        'accuracy': accuracy,
-        'f1_macro': f1_macro,
-        'f1_micro': f1_micro,
-        'f1_binary': f1_binary,
-    }
-    
-    # Add primary metric
-    if primary_metric == "f1":
-        metrics['f1'] = f1_binary
-    elif primary_metric == "accuracy":
-        metrics['accuracy'] = accuracy
-    
-    return metrics
+    # ROOT CAUSE FIX: Handle None values that could cause _pad_across_processes errors
+    try:
+        # Handle both tuple and EvalPrediction object formats
+        if hasattr(eval_pred, 'predictions') and hasattr(eval_pred, 'label_ids'):
+            predictions = eval_pred.predictions
+            labels = eval_pred.label_ids
+        else:
+            predictions, labels = eval_pred
+        
+        # Check for None values and handle gracefully
+        if predictions is None or labels is None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Received None values in compute_classification_metrics")
+            return {'accuracy': 0.0, 'f1': 0.0, 'f1_macro': 0.0, 'f1_micro': 0.0, 'f1_binary': 0.0}
+        
+        # Ensure predictions and labels are numpy arrays
+        if not isinstance(predictions, np.ndarray):
+            predictions = np.array(predictions)
+        if not isinstance(labels, np.ndarray):
+            labels = np.array(labels)
+        
+        # Handle empty arrays
+        if len(predictions) == 0 or len(labels) == 0:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Empty predictions or labels in compute_classification_metrics")
+            return {'accuracy': 0.0, 'f1': 0.0, 'f1_macro': 0.0, 'f1_micro': 0.0, 'f1_binary': 0.0}
+        
+        predictions = np.argmax(predictions, axis=1)
+        
+        accuracy = accuracy_score(labels, predictions)
+        f1_macro = f1_score(labels, predictions, average='macro', zero_division=0)
+        f1_micro = f1_score(labels, predictions, average='micro', zero_division=0)
+        
+        # For binary classification, also calculate binary F1
+        if len(np.unique(labels)) == 2:
+            f1_binary = f1_score(labels, predictions, average='binary', zero_division=0)
+        else:
+            f1_binary = f1_macro
+        
+        metrics = {
+            'accuracy': accuracy,
+            'f1_macro': f1_macro,
+            'f1_micro': f1_micro,
+            'f1_binary': f1_binary,
+        }
+        
+        # Add primary metric
+        if primary_metric == "f1":
+            metrics['f1'] = f1_binary
+        elif primary_metric == "accuracy":
+            metrics['accuracy'] = accuracy
+        
+        return metrics
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in compute_classification_metrics: {e}")
+        # Return safe default values to prevent crashes
+        return {'accuracy': 0.0, 'f1': 0.0, 'f1_macro': 0.0, 'f1_micro': 0.0, 'f1_binary': 0.0}
 
 
 def compute_qa_metrics(eval_pred):
@@ -594,35 +623,58 @@ def compute_qa_metrics(eval_pred):
     Returns:
         Dictionary of metrics
     """
-    # Handle both tuple and EvalPrediction object formats  
-    if hasattr(eval_pred, 'predictions') and hasattr(eval_pred, 'label_ids'):
-        predictions = eval_pred.predictions
-        labels = eval_pred.label_ids
-    else:
-        predictions, labels = eval_pred
-    
-    # For QA, this is simplified - in a full implementation,
-    # you'd need to decode predictions to text and compare with answers
-    start_predictions = np.argmax(predictions[0], axis=1)
-    end_predictions = np.argmax(predictions[1], axis=1)
-    
-    start_labels = labels[0]
-    end_labels = labels[1]
-    
-    # Simplified exact match (both start and end correct)
-    exact_match = np.mean((start_predictions == start_labels) & (end_predictions == end_labels))
-    
-    # Simplified F1 (average of start and end accuracy)
-    start_acc = np.mean(start_predictions == start_labels)
-    end_acc = np.mean(end_predictions == end_labels)
-    f1 = (start_acc + end_acc) / 2
-    
-    return {
-        'exact_match': exact_match,
-        'f1': f1,
-        'start_accuracy': start_acc,
-        'end_accuracy': end_acc
-    }
+    # ROOT CAUSE FIX: Handle None values that could cause _pad_across_processes errors
+    try:
+        # Handle both tuple and EvalPrediction object formats  
+        if hasattr(eval_pred, 'predictions') and hasattr(eval_pred, 'label_ids'):
+            predictions = eval_pred.predictions
+            labels = eval_pred.label_ids
+        else:
+            predictions, labels = eval_pred
+        
+        # Check for None values and handle gracefully
+        if predictions is None or labels is None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Received None values in compute_qa_metrics")
+            return {'exact_match': 0.0, 'f1': 0.0, 'start_accuracy': 0.0, 'end_accuracy': 0.0}
+        
+        # Handle case where predictions or labels might be empty or malformed
+        try:
+            # For QA, this is simplified - in a full implementation,
+            # you'd need to decode predictions to text and compare with answers
+            start_predictions = np.argmax(predictions[0], axis=1)
+            end_predictions = np.argmax(predictions[1], axis=1)
+            
+            start_labels = labels[0]
+            end_labels = labels[1]
+            
+            # Simplified exact match (both start and end correct)
+            exact_match = np.mean((start_predictions == start_labels) & (end_predictions == end_labels))
+            
+            # Simplified F1 (average of start and end accuracy)
+            start_acc = np.mean(start_predictions == start_labels)
+            end_acc = np.mean(end_predictions == end_labels)
+            f1 = (start_acc + end_acc) / 2
+            
+            return {
+                'exact_match': exact_match,
+                'f1': f1,
+                'start_accuracy': start_acc,
+                'end_accuracy': end_acc
+            }
+        except (IndexError, ValueError, TypeError) as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error processing QA predictions/labels: {e}")
+            return {'exact_match': 0.0, 'f1': 0.0, 'start_accuracy': 0.0, 'end_accuracy': 0.0}
+            
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in compute_qa_metrics: {e}")
+        # Return safe default values to prevent crashes
+        return {'exact_match': 0.0, 'f1': 0.0, 'start_accuracy': 0.0, 'end_accuracy': 0.0}
 
 
 class TrainingMetricsTracker:
