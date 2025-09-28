@@ -111,12 +111,12 @@ sanity_check:
   expected_loss_threshold: 0.1  # Loss should drop below this
   
   # Task-specific learning rate multipliers for sanity checks
-  # Based on task complexity and empirical testing
+  # Restored to reasonable levels after fixing false positive detection
   task_multipliers:
     mrpc: 4                # Simple paraphrase detection - conservative
     sst2: 5                # Sentiment classification - moderate  
     rte: 6                 # Textual entailment - more complex reasoning
-    squad_v2: 5            # QA + answerability - REDUCED: 0.002 was too high for LoRA
+    squad_v2: 3            # QA + answerability - reduced for stability
     
   # Fallback multiplier for unknown tasks
   default_multiplier: 4

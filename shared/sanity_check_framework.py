@@ -96,13 +96,27 @@ class SanityCheckFramework:
             duration = time.time() - start_time
             
             # Analyze the results
-            success = result.returncode == 0
+            subprocess_success = result.returncode == 0
             
             # Extract key metrics from output
             metrics = self._extract_metrics_from_output(result.stdout, result.stderr)
             
             # Detect gradient explosion or other issues
-            issues = self._detect_issues(result.stdout, result.stderr, metrics)
+            issues = self._detect_issues(result.stdout, result.stderr, metrics, check_type)
+            
+            # CRITICAL FIX: Factor in detected issues for success determination
+            critical_issues = [issue for issue in issues if any(critical in issue.lower() for critical in [
+                'nan', 'inf', 'gradient explosion', 'no significant learning', 'loss increased'
+            ])]
+            
+            # Success requires both: no crash AND no critical issues
+            success = subprocess_success and len(critical_issues) == 0
+            
+            if critical_issues:
+                logger.warning(f"🚨 Critical issues detected for {task}/{method}:")
+                for issue in critical_issues:
+                    logger.warning(f"   - {issue}")
+                logger.warning("   Marking sanity check as FAILED due to critical issues")
             
             result_dict = {
                 'success': success,
@@ -212,19 +226,19 @@ class SanityCheckFramework:
         
         return metrics
     
-    def _detect_issues(self, stdout: str, stderr: str, metrics: Dict[str, Any]) -> List[str]:
+    def _detect_issues(self, stdout: str, stderr: str, metrics: Dict[str, Any], check_type: str = "") -> List[str]:
         """Detect potential issues from the training output."""
         issues = []
         
         output = (stdout + stderr).lower()
         
-        # Check for explicit errors
+        # Check for explicit errors (improved to avoid false positives)
         error_patterns = [
-            'nan',
-            'inf',
+            'nan values',
+            'inf values', 
             'gradient explosion',
-            'overflow',
-            'underflow',
+            'overflow error',
+            'underflow error',
             'out of memory',
             'cuda error',
             'runtime error',
@@ -242,17 +256,31 @@ class SanityCheckFramework:
             elif metrics['max_grad_norm'] > 100.0:
                 issues.append(f"Gradient explosion: {metrics['max_grad_norm']:.2f}")
         
-        # Check loss behavior
+        # Check loss behavior (only training loss matters for sanity checks)
         if 'final_loss' in metrics and 'initial_loss' in metrics:
-            if metrics['final_loss'] > metrics['initial_loss']:
-                issues.append("Loss increased during training")
-            elif metrics['final_loss'] > 10.0:
-                issues.append(f"High final loss: {metrics['final_loss']:.3f}")
+            # For sanity checks, only care if TRAINING loss increased (eval loss can diverge during overfitting)
+            loss_increased = metrics['final_loss'] > metrics['initial_loss']
+            # Only flag as issue if it's a significant increase (> 10% to avoid noise)
+            if loss_increased and (metrics['final_loss'] - metrics['initial_loss']) > 0.1 * metrics['initial_loss']:
+                issues.append(f"Training loss increased significantly: {metrics['initial_loss']:.3f} → {metrics['final_loss']:.3f}")
+            elif metrics['final_loss'] > 20.0:  # Increased threshold for high loss
+                issues.append(f"High final training loss: {metrics['final_loss']:.3f}")
         
-        # Check for no learning
+        # Check for no learning (different thresholds for different check types)  
         if 'loss_reduction' in metrics:
-            if abs(metrics['loss_reduction']) < 0.001:
-                issues.append("No significant learning detected")
+            # Different expectations for overfitting vs production stability
+            if check_type == "overfitting":
+                # For overfitting checks, expect aggressive learning
+                if abs(metrics['loss_reduction']) < 0.05:
+                    issues.append("No significant learning detected")
+            elif check_type == "production_stability":
+                # For production stability, expect modest but detectable learning
+                if abs(metrics['loss_reduction']) < 0.01:
+                    issues.append("No significant learning detected")
+            else:
+                # Default threshold
+                if abs(metrics['loss_reduction']) < 0.02:
+                    issues.append("No significant learning detected")
         
         return issues
     

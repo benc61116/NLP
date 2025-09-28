@@ -158,18 +158,34 @@ class SquadV2QuestionAnsweringModel(nn.Module):
                 
                 if answerable_mask.sum() > 0:
                     # Use QA model's loss for answerable questions
-                    span_loss = qa_outputs.loss if qa_outputs.loss is not None else torch.tensor(0.0, device=input_ids.device)
+                    if qa_outputs.loss is not None:
+                        span_loss = qa_outputs.loss
+                    else:
+                        # Create tensor with matching dtype and device
+                        span_loss = torch.tensor(0.0, device=input_ids.device, 
+                                               dtype=torch.float32, requires_grad=True)
                 else:
-                    span_loss = torch.tensor(0.0, device=input_ids.device, requires_grad=True)
+                    # Create tensor with matching dtype and device  
+                    span_loss = torch.tensor(0.0, device=input_ids.device,
+                                           dtype=torch.float32, requires_grad=True)
             else:
-                span_loss = torch.tensor(0.0, device=input_ids.device, requires_grad=True)
+                # Create tensor with matching dtype and device
+                span_loss = torch.tensor(0.0, device=input_ids.device,
+                                       dtype=torch.float32, requires_grad=True)
             
             # 2. Answerability classification loss
             answerability_loss = loss_fct(answerability_logits, answerability_labels)
             
-            # 3. Combined loss
+            # 3. Combined loss with numerical stability checks
             total_loss = span_loss + self.answerability_weight * answerability_loss
             
+            # NUMERICAL STABILITY FIX: Check for NaN/Inf and clamp if needed
+            if not torch.isfinite(total_loss).all():
+                logger.warning(f"⚠️ Non-finite loss detected! span_loss={span_loss.item():.4f}, "
+                             f"answerability_loss={answerability_loss.item():.4f}")
+                # Clamp to prevent NaN/Inf propagation
+                total_loss = torch.clamp(total_loss, min=-100.0, max=100.0)
+                
             outputs.update({
                 "loss": total_loss,
                 "span_loss": span_loss,

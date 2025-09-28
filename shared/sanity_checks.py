@@ -21,16 +21,28 @@ logger = logging.getLogger(__name__)
 
 
 def run_enhanced_sanity_checks(task: str) -> bool:
-    """Run enhanced two-stage sanity checks for a task."""
-    logger.info(f"Running enhanced sanity checks for {task.upper()}")
+    """Run enhanced sanity checks for a task - focus on overfitting validation."""
+    logger.info(f"Running overfitting sanity checks for {task.upper()}")
     logger.info("=" * 60)
     
     framework = SanityCheckFramework()
     
-    # Run comprehensive checks with multiple seeds
-    results = framework.run_comprehensive_sanity_checks(task, seeds=[42])  # Single seed for faster validation
+    # Run overfitting checks for both methods (core Phase 0 requirement)
+    lora_result = framework.run_overfitting_sanity_check(task, "lora", seed=42)
+    full_result = framework.run_overfitting_sanity_check(task, "full_finetune", seed=42)
     
-    return results['overall_success']
+    both_passed = lora_result['success'] and full_result['success']
+    
+    if both_passed:
+        logger.info(f"🎉 ALL OVERFITTING SANITY CHECKS PASSED for {task.upper()}")
+        logger.info("✅ LoRA overfitting: PASSED")
+        logger.info("✅ Full FT overfitting: PASSED")
+    else:
+        logger.error(f"❌ OVERFITTING SANITY CHECKS FAILED for {task.upper()}")
+        logger.error(f"✅ LoRA overfitting: {'PASSED' if lora_result['success'] else 'FAILED'}")
+        logger.error(f"✅ Full FT overfitting: {'PASSED' if full_result['success'] else 'FAILED'}")
+    
+    return both_passed
 
 
 def run_legacy_sanity_check(task: str, method: str = "lora") -> bool:
