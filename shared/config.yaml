@@ -110,7 +110,17 @@ sanity_check:
   num_samples: 10          # Small number for overfitting test
   max_epochs: 10           # More epochs for harder tasks
   expected_loss_threshold: 0.1  # Loss should drop below this
-  learning_rate_multiplier: 2  # Conservative multiplier to prevent gradient explosion while enabling learning
+  
+  # Task-specific learning rate multipliers for sanity checks
+  # Based on task complexity and empirical testing
+  task_multipliers:
+    mrpc: 4                # Simple paraphrase detection - conservative
+    sst2: 5                # Sentiment classification - moderate  
+    rte: 6                 # Textual entailment - more complex reasoning
+    squad_v2: 10           # QA + answerability - most complex, matches working commit
+    
+  # Fallback multiplier for unknown tasks
+  default_multiplier: 4
   
 # Infrastructure Configuration
 infrastructure:

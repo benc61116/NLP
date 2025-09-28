@@ -1402,7 +1402,13 @@ def main():
         # Override config for quick sanity check
         # CRITICAL: Apply learning rate multiplier for aggressive overfitting
         base_lr = experiment.config['training']['learning_rate']
-        sanity_lr_multiplier = experiment.config.get('sanity_check', {}).get('learning_rate_multiplier', 2)  # REDUCED from 5 to 2 to prevent gradient explosion
+        # Get task-specific learning rate multiplier for sanity checks
+        sanity_config = experiment.config.get('sanity_check', {})
+        task_multipliers = sanity_config.get('task_multipliers', {})
+        default_multiplier = sanity_config.get('default_multiplier', 4)
+        
+        # Use task-specific multiplier if available, otherwise use default
+        sanity_lr_multiplier = task_multipliers.get(args.task, default_multiplier)
         sanity_lr = base_lr * sanity_lr_multiplier
         
         experiment.config['training'].update({

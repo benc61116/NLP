@@ -1932,11 +1932,23 @@ def main():
         # Override config for quick sanity check
         # CRITICAL: Apply learning rate multiplier for aggressive overfitting
         # Full fine-tuning needs more conservative LR than LoRA
-        base_lr = experiment.config['training']['full_finetune_learning_rate']
-        sanity_lr_multiplier = experiment.config.get('sanity_check', {}).get('learning_rate_multiplier', 5)
-        # For full fine-tuning, use conservative multiplier that enables learning while avoiding explosions
-        sanity_lr_multiplier_fullft = 4  # INCREASED from 1 to 4 to enable basic learning (5e-6 → 2e-5)
-        sanity_lr = base_lr * sanity_lr_multiplier_fullft
+        # IMPORTANT: Use task-specific learning rates, not default
+        task_config = experiment.config['tasks'][args.task]
+        if task_config['type'] == 'classification':
+            base_lr = experiment.config['training']['full_finetune_learning_rate_classification'][0]  # 3e-6
+        elif task_config['type'] == 'question_answering':
+            base_lr = experiment.config['training']['full_finetune_learning_rate_qa'][0]  # 2e-6 (lower for QA stability)
+        else:
+            base_lr = experiment.config['training']['full_finetune_learning_rate']  # 5e-6 fallback
+        
+        # Get task-specific learning rate multiplier for sanity checks
+        sanity_config = experiment.config.get('sanity_check', {})
+        task_multipliers = sanity_config.get('task_multipliers', {})
+        default_multiplier = sanity_config.get('default_multiplier', 4)
+        
+        # Use task-specific multiplier if available, otherwise use default
+        task_multiplier = task_multipliers.get(args.task, default_multiplier)
+        sanity_lr = base_lr * task_multiplier
         
         experiment.config['training'].update({
             'num_train_epochs': experiment.config.get('sanity_check', {}).get('max_epochs', 5),  # More epochs for overfitting  
@@ -1957,7 +1969,7 @@ def main():
         for task_name in experiment.config['tasks']:
             experiment.config['tasks'][task_name]['max_samples_train'] = 10
             experiment.config['tasks'][task_name]['max_samples_eval'] = 5
-        print(f"🧪 SANITY CHECK MODE: 10 samples, {experiment.config['training']['num_train_epochs']} epochs, LR boosted {sanity_lr_multiplier}x to {sanity_lr:.4f}, no wandb")
+        print(f"🧪 SANITY CHECK MODE: 10 samples, {experiment.config['training']['num_train_epochs']} epochs, LR boosted {task_multiplier}x to {sanity_lr:.4f}, no wandb")
     
     # Handle production stability check mode
     if args.production_stability:
