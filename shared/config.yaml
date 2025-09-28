@@ -108,9 +108,9 @@ tasks:
 sanity_check:
   enabled: true
   num_samples: 10          # Small number for overfitting test
-  max_epochs: 5            # Should overfit quickly
+  max_epochs: 10           # More epochs for harder tasks
   expected_loss_threshold: 0.1  # Loss should drop below this
-  learning_rate_multiplier: 5   # Higher LR for overfitting
+  learning_rate_multiplier: 10  # Optimal aggressive LR (25x was too much)
   
 # Infrastructure Configuration
 infrastructure:

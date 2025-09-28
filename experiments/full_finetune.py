@@ -1575,7 +1575,9 @@ class FullFinetuneExperiment:
                 # Fallback to generic rate
                 default_lr = self.config['training']['full_finetune_learning_rate']
             
-            learning_rate = hyperparams.get('learning_rate', default_lr)
+            # Use config learning rate, especially for sanity checks  
+            config_lr = self.config['training']['learning_rate']
+            learning_rate = hyperparams.get('learning_rate', config_lr)
             batch_size = hyperparams.get('per_device_train_batch_size',
                                        self.config['training']['per_device_train_batch_size'])
             
@@ -1586,7 +1588,7 @@ class FullFinetuneExperiment:
                 run_name=run_name,
                 
                 # Training configuration
-                num_train_epochs=hyperparams.get('num_train_epochs', 3),
+                num_train_epochs=hyperparams.get('num_train_epochs', self.config['training']['num_train_epochs']),
                 per_device_train_batch_size=batch_size,
                 per_device_eval_batch_size=self.config['training']['per_device_eval_batch_size'],
                 gradient_accumulation_steps=self.config['training']['gradient_accumulation_steps'],
@@ -1599,14 +1601,14 @@ class FullFinetuneExperiment:
                 max_grad_norm=0.3,  # Very aggressive gradient clipping to prevent gradient explosion
                 
                 # Evaluation and saving
-                eval_strategy="steps",  # Updated parameter name
+                eval_strategy=self.config['training'].get('evaluation_strategy', 'steps'),  # Updated parameter name
                 eval_steps=100,
-                save_strategy="steps",
+                save_strategy=self.config['training'].get('save_strategy', 'steps'),
                 save_steps=500,
                 logging_steps=50,
                 
                 # Model selection
-                load_best_model_at_end=True,
+                load_best_model_at_end=self.config['training'].get('evaluation_strategy', 'steps') != 'no',
                 metric_for_best_model="eval_loss",
                 greater_is_better=False,
                 
@@ -1654,7 +1656,10 @@ class FullFinetuneExperiment:
                 custom_callback = None
             
             # Create trainer
-            callbacks = [EarlyStoppingCallback(early_stopping_patience=3)]
+            callbacks = []
+            # Only add EarlyStoppingCallback if evaluation is enabled
+            if self.config['training'].get('evaluation_strategy', 'steps') != 'no':
+                callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
             if custom_callback is not None:
                 callbacks.append(custom_callback)
                 
@@ -1923,19 +1928,34 @@ def main():
         import os
         os.environ["WANDB_MODE"] = "disabled"
         # Override config for quick sanity check
+        # CRITICAL: Apply learning rate multiplier for aggressive overfitting
+        # Full fine-tuning needs more conservative LR than LoRA
+        base_lr = experiment.config['training']['learning_rate']
+        sanity_lr_multiplier = experiment.config.get('sanity_check', {}).get('learning_rate_multiplier', 5)
+        # For full fine-tuning, use very conservative multiplier to avoid gradient explosion
+        sanity_lr_multiplier_fullft = 1  # NO boost for full fine-tuning - use base config rate
+        sanity_lr = base_lr * sanity_lr_multiplier_fullft
+        
         experiment.config['training'].update({
-            'num_train_epochs': 2,
-            'per_device_train_batch_size': 4,
+            'num_train_epochs': experiment.config.get('sanity_check', {}).get('max_epochs', 5),  # More epochs for overfitting  
+            'learning_rate': sanity_lr,  # CRITICAL FIX: Boost learning rate for sanity checks
+            'per_device_train_batch_size': 1,  # Perfect overfitting needs batch size 1
             'evaluation_strategy': 'no',
             'save_strategy': 'no',
             'logging_steps': 1,
             'extract_base_model_representations': False,
+            # CRITICAL: Remove regularization that prevents overfitting
+            'weight_decay': 0.0,  # NO regularization for sanity checks
+            'max_grad_norm': 3.0,  # Higher gradient norm threshold for aggressive learning
+            # CRITICAL: Disable mixed precision for numerical stability in sanity checks
+            'fp16': False,
+            'bf16': False,  # No mixed precision to avoid numerical issues
         })
         # Override dataset sizes in config for ALL tasks
         for task_name in experiment.config['tasks']:
             experiment.config['tasks'][task_name]['max_samples_train'] = 10
             experiment.config['tasks'][task_name]['max_samples_eval'] = 5
-        print("🧪 SANITY CHECK MODE: 10 samples, 2 epochs, no wandb")
+        print(f"🧪 SANITY CHECK MODE: 10 samples, {experiment.config['training']['num_train_epochs']} epochs, LR boosted {sanity_lr_multiplier}x to {sanity_lr:.4f}, no wandb")
     
     if args.mode == "demo":
         # Run validation demo

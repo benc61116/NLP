@@ -73,21 +73,3 @@ echo "📊 Results logged to wandb project: NLP-Phase0"
 echo "📁 Detailed logs saved to: logs/phase0/vm1/"
 echo ""
 echo "🔄 Ready for Phase 1 hyperparameter optimization"
-
-echo "   🔧 Validating answerability head implementation..."
-python -c "
-from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
-from transformers import AutoTokenizer
-print('✅ SQuAD v2 model imports successfully')
-
-tokenizer = AutoTokenizer.from_pretrained('TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T')
-model = SquadV2QuestionAnsweringModel('TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T')
-print('✅ SQuAD v2 model initializes successfully')
-print('✅ Architecture validation passed')
-"
-
-echo ""
-echo "🎉 VM1 Phase 0 validation completed successfully!"
-echo "📊 Results logged to wandb project: NLP-Phase0"
-echo ""
-echo "🔄 Ready for Phase 1 hyperparameter optimization"
