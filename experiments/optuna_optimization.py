@@ -130,89 +130,63 @@ class OptunaOptimizer:
             
             # Create experiment instance
             if self.method == "full_finetune":
-                experiment = FullFinetuneExperiment(
-                    task_name=self.task,
-                    model_name="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
-                    output_dir=str(self.output_dir / f"trial_{trial.number}")
-                )
+                experiment = FullFinetuneExperiment()
             elif self.method == "lora":
-                experiment = LoRAExperiment(
-                    task_name=self.task,
-                    model_name="TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
-                    output_dir=str(self.output_dir / f"trial_{trial.number}")
-                )
+                experiment = LoRAExperiment()
             else:
                 raise ValueError(f"Unknown method: {self.method}")
             
-            # Configure for Optuna trial
-            experiment.config['training'].update({
-                'extract_base_model_representations': False,  # Disabled for speed
-                'save_final_representations': False,  # Disabled for speed
-                'num_train_epochs': hyperparams['num_train_epochs'],
-                'per_device_train_batch_size': hyperparams['per_device_train_batch_size'],
-                'learning_rate': hyperparams['learning_rate'],
-                'warmup_ratio': hyperparams['warmup_ratio'],
-                'weight_decay': hyperparams['weight_decay'],
-                'evaluation_strategy': 'steps',
-                'eval_steps': 50,  # Frequent evaluation for pruning
-                'save_strategy': 'no',  # Don't save checkpoints during optimization
-                'load_best_model_at_end': True,
-                'metric_for_best_model': 'eval_accuracy' if self.task != 'squad_v2' else 'eval_f1',
-                'greater_is_better': True,
-                'seed': 42,  # Fixed seed for reproducibility
-                'dataloader_num_workers': 2,
-                'remove_unused_columns': True,
-                'report_to': ["wandb"],
-            })
+            # Configure model to use TinyLlama and disable expensive features for speed
+            experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+            experiment.config['training']['extract_base_model_representations'] = False
+            experiment.config['training']['save_final_representations'] = False
             
-            # LoRA-specific configuration
-            if self.method == "lora":
-                experiment.config['lora'].update({
-                    'r': hyperparams['lora_r'],
-                    'lora_alpha': hyperparams['lora_alpha'],
-                    'lora_dropout': hyperparams['lora_dropout'],
-                })
+            # CRITICAL: Aggressive memory optimization for Optuna trials
+            experiment.config['training']['gradient_checkpointing'] = True
+            experiment.config['training']['dataloader_pin_memory'] = False  # Reduce memory
+            experiment.config['training']['dataloader_num_workers'] = 0     # Reduce memory
+            experiment.config['training']['per_device_eval_batch_size'] = 1  # Minimize eval memory
+            experiment.config['training']['gradient_accumulation_steps'] = max(8 // hyperparams['per_device_train_batch_size'], 1)  # Maintain effective batch size
+            experiment.config['training']['max_grad_norm'] = 1.0  # Prevent gradient explosion in small batches
             
-            # Run training with Optuna pruning callback
+            # Memory optimization for QA tasks
+            if self.task == 'squad_v2':
+                experiment.config['model']['max_length'] = 384  # Reduce from default 512
+                experiment.config['tasks']['squad_v2']['max_samples_train'] = 5000  # Reduce training data for speed
+                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 500   # Reduce eval data
+            
+            # Run single experiment with suggested hyperparameters
+            # The run_single_experiment method handles all configuration including LoRA params
+            
             logger.info(f"Trial {trial.number}: Starting training with hyperparams: {hyperparams}")
             
-            # Custom callback for Optuna pruning
-            class OptunaPruningCallback:
-                def __init__(self, trial, eval_metric):
-                    self.trial = trial
-                    self.eval_metric = eval_metric
-                
-                def __call__(self, logs):
-                    # Report intermediate values for pruning
-                    if self.eval_metric in logs:
-                        step = logs.get('step', 0)
-                        value = logs[self.eval_metric]
-                        self.trial.report(value, step)
-                        
-                        # Check if trial should be pruned
-                        if self.trial.should_prune():
-                            wandb.log({"optuna/pruned": True, "optuna/pruned_at_step": step})
-                            raise optuna.TrialPruned()
+            # Set memory optimization environment variable
+            import os
+            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
             
-            # Set up pruning callback
-            eval_metric = 'eval_accuracy' if self.task != 'squad_v2' else 'eval_f1'
-            pruning_callback = OptunaPruningCallback(trial, eval_metric)
+            # Clear GPU cache before each trial
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             
-            # Run the experiment
-            results = experiment.run_experiment(
-                seeds=[42],  # Single seed for speed during optimization
-                custom_log_callback=pruning_callback
+            # Run the experiment using the correct method
+            results = experiment.run_single_experiment(
+                task_name=self.task,
+                seed=42,  # Fixed seed for reproducibility
+                skip_wandb_init=True,  # W&B already initialized above
+                **hyperparams
             )
             
             # Extract the best metric value
-            if results and len(results) > 0:
-                best_result = results[0]  # Single seed
+            if results and 'metrics' in results:
+                # run_single_experiment returns a single result dict, not a list
                 if self.task == 'squad_v2':
-                    objective_value = best_result['metrics']['eval_f1']
+                    objective_value = results['metrics']['eval_f1']
                 else:
-                    objective_value = best_result['metrics']['eval_accuracy']
+                    objective_value = results['metrics']['eval_accuracy']
             else:
-                logger.error(f"Trial {trial.number}: No results returned")
+                logger.error(f"Trial {trial.number}: Experiment failed or no metrics returned")
                 objective_value = 0.0
             
             # Log final result

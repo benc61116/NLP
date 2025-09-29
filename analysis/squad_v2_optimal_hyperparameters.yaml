@@ -1,0 +1,32 @@
+optimal_hyperparameters:
+  full_finetune:
+    expected_performance: 0.0
+    hyperparameters:
+      learning_rate: 1.0253509690168497e-05
+      num_train_epochs: 2
+      per_device_train_batch_size: 4
+      warmup_ratio: 0.04680559213273095
+      weight_decay: 0.015599452033620266
+    optimization_summary:
+      n_completed: 30
+      n_pruned: 0
+      n_trials: 30
+  lora:
+    expected_performance: 0.0
+    hyperparameters:
+      learning_rate: 1.0253509690168497e-05
+      lora_alpha: 8
+      lora_dropout: 0.055021352956030146
+      lora_r: 4
+      num_train_epochs: 2
+      per_device_train_batch_size: 4
+      warmup_ratio: 0.04680559213273095
+      weight_decay: 0.015599452033620266
+    optimization_summary:
+      n_completed: 30
+      n_pruned: 0
+      n_trials: 30
+optimization_method: optuna_tpe
+task: squad_v2
+total_trials: 60
+trials_per_method: 30
