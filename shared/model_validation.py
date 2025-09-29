@@ -27,60 +27,168 @@ except Exception as e:
     EXPECTED_MODEL = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
 
 def validate_model_consistency() -> Dict[str, Any]:
-    """Validate that all components use the same model."""
+    """Validate that all components use the same model AND can actually load/work."""
     results = {
         'consistent': True,
         'expected_model': EXPECTED_MODEL,
         'component_models': {},
+        'functionality_tests': {},
         'issues': []
     }
     
     try:
-        # Check baselines.py
-        from experiments.baselines import BaselineExperiments
-        baseline_exp = BaselineExperiments()
-        baseline_model = baseline_exp.model_name
-        results['component_models']['baselines'] = baseline_model
+        logger.info(f"🔍 Testing model consistency and functionality for {EXPECTED_MODEL}")
         
-        if baseline_model != EXPECTED_MODEL:
+        # Test 1: Actually load the model and test it works
+        logger.info("🧪 Testing model loading and basic functionality...")
+        try:
+            from transformers import AutoTokenizer, AutoModelForCausalLM
+            import torch
+            
+            tokenizer = AutoTokenizer.from_pretrained(EXPECTED_MODEL)
+            model = AutoModelForCausalLM.from_pretrained(EXPECTED_MODEL, torch_dtype=torch.float16, device_map="auto")
+            
+            # Test basic generation
+            test_prompt = "What is artificial intelligence?"
+            inputs = tokenizer(test_prompt, return_tensors="pt")
+            if torch.cuda.is_available():
+                inputs = {k: v.cuda() for k, v in inputs.items()}
+            
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=10,
+                    do_sample=False,
+                    temperature=1.0,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+            
+            generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            results['functionality_tests']['model_loading'] = True
+            results['functionality_tests']['generation_test'] = len(generated_text) > len(test_prompt)
+            results['functionality_tests']['model_size_gb'] = model.get_memory_footprint() / (1024**3)
+            
+            logger.info(f"✅ Model loads successfully (Memory: {results['functionality_tests']['model_size_gb']:.2f}GB)")
+            logger.info(f"✅ Generation test: '{test_prompt}' → '{generated_text[:100]}...'")
+            
+            # Clean up memory
+            del model, tokenizer
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
+        except Exception as e:
             results['consistent'] = False
-            results['issues'].append(f"Baselines uses {baseline_model}, expected {EXPECTED_MODEL}")
+            results['issues'].append(f"Model loading/generation failed: {e}")
+            results['functionality_tests']['model_loading'] = False
+            logger.error(f"❌ Model functionality test failed: {e}")
         
-        # Check data preparation
-        from shared.data_preparation import TaskDataLoader
-        # Create a temporary data loader to check its model
-        temp_loader = TaskDataLoader(EXPECTED_MODEL)
-        # The TaskDataLoader doesn't store the model name, but it should work with our expected model
+        # Test 2: Check baseline experiments can actually initialize
+        logger.info("🧪 Testing baseline experiments functionality...")
+        try:
+            from experiments.baselines import BaselineExperiments
+            baseline_exp = BaselineExperiments()
+            baseline_model = baseline_exp.model_name
+            results['component_models']['baselines'] = baseline_model
+            
+            if baseline_model != EXPECTED_MODEL:
+                results['consistent'] = False
+                results['issues'].append(f"Baselines uses {baseline_model}, expected {EXPECTED_MODEL}")
+            
+            # Test that baselines can actually load small dataset
+            try:
+                train_data, val_data = baseline_exp.get_dataset_splits("squad_v2")
+                results['functionality_tests']['baseline_data_loading'] = val_data['num_samples'] > 0
+                logger.info(f"✅ Baseline data loading works (val samples: {val_data['num_samples']})")
+            except Exception as e:
+                results['functionality_tests']['baseline_data_loading'] = False
+                results['issues'].append(f"Baseline data loading failed: {e}")
+                
+        except Exception as e:
+            results['issues'].append(f"Baseline experiments test failed: {e}")
+            results['functionality_tests']['baselines'] = False
         
-        # Check if extract_base_representations.py uses correct model
-        # Read the script content to verify
+        # Test 3: Check data preparation actually works
+        logger.info("🧪 Testing data preparation functionality...")
+        try:
+            from shared.data_preparation import TaskDataLoader
+            data_loader = TaskDataLoader(EXPECTED_MODEL)
+            
+            # Test loading a small amount of data
+            squad_data = data_loader.prepare_qa_data(split="validation", num_samples=10)
+            results['functionality_tests']['data_preparation'] = squad_data['num_samples'] > 0
+            logger.info(f"✅ Data preparation works (loaded {squad_data['num_samples']} validation samples)")
+            
+        except Exception as e:
+            results['functionality_tests']['data_preparation'] = False
+            results['issues'].append(f"Data preparation test failed: {e}")
+        
+        # Test 4: Check if key scripts exist and use correct model (improved)
         extract_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts', 'extract_base_representations.py')
         if os.path.exists(extract_script_path):
             with open(extract_script_path, 'r') as f:
                 content = f.read()
-                if EXPECTED_MODEL in content:
+                # More thorough check - look for model assignment patterns
+                model_patterns = [
+                    f'"{EXPECTED_MODEL}"',
+                    f"'{EXPECTED_MODEL}'",
+                    f"model_name = {EXPECTED_MODEL}",
+                    f"MODEL_NAME = {EXPECTED_MODEL}"
+                ]
+                found_model = any(pattern in content for pattern in model_patterns)
+                
+                if found_model:
                     results['component_models']['extract_base_representations'] = EXPECTED_MODEL
+                    logger.info("✅ Extract script uses correct model")
                 else:
                     results['consistent'] = False
                     results['issues'].append(f"extract_base_representations.py may not use {EXPECTED_MODEL}")
         
-        # Check production experiment scripts
+        # Test 5: Check production experiment scripts (improved)
         try:
             from experiments.lora_finetune import LoRAExperiment
             from experiments.full_finetune import FullFinetuneExperiment
             
-            # These scripts should force TinyLlama in main() - we can't easily check without running
-            # But we can verify the scripts exist and are importable
-            results['component_models']['lora_finetune'] = "Forced to TinyLlama in main()"
-            results['component_models']['full_finetune'] = "Forced to TinyLlama in main()"
+            # Actually test initialization with config files
+            logger.info("🧪 Testing LoRA experiment initialization...")
+            lora_exp = LoRAExperiment(config_path="shared/config.yaml")
+            # Verify it uses the expected model from config
+            expected_model_in_config = lora_exp.config['model']['name']
+            if expected_model_in_config == EXPECTED_MODEL:
+                results['functionality_tests']['lora_init'] = True
+                results['component_models']['lora_finetune'] = EXPECTED_MODEL
+                logger.info("✅ LoRA experiment initializes correctly")
+            else:
+                results['functionality_tests']['lora_init'] = False
+                results['issues'].append(f"LoRA config uses {expected_model_in_config}, expected {EXPECTED_MODEL}")
             
-        except ImportError as e:
-            results['issues'].append(f"Could not import production scripts: {e}")
+            logger.info("🧪 Testing Full Fine-tune experiment initialization...")
+            full_exp = FullFinetuneExperiment(config_path="shared/config.yaml")
+            # Verify it uses the expected model from config  
+            expected_model_in_config = full_exp.config['model']['name']
+            if expected_model_in_config == EXPECTED_MODEL:
+                results['functionality_tests']['full_init'] = True
+                results['component_models']['full_finetune'] = EXPECTED_MODEL
+                logger.info("✅ Full fine-tune experiment initializes correctly")
+            else:
+                results['functionality_tests']['full_init'] = False
+                results['issues'].append(f"Full FT config uses {expected_model_in_config}, expected {EXPECTED_MODEL}")
+            
+        except Exception as e:
+            results['issues'].append(f"Production script initialization failed: {e}")
+            results['functionality_tests']['lora_init'] = False
+            results['functionality_tests']['full_init'] = False
+        
+        # Overall assessment
+        failed_tests = [k for k, v in results['functionality_tests'].items() if v is False]
+        if failed_tests:
+            results['consistent'] = False
+            results['issues'].append(f"Functionality tests failed: {failed_tests}")
         
         if results['consistent']:
-            logger.info(f"✅ Model consistency validation PASSED - all components use {EXPECTED_MODEL}")
+            logger.info(f"✅ Model consistency AND functionality validation PASSED")
+            logger.info(f"   All components use {EXPECTED_MODEL} and work correctly")
         else:
-            logger.error(f"❌ Model consistency validation FAILED")
+            logger.error(f"❌ Model consistency/functionality validation FAILED")
             for issue in results['issues']:
                 logger.error(f"   - {issue}")
                 

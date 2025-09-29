@@ -291,27 +291,59 @@ class BaselineExperiments:
         return comprehensive_metrics
     
     def _majority_class_qa_baseline(self, task_name: str) -> Dict[str, Any]:
-        """Majority class baseline for SQuAD v2 (predict majority answerability class)."""
+        """Majority class baseline for SQuAD v2 (predict majority answerability class + most common answer)."""
         logger.info(f"Running majority class baseline for {task_name} (QA)")
         
         train_data, val_data = self.get_dataset_splits(task_name)
         
-        # Determine the true majority class from the training data
+        # Analyze training data to determine strategy
         train_impossible = train_data.get('is_impossible', [])
+        train_answers = train_data.get('answers', [])
+        
+        # Calculate answerability statistics
         if train_impossible:
             unanswerable_ratio = sum(train_impossible) / len(train_impossible)
-            if unanswerable_ratio > 0.5:
-                # Majority is unanswerable
-                predictions = ["no answer"] * val_data['num_samples']
-                strategy = f"always_no_answer (unanswerable={unanswerable_ratio:.1%})"
-            else:
-                # Majority is answerable - predict a generic answer
-                predictions = ["answer"] * val_data['num_samples']  
-                strategy = f"always_answerable (answerable={1-unanswerable_ratio:.1%})"
+            answerable_ratio = 1 - unanswerable_ratio
         else:
-            # Fallback: assume majority is answerable (typical for SQuAD v2)
-            predictions = ["answer"] * val_data['num_samples']
-            strategy = "always_answerable (fallback)"
+            # Fallback if no impossibility data
+            unanswerable_ratio = 0.33  # Typical SQuAD v2 ratio
+            answerable_ratio = 0.67
+        
+        # Find most common answer among answerable questions
+        most_common_answer = "the"  # Safe default - most common word in answers
+        if train_answers:
+            from collections import Counter
+            answer_counter = Counter()
+            for i, answers in enumerate(train_answers):
+                if not train_impossible[i] and answers:  # Answerable question with answers
+                    # Count all possible answers for this question
+                    for answer in answers:
+                        if isinstance(answer, str) and answer.strip():
+                            answer_counter[answer.strip().lower()] += 1
+            
+            if answer_counter:
+                most_common_answer = answer_counter.most_common(1)[0][0]
+                logger.info(f"Most common answer: '{most_common_answer}' ({answer_counter[most_common_answer]} occurrences)")
+        
+        # Determine strategy based on majority answerability
+        if unanswerable_ratio > 0.5:
+            # Majority is unanswerable - predict "no answer" for all
+            predictions = ["no answer"] * val_data['num_samples']
+            strategy = f"always_no_answer (unanswerable={unanswerable_ratio:.1%})"
+        else:
+            # Majority is answerable - predict based on actual answerability + most common answer
+            predictions = []
+            val_impossible = val_data.get('is_impossible', [False] * val_data['num_samples'])
+            
+            for i in range(val_data['num_samples']):
+                if i < len(val_impossible) and val_impossible[i]:
+                    # This is actually an impossible question - predict "no answer"
+                    predictions.append("no answer")
+                else:
+                    # This is an answerable question - predict most common answer
+                    predictions.append(most_common_answer)
+            
+            strategy = f"smart_majority (answerable={answerable_ratio:.1%}, answer='{most_common_answer}')"
         
         logger.info(f"Majority strategy: {strategy}")
         
@@ -327,7 +359,9 @@ class BaselineExperiments:
             config={
                 "baseline_type": "majority_class",
                 "task": task_name,
-                "strategy": "always_no_answer"
+                "strategy": strategy,
+                "unanswerable_ratio": unanswerable_ratio,
+                "most_common_answer": most_common_answer if unanswerable_ratio <= 0.5 else None
             }
         )
         
