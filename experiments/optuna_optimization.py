@@ -149,6 +149,11 @@ class OptunaOptimizer:
             experiment.config['training']['gradient_accumulation_steps'] = max(8 // hyperparams['per_device_train_batch_size'], 1)  # Maintain effective batch size
             experiment.config['training']['max_grad_norm'] = 1.0  # Prevent gradient explosion in small batches
             
+            # CRITICAL: Disable model checkpoint saving for Optuna (we only need metrics, not models)
+            experiment.config['training']['save_strategy'] = 'no'  # Don't save checkpoints during training
+            experiment.config['training']['save_total_limit'] = 0  # Don't keep any checkpoints
+            experiment.config['training']['load_best_model_at_end'] = False  # Don't need to load best model
+            
             # Memory optimization for QA tasks
             if self.task == 'squad_v2':
                 experiment.config['model']['max_length'] = 384  # Reduce from default 512
@@ -179,12 +184,12 @@ class OptunaOptimizer:
             )
             
             # Extract the best metric value
-            if results and 'metrics' in results:
+            if results and 'eval_metrics' in results:
                 # run_single_experiment returns a single result dict, not a list
                 if self.task == 'squad_v2':
-                    objective_value = results['metrics']['eval_f1']
+                    objective_value = results['eval_metrics']['eval_f1']
                 else:
-                    objective_value = results['metrics']['eval_accuracy']
+                    objective_value = results['eval_metrics']['eval_accuracy']
             else:
                 logger.error(f"Trial {trial.number}: Experiment failed or no metrics returned")
                 objective_value = 0.0
@@ -197,16 +202,76 @@ class OptunaOptimizer:
             
             logger.info(f"Trial {trial.number}: Objective value = {objective_value:.4f}")
             
-            # Clean up
+            # Clean up W&B and local files to save disk space
+            import shutil
+            from pathlib import Path
+            
+            # Get current wandb run directory before finishing
+            wandb_run_dir = Path(wandb.run.dir).parent if wandb.run else None
+            
+            # Finish W&B (syncs data)
             wandb.finish()
+            
+            # CRITICAL: Delete wandb run directory after sync to save disk space
+            if wandb_run_dir and wandb_run_dir.exists():
+                try:
+                    shutil.rmtree(wandb_run_dir)
+                    logger.info(f"Cleaned up W&B run directory: {wandb_run_dir}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean W&B directory: {e}")
+            
+            # CRITICAL: Delete results directory for this trial (we only need metrics in W&B)
+            # Find and delete all results directories created in this trial
+            results_base = Path("results")
+            if results_base.exists():
+                # Get all directories created in the last few minutes (this trial)
+                import time
+                current_time = time.time()
+                for results_dir in results_base.glob("full_finetune_*"):
+                    # Delete if created recently (within this trial's runtime)
+                    if results_dir.is_dir() and (current_time - results_dir.stat().st_mtime) < 3600:  # Last hour
+                        try:
+                            shutil.rmtree(results_dir)
+                            logger.info(f"Cleaned up results directory: {results_dir}")
+                        except Exception as e:
+                            logger.warning(f"Failed to clean results directory {results_dir}: {e}")
+                
+                # Also clean lora directories
+                for results_dir in results_base.glob("lora_finetune_*"):
+                    if results_dir.is_dir() and (current_time - results_dir.stat().st_mtime) < 3600:
+                        try:
+                            shutil.rmtree(results_dir)
+                            logger.info(f"Cleaned up LoRA results directory: {results_dir}")
+                        except Exception as e:
+                            logger.warning(f"Failed to clean LoRA results directory {results_dir}: {e}")
+            
+            # Clean GPU cache
             torch.cuda.empty_cache()
+            
+            # Report disk usage
+            total, used, free = shutil.disk_usage('/')
+            usage_percent = (used / total) * 100
+            logger.info(f"💾 Disk usage after cleanup: {usage_percent:.1f}% ({used//(1024**3)}GB used, {free//(1024**3)}GB free)")
             
             return objective_value
             
         except optuna.TrialPruned:
             logger.info(f"Trial {trial.number}: Pruned")
             wandb.log({"optuna/pruned": True})
+            
+            # Clean up even for pruned trials
+            import shutil
+            from pathlib import Path
+            
+            wandb_run_dir = Path(wandb.run.dir).parent if wandb.run else None
             wandb.finish()
+            
+            if wandb_run_dir and wandb_run_dir.exists():
+                try:
+                    shutil.rmtree(wandb_run_dir)
+                except Exception:
+                    pass
+            
             torch.cuda.empty_cache()
             raise
             
@@ -214,10 +279,21 @@ class OptunaOptimizer:
             logger.error(f"Trial {trial.number}: Failed with error: {e}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             
-            # Log error to W&B
+            # Log error to W&B and clean up
+            import shutil
+            from pathlib import Path
+            
             if wandb.run is not None:
                 wandb.log({"optuna/error": str(e), "optuna/failed": True})
+                wandb_run_dir = Path(wandb.run.dir).parent
                 wandb.finish()
+                
+                # Clean up failed trial's wandb directory
+                if wandb_run_dir.exists():
+                    try:
+                        shutil.rmtree(wandb_run_dir)
+                    except Exception:
+                        pass
                 
             torch.cuda.empty_cache()
             return 0.0  # Return worst possible value for failed trials
@@ -268,6 +344,37 @@ class OptunaOptimizer:
             json.dump(results, f, indent=2)
         
         logger.info(f"Results saved to: {results_file}")
+        
+        # Final cleanup: Remove any remaining wandb and results directories
+        logger.info("Performing final cleanup of trial artifacts...")
+        import shutil
+        
+        # Clean wandb directories
+        wandb_dir = Path("wandb")
+        if wandb_dir.exists():
+            for run_dir in wandb_dir.glob("run-*"):
+                try:
+                    shutil.rmtree(run_dir)
+                    logger.info(f"Cleaned up: {run_dir}")
+                except Exception as e:
+                    logger.warning(f"Could not clean {run_dir}: {e}")
+        
+        # Clean wandb cache to free up space
+        try:
+            import subprocess
+            result = subprocess.run(["wandb", "artifact", "cache", "cleanup", "1GB"], 
+                                  capture_output=True, text=True, timeout=60)
+            if result.returncode == 0:
+                logger.info("Cleaned wandb artifact cache")
+            else:
+                logger.warning(f"Wandb cache cleanup: {result.stderr}")
+        except Exception as e:
+            logger.warning(f"Could not clean wandb cache: {e}")
+        
+        # Report final disk usage
+        total, used, free = shutil.disk_usage('/')
+        usage_percent = (used / total) * 100
+        logger.info(f"💾 Final disk usage: {usage_percent:.1f}% ({used//(1024**3)}GB used, {free//(1024**3)}GB free)")
         
         return results
 
