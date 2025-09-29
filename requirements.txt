@@ -30,3 +30,5 @@ vllm==0.10.2
 
 # Note: TensorFlow is NOT needed for this PyTorch-only project
 # If you see TensorFlow errors, uninstall it: pip uninstall tensorflow tensorflow-gpu tf-keras -y
+
+optuna==4.5.0
