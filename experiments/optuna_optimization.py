@@ -81,11 +81,18 @@ class OptunaOptimizer:
         # Common hyperparameters for both methods
         hyperparams = {
             "learning_rate": trial.suggest_float("learning_rate", 1e-6, 5e-4, log=True),
-            "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [4, 8, 16]),
             "warmup_ratio": trial.suggest_float("warmup_ratio", 0.0, 0.3),
             "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
             "num_train_epochs": trial.suggest_int("num_train_epochs", 2, 6),
         }
+        
+        # Method-specific batch size suggestions (Optuna requires fixed categories)
+        if self.method == "full_finetune":
+            # Conservative batch sizes for full fine-tuning to avoid OOM
+            hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [1, 2, 4])
+        else:
+            # More aggressive batch sizes for LoRA
+            hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [4, 8, 16])
         
         # Task-specific adjustments
         if self.task == "squad_v2":

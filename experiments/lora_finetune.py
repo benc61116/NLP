@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore", message=".*were not initialized.*")
 warnings.filterwarnings("ignore", message=".*use_cache=True.*")
 warnings.filterwarnings("ignore", message=".*reinit.*deprecated.*")
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'  # Fix memory fragmentation
 
 import torch
 import wandb
@@ -730,6 +731,11 @@ class LoRAExperiment:
         
         # Apply LoRA
         model = get_peft_model(base_model, lora_config)
+        
+        # CRITICAL FIX: Ensure all model parameters (including LoRA adapters) have consistent dtype
+        target_dtype = getattr(torch, self.config['model']['dtype'])
+        model = model.to(dtype=target_dtype)
+        logger.info(f"✓ Model and LoRA adapters converted to {target_dtype}")
         
         # Ensure base model parameters are properly frozen
         self._freeze_base_model_parameters(model)

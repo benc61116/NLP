@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore", message=".*were not initialized.*")
 warnings.filterwarnings("ignore", message=".*use_cache=True.*")
 warnings.filterwarnings("ignore", message=".*reinit.*deprecated.*")
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'  # Fix memory fragmentation
 
 import torch
 import wandb
@@ -1912,6 +1913,7 @@ def main():
     parser.add_argument("--learning-rate", type=float, help="Override learning rate")
     parser.add_argument("--batch-size", type=int, help="Override batch size")
     parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
+    parser.add_argument("--weight-decay", type=float, help="Override weight decay")
     parser.add_argument("--epochs", type=int, help="Override number of training epochs")
     parser.add_argument("--no-base-representations", action="store_true", 
                        help="Disable base model representation extraction (for VM1/VM2)")
@@ -2051,6 +2053,8 @@ def main():
             hyperparams['per_device_train_batch_size'] = args.batch_size
         if args.warmup_ratio:
             hyperparams['warmup_ratio'] = args.warmup_ratio
+        if args.weight_decay:
+            hyperparams['weight_decay'] = args.weight_decay
         if args.epochs:
             hyperparams['num_train_epochs'] = args.epochs
         
