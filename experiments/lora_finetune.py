@@ -1026,6 +1026,7 @@ class LoRAExperiment:
                             rank: int = None,
                             alpha: int = None,
                             experiment_type: str = "standard",
+                            skip_wandb_init: bool = False,
                             **hyperparams) -> Dict[str, Any]:
         """Run a single LoRA experiment."""
         target_modules = target_modules or self.lora_config.target_modules_standard
@@ -1053,26 +1054,27 @@ class LoRAExperiment:
         timestamp = datetime.now().strftime("%H%M%S")
         run_name = f"lora_{task_name}_{experiment_type}_seed{seed}_{timestamp}"
         
-        # Initialize wandb
-        wandb.init(
-            project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
-            entity=self.config['wandb']['entity'],
-            name=run_name,
-            group=f"lora_{task_name}",
-            job_type="lora_finetune",
-            tags=["lora", task_name, f"seed_{seed}", experiment_type],
-            config={
-                **self.config,
-                "task_name": task_name,
-                "method": "lora",
-                "seed": seed,
-                "lora_rank": rank,
-                "lora_alpha": alpha,
-                "lora_target_modules": target_modules,
-                "experiment_type": experiment_type,
-                **hyperparams
-            }
-        )
+        # Initialize wandb (unless skipped by caller like Optuna)
+        if not skip_wandb_init:
+            wandb.init(
+                project=os.getenv('WANDB_PROJECT', self.config['wandb']['project']),
+                entity=self.config['wandb']['entity'],
+                name=run_name,
+                group=f"lora_{task_name}",
+                job_type="lora_finetune",
+                tags=["lora", task_name, f"seed_{seed}", experiment_type],
+                config={
+                    **self.config,
+                    "task_name": task_name,
+                    "method": "lora",
+                    "seed": seed,
+                    "lora_rank": rank,
+                    "lora_alpha": alpha,
+                    "lora_target_modules": target_modules,
+                    "experiment_type": experiment_type,
+                    **hyperparams
+                }
+            )
         
         try:
             # Setup environment with new seed
