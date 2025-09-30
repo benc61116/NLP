@@ -205,29 +205,13 @@ class OptunaOptimizer:
                 # Memory optimizations for classification
                 experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
                 
-                # EMERGENCY: Speed optimizations for classification full fine-tuning
+                # Let num_train_epochs control duration
                 if self.method == "full_finetune":
-                    experiment.config['training']['max_steps'] = 50   # FIXED: Same as SQuAD
-                    experiment.config['training']['logging_steps'] = 50  # Reduce logging frequency
-                    
-                    # CRITICAL: Memory optimizations for classification
-                    experiment.config['training']['gradient_accumulation_steps'] = 4  # Accumulate gradients
-                    experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory
-                    experiment.config['training']['dataloader_num_workers'] = 0  # No parallel workers
-                    
-                    # CRITICAL: Enable mixed precision for classification
-                    experiment.config['training']['fp16'] = True  # Enable FP16 for memory savings
-                    experiment.config['training']['bf16'] = False  # Disable bfloat16 
-                    experiment.config['training']['fp16_opt_level'] = 'O1'  # Conservative FP16 level
-                    
-                    # CRITICAL: Optimizer optimization for classification
-                    experiment.config['training']['optim'] = 'adafactor'  # Use Adafactor
-                    experiment.config['training']['lr_scheduler_type'] = 'constant'  # Simpler scheduler
+                    experiment.config['training']['logging_steps'] = 50
+                    experiment.config['training']['gradient_accumulation_steps'] = 2
                 else:
-                    # For LoRA classification, use moderate optimizations
-                    experiment.config['training']['max_steps'] = 100  # FIXED: Consistent LoRA limit
-                    experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
-                    experiment.config['training']['bf16'] = False  # Disable bfloat16
+                    # LoRA settings
+                    experiment.config['training']['logging_steps'] = 50
             
             # Run single experiment with suggested hyperparameters
             # The run_single_experiment method handles all configuration including LoRA params
