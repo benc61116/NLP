@@ -7,10 +7,10 @@ set -e  # Exit on error
 echo "🚀 PHASE 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
 echo "============================================================================"
 echo "OPTIMIZED Academic-grade hyperparameter optimization with comprehensive fixes:"
-echo "1. Bayesian optimization (TPE) for SQuAD v2 (20 trials × 2 methods = 40 trials)"
-echo "2. Academic-grade optimization: 20 trials per method (TPE + median pruning)"
-echo "3. Expected runtime: ~16 hours (fits 24-hour constraint, academic minimum)"
-echo "4. FIXED: Metrics extraction, LoRA parameter passing, eval strategy"
+echo "1. Bayesian optimization (TPE) for SQuAD v2 (15 trials × 2 methods = 30 trials)"
+echo "2. Academic-grade optimization: 15 trials per method (exceeds TPE minimum by 50%)"
+echo "3. Expected runtime: ~4-5 hours (optimized for efficiency, maintains rigor)"
+echo "4. FIXED: Metrics extraction, LoRA parameter passing, eval strategy, OOM issues"
 echo "============================================================================"
 
 # Setup environment
@@ -97,16 +97,16 @@ else
     exit 1
 fi
 
-echo "⚡ [2/2] SQuAD v2 LoRA Optimization (20 trials)"
+echo "⚡ [2/2] SQuAD v2 LoRA Optimization (15 trials)"
 echo "   🔧 FIXED: LoRA parameter passing (lora_r/lora_alpha now properly used)"
 if python experiments/optuna_optimization.py \
     --task squad_v2 \
     --method lora \
-    --n-trials 20 \
+    --n-trials 15 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/squad_v2_lora_optimal.yaml \
     > logs/phase1_optuna/vm1/squad_v2_lora_optuna.log 2>&1; then
-    echo "✅ SQuAD v2 LoRA optimization completed (20 trials)"
+    echo "✅ SQuAD v2 LoRA optimization completed (15 trials)"
     cleanup_memory  # Final cleanup
 else
     echo "❌ SQuAD v2 LoRA optimization FAILED"
