@@ -115,9 +115,9 @@ The choice of 10 trials per task is methodologically sound based on:
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
 | **Optuna Optimization** | | | |
-| - Full FT | SQuAD v2 (10 trials) | MRPC + SST-2 + RTE (30 trials) | ~1.5 hours |
-| - LoRA | SQuAD v2 (10 trials) | MRPC + SST-2 + RTE (30 trials) | ~0.5 hours |
-| **Total** | ~2 hours | ~16-17 hours | - |
+| - Full FT | SQuAD v2 (15 trials) | MRPC + SST-2 + RTE (30 trials) | ~3.5 hours |
+| - LoRA | SQuAD v2 (15 trials) | MRPC + SST-2 + RTE (30 trials) | ~0.5 hours |
+| **Total** | ~4-5 hours | ~3-4 hours | - |
 
 **Note**: SQuAD v2 is computationally heavier (~3x) than classification tasks, so 1 QA task ≈ 3 classification tasks in runtime.
 
