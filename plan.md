@@ -114,19 +114,17 @@ The choice of 10 trials per task is methodologically sound based on:
 
 | Component | VM1 (SQuAD v2) | VM2 (Classification) | Time |
 |-----------|----------------|---------------------|------|
-| **Sweeps** | | | |
-| - Full FT | SQuAD v2 sweep (100 trials) | MRPC + SST-2 + RTE sweeps | 7.5 hours |
-| - LoRA | SQuAD v2 LoRA sweep | MRPC + SST-2 + RTE LoRA | 6.25 hours |
-| **Analysis** | Analyze SQuAD v2 sweeps | Analyze 3 classification tasks | 1.25 hours |
-| **Validation** | Test optimal configs (3 seeds) | Test optimal configs | 2.5 hours |
-| **Total** | ~16-17 hours | ~16-17 hours | - |
+| **Optuna Optimization** | | | |
+| - Full FT | SQuAD v2 (10 trials) | MRPC + SST-2 + RTE (30 trials) | ~1.5 hours |
+| - LoRA | SQuAD v2 (10 trials) | MRPC + SST-2 + RTE (30 trials) | ~0.5 hours |
+| **Total** | ~2 hours | ~16-17 hours | - |
 
 **Note**: SQuAD v2 is computationally heavier (~3x) than classification tasks, so 1 QA task ≈ 3 classification tasks in runtime.
 
 **Success Criteria**:
 - Clear optimal hyperparameters identified ✓
-- Performance gaps between best/worst >5% ✓
-- Consistent results across validation seeds ✓
+- Performance gaps between best/worst >5% ✅
+- Consistent results across validation seeds ✅
 
 ### Phase 2: Production Experiments (25-30 hours runtime)
 
