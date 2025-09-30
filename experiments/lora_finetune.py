@@ -705,7 +705,7 @@ class LoRAExperiment:
                     answerability_weight=1.0,
                     dtype=self.config['model']['dtype']  # Pass dtype to avoid float32 → bfloat16 conversion spike
                 )
-                base_model = base_model.to(dtype=getattr(torch, self.config['model']['dtype']))
+                # Model already in correct dtype from __init__
             else:
                 # For other QA tasks, use standard QA model
                 base_model = AutoModelForQuestionAnswering.from_pretrained(
