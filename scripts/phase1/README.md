@@ -27,10 +27,13 @@ The choice of 10 trials per task is methodologically sound:
 **Reference**: Bergstra, J., & Bengio, Y. (2012). Random search for hyper-parameter optimization. Journal of machine learning research, 13(2).
 
 ### Speed Optimizations
-- **Reduced Dataset**: 500 samples (0.4%-20% of full dataset)
-- **Small Validation**: 50 samples
-- **Quick Epochs**: 2-6 epochs (Optuna decides)
-- **Goal**: Fast hyperparameter comparison, not final results
+- **Tiered Dataset Sizes**:
+  - SQuAD v2: 3,000 samples (2.3% of 130K) - research-grade coverage
+  - SST-2: 3,000 samples (4.5% of 67K) - research-grade coverage
+  - MRPC/RTE: 500 samples (13-20% coverage) - already sufficient
+- **Proportional Validation**: 10% of training samples
+- **Adaptive Epochs**: 2-6 epochs (Optuna decides)
+- **Goal**: Representative hyperparameter search meeting 2-10% standard
 
 ## VM Distribution
 
