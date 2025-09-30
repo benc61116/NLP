@@ -1138,11 +1138,14 @@ class LoRAExperiment:
                 metric_for_best_model="eval_loss",
                 greater_is_better=False,
                 
-                # Performance optimizations
+                # Performance optimizations 
                 gradient_checkpointing=True,
                 dataloader_pin_memory=True,
-                fp16=False,  # Disabled when using bfloat16 dtype to avoid conflicts
-                bf16=False,  # Let model dtype handle precision
+                
+                # CRITICAL FIX: Comprehensive precision settings to match model dtype
+                fp16=(self.config['model']['dtype'] == 'float16'),
+                bf16=(self.config['model']['dtype'] == 'bfloat16'),
+                tf32=True,  # Enable tf32 for better performance
                 
                 # Reporting
                 report_to=["wandb"],
@@ -1156,14 +1159,38 @@ class LoRAExperiment:
             # Create compute metrics function
             compute_metrics = self.create_compute_metrics_function(task_name)
             
-            # Create task-appropriate data collator
+            # Create task-appropriate data collator with DTYPE CONSISTENCY
             task_config = self.config['tasks'][task_name]
+            target_dtype = getattr(torch, self.config['model']['dtype'])
+            
             if task_config['type'] in ['qa', 'question_answering']:
                 # ROOT CAUSE FIX: Use our custom data collator that preserves answerability_labels
-                data_collator = self.qa_data_collator if hasattr(self, 'qa_data_collator') and self.qa_data_collator else QADataCollator(tokenizer=self.tokenizer, padding=True)
+                base_collator = self.qa_data_collator if hasattr(self, 'qa_data_collator') and self.qa_data_collator else QADataCollator(tokenizer=self.tokenizer, padding=True)
+                
+                # CRITICAL FIX: Wrap data collator to ensure dtype consistency
+                def dtype_consistent_collator(features):
+                    batch = base_collator(features)
+                    # Convert all tensor values to target dtype (except indices)
+                    for key, value in batch.items():
+                        if torch.is_tensor(value) and value.dtype.is_floating_point:
+                            batch[key] = value.to(dtype=target_dtype)
+                    return batch
+                data_collator = dtype_consistent_collator
             else:
-                # For classification tasks, use padding collator
-                data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
+                # For classification tasks, use padding collator with dtype consistency
+                base_padding_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
+                
+                # CRITICAL FIX: Wrap classification collator for dtype consistency
+                def dtype_consistent_padding_collator(features):
+                    batch = base_padding_collator(features)
+                    # Convert all tensor values to target dtype (except indices)  
+                    for key, value in batch.items():
+                        if torch.is_tensor(value) and value.dtype.is_floating_point:
+                            batch[key] = value.to(dtype=target_dtype)
+                    return batch
+                data_collator = dtype_consistent_padding_collator
+                
+            logger.info(f"✓ Data collator configured with dtype consistency: {target_dtype}")
             
             # Create custom callback (skip for sanity checks to avoid adapter reset issues)  
             if (self.config['training'].get('evaluation_strategy') == 'no' or 
