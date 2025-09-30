@@ -174,17 +174,20 @@ class OptunaOptimizer:
                 experiment.config['tasks']['squad_v2']['max_samples_train'] = 3000  # Research-grade: 2.3% coverage, ~18h runtime
                 experiment.config['tasks']['squad_v2']['max_samples_eval'] = 300   # Proportional eval set
                 
-                # CRITICAL: Emergency memory optimizations 
-                experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
+                # CRITICAL: Memory optimizations for 22GB GPU
+                # The key issue: eval creates massive activation memory with large eval sets
+                experiment.config['training']['per_device_eval_batch_size'] = 1  # Reduce eval batch to 1
+                experiment.config['training']['eval_accumulation_steps'] = 4  # Process eval in chunks
                 
                 # Let num_train_epochs (suggested by Optuna) control duration
                 # No max_steps limit - proper full epoch training
                 if self.method == "full_finetune":
                     experiment.config['training']['logging_steps'] = 100
-                    experiment.config['training']['gradient_accumulation_steps'] = 4  # Memory optimization
+                    experiment.config['training']['gradient_accumulation_steps'] = 8  # Increased: simulate batch_size=8
                 else:
-                    # LoRA settings
+                    # LoRA settings - can use smaller gradient accumulation (less memory intensive)
                     experiment.config['training']['logging_steps'] = 100
+                    experiment.config['training']['gradient_accumulation_steps'] = 4
             
             # CRITICAL FIX: Add memory optimizations for classification tasks (MRPC, SST-2, RTE)
             elif self.task == 'sst2':
