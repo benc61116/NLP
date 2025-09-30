@@ -20,15 +20,21 @@ class SquadV2QuestionAnsweringModel(nn.Module):
     ARCHITECTURAL FIX: Use direct pretrained QA model + add answerability head
     """
     
-    def __init__(self, model_name: str, answerability_weight: float = 1.0):
+    def __init__(self, model_name: str, answerability_weight: float = 1.0, dtype: str = 'bfloat16'):
         super().__init__()
         
         # ARCHITECTURAL FIX: Load CausalLM and manually add QA head (preserves pretrained weights)
         from transformers import AutoModelForCausalLM
         import torch.nn as nn
+        import torch
         
-        logger.info(f"Loading PRETRAINED CausalLM model: {model_name}")
-        base_model = AutoModelForCausalLM.from_pretrained(model_name)
+        # CRITICAL: Load directly in target dtype to avoid float32 → bfloat16 conversion spike
+        target_dtype = getattr(torch, dtype)
+        logger.info(f"Loading PRETRAINED CausalLM model: {model_name} (dtype: {dtype})")
+        base_model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=target_dtype  # Load directly in bfloat16 - saves ~4GB memory!
+        )
         
         # Extract the base transformer (preserves all pretrained weights)
         self.transformer = base_model.model  # LlamaModel with pretrained weights

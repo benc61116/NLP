@@ -1097,10 +1097,10 @@ class FullFinetuneExperiment:
                     from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
                     model = SquadV2QuestionAnsweringModel(
                         model_name,
-                        answerability_weight=1.0
+                        answerability_weight=1.0,
+                        dtype=self.config['model']['dtype']  # Pass dtype to avoid float32 → bfloat16 conversion spike
                     )
-                    # Apply dtype and device settings
-                    model = model.to(dtype=getattr(torch, self.config['model']['dtype']))
+                    # Model already in correct dtype, just move to GPU
                     if torch.cuda.is_available():
                         model = model.cuda()
                 else:
