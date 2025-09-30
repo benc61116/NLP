@@ -32,6 +32,10 @@ The choice of 10 trials per task is methodologically sound:
   - SST-2: 3,000 samples (4.5% of 67K) - research-grade coverage
   - MRPC/RTE: 500 samples (13-20% coverage) - already sufficient
 - **Proportional Validation**: 10% of training samples
+- **Memory Optimizations** (22GB GPU):
+  - Eval batch size: 1 (reduces eval memory 50%)
+  - Eval accumulation: 4 steps (chunks large eval sets)
+  - Gradient accumulation: 8 for Full FT, 4 for LoRA (effective batch size)
 - **Adaptive Epochs**: 2-6 epochs (Optuna decides)
 - **Goal**: Representative hyperparameter search meeting 2-10% standard
 
