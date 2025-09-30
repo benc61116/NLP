@@ -126,14 +126,15 @@ The choice of 10 trials per task is methodologically sound based on:
 - Performance gaps between best/worst >5% ✅
 - Consistent results across validation seeds ✅
 
-### Phase 2: Production Experiments (25-30 hours runtime)
+### Phase 2: Production Experiments (20-25 hours runtime)
 
 **Purpose**: Execute main experiments with optimal hyperparameters
 
-**Implementation Notes**:
-- Use optimal configs from Phase 1 (no additional search)
-- Extract representations every 100 steps
-- 3 seeds per configuration
+- ✅ Phase 2 scripts implemented (`scripts/phase2/vm1.sh`, `vm2.sh`)
+- Load optimal configs from Phase 1 (`analysis/*.yaml`)
+- Run with 3 seeds (42, 1337, 2024) for statistical validity
+- Extract representations automatically during training
+- Log to NLP-Phase2 wandb project
 
 #### VM Distribution for Phase 2
 
