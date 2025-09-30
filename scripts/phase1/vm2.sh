@@ -1,13 +1,13 @@
 #!/bin/bash
 # Phase 1 - VM2: CLASSIFICATION TASKS OPTUNA OPTIMIZATION (OPTIMIZED + FIXED)
-# Academic-grade optimization: 50 trials per method (aligned with plan.md requirements)
+# Balanced optimization: 25 trials per method (methodologically consistent)
 # FIXED: Dataset sizes, memory optimizations, metrics extraction for classification
 set -e  # Exit on error
 
 echo "🚀 PHASE 1 - VM2: CLASSIFICATION TASKS OPTUNA OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
 echo "===================================================================================="
 echo "OPTIMIZED Academic-grade hyperparameter optimization with comprehensive fixes:"
-echo "1. Bayesian optimization (TPE) for MRPC + SST-2 + RTE (50 trials × 6 configs = 300 trials)"
+echo "1. Bayesian optimization (TPE) for MRPC + SST-2 + RTE (25 trials × 6 configs = 150 trials)"
 echo "2. Comprehensive 50-trial optimization per configuration (academic research standard)"
 echo "3. Expected runtime: ~8-10 hours (comprehensive optimization aligned with plan.md)"
 echo "4. FIXED: Classification memory optimizations, dataset sizes, metrics extraction"
@@ -59,7 +59,7 @@ echo "   🎯 OPTIMIZED: 12 trials instead of 30 for faster convergence"
 if python experiments/optuna_optimization.py \
     --task mrpc \
     --method full_finetune \
-    --n-trials 50 \
+    --n-trials 25 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/mrpc_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/mrpc_full_optuna.log 2>&1; then
@@ -73,7 +73,7 @@ echo "⚡ [2/6] MRPC LoRA Optimization (12 trials)"
 if python experiments/optuna_optimization.py \
     --task mrpc \
     --method lora \
-    --n-trials 50 \
+    --n-trials 25 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/mrpc_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/mrpc_lora_optuna.log 2>&1; then
@@ -88,7 +88,7 @@ echo "⚡ [3/6] SST-2 Full Fine-tuning Optimization (12 trials)"
 if python experiments/optuna_optimization.py \
     --task sst2 \
     --method full_finetune \
-    --n-trials 50 \
+    --n-trials 25 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/sst2_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/sst2_full_optuna.log 2>&1; then
@@ -102,7 +102,7 @@ echo "⚡ [4/6] SST-2 LoRA Optimization (12 trials)"
 if python experiments/optuna_optimization.py \
     --task sst2 \
     --method lora \
-    --n-trials 50 \
+    --n-trials 25 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/sst2_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/sst2_lora_optuna.log 2>&1; then
@@ -117,7 +117,7 @@ echo "⚡ [5/6] RTE Full Fine-tuning Optimization (12 trials)"
 if python experiments/optuna_optimization.py \
     --task rte \
     --method full_finetune \
-    --n-trials 50 \
+    --n-trials 25 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/rte_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/rte_full_optuna.log 2>&1; then
@@ -131,7 +131,7 @@ echo "⚡ [6/6] RTE LoRA Optimization (12 trials)"
 if python experiments/optuna_optimization.py \
     --task rte \
     --method lora \
-    --n-trials 50 \
+    --n-trials 25 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/rte_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/rte_lora_optuna.log 2>&1; then

@@ -196,15 +196,16 @@ class OptunaOptimizer:
                     experiment.config['training']['optim'] = 'adafactor'  # Use Adafactor (more memory efficient than AdamW)
                     experiment.config['training']['lr_scheduler_type'] = 'constant'  # Simpler scheduler
                 else:
-                    # For LoRA, keep conservative settings
+                    # For LoRA, keep conservative settings and add step limit for consistency
+                    experiment.config['training']['max_steps'] = 100  # FIXED: Consistent LoRA limit
                     experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
                     experiment.config['training']['bf16'] = False  # Disable bfloat16
             
             # CRITICAL FIX: Add memory optimizations for classification tasks (MRPC, SST-2, RTE)
             elif self.task in ['mrpc', 'sst2', 'rte']:
                 # AGGRESSIVE: Reduce dataset sizes for faster trials
-                experiment.config['tasks'][self.task]['max_samples_train'] = 1000  # Reduced from full dataset
-                experiment.config['tasks'][self.task]['max_samples_eval'] = 200    # Reduced from full dataset
+                experiment.config['tasks'][self.task]['max_samples_train'] = 500   # FIXED: Same as SQuAD
+                experiment.config['tasks'][self.task]['max_samples_eval'] = 50     # FIXED: Same as SQuAD
                 experiment.config['model']['max_length'] = 256  # Shorter sequences for classification
                 
                 # CRITICAL: Emergency memory optimizations for classification
@@ -212,7 +213,7 @@ class OptunaOptimizer:
                 
                 # EMERGENCY: Speed optimizations for classification full fine-tuning
                 if self.method == "full_finetune":
-                    experiment.config['training']['max_steps'] = 100  # Limit steps for faster trials
+                    experiment.config['training']['max_steps'] = 50   # FIXED: Same as SQuAD
                     experiment.config['training']['logging_steps'] = 50  # Reduce logging frequency
                     
                     # CRITICAL: Memory optimizations for classification
@@ -230,7 +231,7 @@ class OptunaOptimizer:
                     experiment.config['training']['lr_scheduler_type'] = 'constant'  # Simpler scheduler
                 else:
                     # For LoRA classification, use moderate optimizations
-                    experiment.config['training']['max_steps'] = 200  # More steps for LoRA (needs more training)
+                    experiment.config['training']['max_steps'] = 100  # FIXED: Consistent LoRA limit
                     experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
                     experiment.config['training']['bf16'] = False  # Disable bfloat16
             
