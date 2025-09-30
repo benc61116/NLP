@@ -171,7 +171,7 @@ class OptunaOptimizer:
             # Memory optimization for ALL tasks (QA and Classification)
             if self.task == 'squad_v2':
                 experiment.config['model']['max_length'] = 384  # QA needs longer context for Q+A pairs
-                experiment.config['tasks']['squad_v2']['max_samples_train'] = 3000  # Research-grade: 2.3% coverage, ~18h runtime
+                experiment.config['tasks']['squad_v2']['max_samples_train'] = 3000  # Research-grade: 2.3% coverage
                 experiment.config['tasks']['squad_v2']['max_samples_eval'] = 300   # Proportional eval set
                 
                 # CRITICAL: Memory optimizations for 22GB GPU

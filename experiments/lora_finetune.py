@@ -705,6 +705,12 @@ class LoRAExperiment:
                     answerability_weight=1.0,
                     dtype=self.config['model']['dtype']  # Pass dtype to avoid float32 → bfloat16 conversion spike
                 )
+                
+                # CRITICAL FIX: Enable gradient checkpointing on the model (not just TrainingArguments)
+                if self.config['training'].get('gradient_checkpointing', False):
+                    if hasattr(base_model, 'gradient_checkpointing_enable'):
+                        base_model.gradient_checkpointing_enable()
+                        logger.info('✅ Gradient checkpointing ENABLED on model (saves ~3-5GB activation memory)')
                 # Model already in correct dtype from __init__
             else:
                 # For other QA tasks, use standard QA model

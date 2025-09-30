@@ -1103,6 +1103,12 @@ class FullFinetuneExperiment:
                     # Model already in correct dtype, just move to GPU
                     if torch.cuda.is_available():
                         model = model.cuda()
+                    
+                    # CRITICAL FIX: Enable gradient checkpointing on the model (not just TrainingArguments)
+                    if self.config['training'].get('gradient_checkpointing', False):
+                        if hasattr(model, 'gradient_checkpointing_enable'):
+                            model.gradient_checkpointing_enable()
+                            logger.info('✅ Gradient checkpointing ENABLED on model (saves ~3-5GB activation memory)')
                 else:
                     # For other QA tasks, use standard QA model
                     model = AutoModelForQuestionAnswering.from_pretrained(
@@ -1601,6 +1607,7 @@ class FullFinetuneExperiment:
                 warmup_ratio=hyperparams.get('warmup_ratio', 0.1),  # Increased to 0.1 for better gradient stability
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 max_grad_norm=0.3,  # Very aggressive gradient clipping to prevent gradient explosion
+                optim="adamw_bnb_8bit",  # CRITICAL: 8-bit optimizer saves ~6GB (optimizer states: 8GB→2GB)
                 
                 # Evaluation and saving
                 eval_strategy=self.config['training'].get('evaluation_strategy', 'steps'),  # Updated parameter name
