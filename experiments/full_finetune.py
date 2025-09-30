@@ -1232,15 +1232,8 @@ class FullFinetuneExperiment:
         if task_config['type'] == 'classification':
             return lambda eval_pred: compute_classification_metrics(eval_pred, task_config['metric'])
         elif task_config['type'] == 'question_answering':
-            # ROOT CAUSE FIX: Simple QA metrics function
-            def compute_qa_metrics_simple(eval_pred):
-                predictions, labels = eval_pred
-                # For QA tasks, just return basic metrics
-                return {
-                    "eval_loss": 0.0,  # Will be computed by trainer
-                    "eval_samples": len(predictions) if predictions is not None else 0
-                }
-            return compute_qa_metrics_simple
+            # FIXED: Use proper QA metrics that compute F1 and exact match
+            return lambda eval_pred: compute_qa_metrics(eval_pred)
         else:
             return None
     
