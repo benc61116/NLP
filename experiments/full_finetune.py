@@ -1623,7 +1623,8 @@ class FullFinetuneExperiment:
                 
                 # Performance optimizations
                 gradient_checkpointing=True,
-                dataloader_pin_memory=True,
+                dataloader_pin_memory=self.config['training'].get('dataloader_pin_memory', True),  # Respect Optuna config
+                dataloader_num_workers=self.config['training'].get('dataloader_num_workers', 4),   # Respect Optuna config
                 fp16=False,  # Disabled for gradient stability
                 bf16=True,   # Use bf16 for better gradient stability than fp16
                 

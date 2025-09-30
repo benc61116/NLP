@@ -1159,7 +1159,8 @@ class LoRAExperiment:
                 
                 # Performance optimizations 
                 gradient_checkpointing=True,
-                dataloader_pin_memory=True,
+                dataloader_pin_memory=self.config['training'].get('dataloader_pin_memory', True),  # Respect Optuna config
+                dataloader_num_workers=self.config['training'].get('dataloader_num_workers', 4),   # Respect Optuna config
                 
                 # CRITICAL FIX: Comprehensive precision settings to match model dtype
                 fp16=(self.config['model']['dtype'] == 'float16'),
