@@ -124,7 +124,7 @@ class OptunaOptimizer:
                 job_type="optuna_trial",
                 name=f"{self.study_name}_trial_{trial.number}",
                 config=hyperparams,
-                reinit=True
+                reinit="finish_previous"
             )
             
             # Log Optuna trial info
@@ -167,7 +167,7 @@ class OptunaOptimizer:
             experiment.config['training']['save_final_representations'] = False
             experiment.config['training']['extract_representations_every_steps'] = None  # Disable step-based extraction
             
-            # Memory optimization for QA tasks
+            # Memory optimization for ALL tasks (QA and Classification)
             if self.task == 'squad_v2':
                 experiment.config['model']['max_length'] = 128  # ULTRA AGGRESSIVE: Reduce to 128 for full fine-tuning
                 experiment.config['tasks']['squad_v2']['max_samples_train'] = 500   # ULTRA AGGRESSIVE: Only 500 samples
@@ -200,6 +200,40 @@ class OptunaOptimizer:
                     experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
                     experiment.config['training']['bf16'] = False  # Disable bfloat16
             
+            # CRITICAL FIX: Add memory optimizations for classification tasks (MRPC, SST-2, RTE)
+            elif self.task in ['mrpc', 'sst2', 'rte']:
+                # AGGRESSIVE: Reduce dataset sizes for faster trials
+                experiment.config['tasks'][self.task]['max_samples_train'] = 1000  # Reduced from full dataset
+                experiment.config['tasks'][self.task]['max_samples_eval'] = 200    # Reduced from full dataset
+                experiment.config['model']['max_length'] = 256  # Shorter sequences for classification
+                
+                # CRITICAL: Emergency memory optimizations for classification
+                experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
+                
+                # EMERGENCY: Speed optimizations for classification full fine-tuning
+                if self.method == "full_finetune":
+                    experiment.config['training']['max_steps'] = 100  # Limit steps for faster trials
+                    experiment.config['training']['logging_steps'] = 50  # Reduce logging frequency
+                    
+                    # CRITICAL: Memory optimizations for classification
+                    experiment.config['training']['gradient_accumulation_steps'] = 4  # Accumulate gradients
+                    experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory
+                    experiment.config['training']['dataloader_num_workers'] = 0  # No parallel workers
+                    
+                    # CRITICAL: Enable mixed precision for classification
+                    experiment.config['training']['fp16'] = True  # Enable FP16 for memory savings
+                    experiment.config['training']['bf16'] = False  # Disable bfloat16 
+                    experiment.config['training']['fp16_opt_level'] = 'O1'  # Conservative FP16 level
+                    
+                    # CRITICAL: Optimizer optimization for classification
+                    experiment.config['training']['optim'] = 'adafactor'  # Use Adafactor
+                    experiment.config['training']['lr_scheduler_type'] = 'constant'  # Simpler scheduler
+                else:
+                    # For LoRA classification, use moderate optimizations
+                    experiment.config['training']['max_steps'] = 200  # More steps for LoRA (needs more training)
+                    experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
+                    experiment.config['training']['bf16'] = False  # Disable bfloat16
+            
             # Run single experiment with suggested hyperparameters
             # The run_single_experiment method handles all configuration including LoRA params
             
@@ -223,15 +257,45 @@ class OptunaOptimizer:
                 **hyperparams
             )
             
-            # Extract the best metric value
-            if results and 'eval_metrics' in results:
-                # run_single_experiment returns a single result dict, not a list
+            # Extract the best metric value with comprehensive error handling
+            if results and 'eval_metrics' in results and results['eval_metrics']:
+                eval_metrics = results['eval_metrics']
+                logger.info(f"Trial {trial.number}: Available eval metrics: {list(eval_metrics.keys())}")
+                
                 if self.task == 'squad_v2':
-                    objective_value = results['eval_metrics']['eval_f1']
+                    # For SQuAD v2, try multiple possible F1 keys
+                    if 'eval_f1' in eval_metrics:
+                        objective_value = eval_metrics['eval_f1']
+                    elif 'eval_exact_match' in eval_metrics:
+                        # Fallback to exact match if F1 not available
+                        objective_value = eval_metrics['eval_exact_match'] 
+                        logger.warning(f"Trial {trial.number}: Using exact_match instead of F1: {objective_value:.4f}")
+                    elif any('f1' in k.lower() for k in eval_metrics.keys()):
+                        # Find any F1-like metric
+                        f1_key = next(k for k in eval_metrics.keys() if 'f1' in k.lower())
+                        objective_value = eval_metrics[f1_key]
+                        logger.warning(f"Trial {trial.number}: Using {f1_key} instead of eval_f1: {objective_value:.4f}")
+                    else:
+                        logger.error(f"Trial {trial.number}: No F1 or exact match metric found in {list(eval_metrics.keys())}")
+                        objective_value = 0.0
                 else:
-                    objective_value = results['eval_metrics']['eval_accuracy']
+                    # For classification tasks, try multiple possible accuracy keys
+                    if 'eval_accuracy' in eval_metrics:
+                        objective_value = eval_metrics['eval_accuracy']
+                    elif any('accuracy' in k.lower() for k in eval_metrics.keys()):
+                        # Find any accuracy-like metric
+                        acc_key = next(k for k in eval_metrics.keys() if 'accuracy' in k.lower())
+                        objective_value = eval_metrics[acc_key]
+                        logger.warning(f"Trial {trial.number}: Using {acc_key} instead of eval_accuracy: {objective_value:.4f}")
+                    else:
+                        logger.error(f"Trial {trial.number}: No accuracy metric found in {list(eval_metrics.keys())}")
+                        objective_value = 0.0
             else:
-                logger.error(f"Trial {trial.number}: Experiment failed or no metrics returned")
+                logger.error(f"Trial {trial.number}: Experiment failed or no eval_metrics returned")
+                if results:
+                    logger.error(f"Trial {trial.number}: Available result keys: {list(results.keys())}")
+                    if 'error' in results:
+                        logger.error(f"Trial {trial.number}: Error was: {results['error']}")
                 objective_value = 0.0
             
             # Log final result

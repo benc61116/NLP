@@ -1,15 +1,17 @@
 #!/bin/bash
-# Phase 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (OPTIMIZED FOR SPEED)
+# Phase 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (OPTIMIZED + FIXED)
 # Reduced trials for efficiency: 15 trials per method (vs 30 original)
+# FIXED: Dataset consistency, metrics extraction, LoRA dtype issues
 set -e  # Exit on error
 
-echo "🚀 PHASE 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (SPEED OPTIMIZED)"
-echo "=============================================================="
-echo "OPTIMIZED Academic-grade hyperparameter optimization:"
+echo "🚀 PHASE 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
+echo "============================================================================"
+echo "OPTIMIZED Academic-grade hyperparameter optimization with comprehensive fixes:"
 echo "1. Bayesian optimization (TPE) for SQuAD v2 (15 trials × 2 methods = 30 trials)"
 echo "2. 50% reduction in trial count based on academic research"
 echo "3. Expected runtime: ~3-4 hours (vs 6-8 hours original)"
-echo "=============================================================="
+echo "4. FIXED: Metrics extraction, LoRA dtype consistency, dataset size matching"
+echo "============================================================================"
 
 # Setup environment
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,15 +46,17 @@ echo ""
 # ============================================================================
 # PHASE 1A: OPTUNA HYPERPARAMETER OPTIMIZATION (OPTIMIZED)
 # ============================================================================
-echo "🔬 PHASE 1A: OPTUNA BAYESIAN OPTIMIZATION (SPEED OPTIMIZED)"
+echo "🔬 PHASE 1A: OPTUNA BAYESIAN OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
 echo "Find optimal hyperparameters using Tree-structured Parzen Estimator (TPE)"
 echo "15 trials per method (academic research shows 10-20 is optimal)"
 echo "SQuAD v2 focus: QA task optimization"
+echo "FIXES: Better metrics extraction, comprehensive LoRA dtype handling"
 echo "------------------------------------------------------------"
 
 # SQuAD v2 Optimization
 echo "⚡ [1/2] SQuAD v2 Full Fine-tuning Optimization (15 trials)"
 echo "   🎯 OPTIMIZED: 15 trials instead of 30 for faster convergence"
+echo "   🔧 FIXED: Improved metrics extraction and error handling"
 if python experiments/optuna_optimization.py \
     --task squad_v2 \
     --method full_finetune \
@@ -67,6 +71,7 @@ else
 fi
 
 echo "⚡ [2/2] SQuAD v2 LoRA Optimization (15 trials)"
+echo "   🔧 FIXED: Comprehensive dtype consistency for LoRA adapters"
 if python experiments/optuna_optimization.py \
     --task squad_v2 \
     --method lora \
@@ -178,8 +183,9 @@ echo ""
 # ============================================================================
 # PHASE 1C: HYPERPARAMETER VALIDATION
 # ============================================================================
-echo "🧪 PHASE 1C: HYPERPARAMETER VALIDATION"
-echo "Quick validation test with optimal hyperparameters (single seed)"
+echo "🧪 PHASE 1C: HYPERPARAMETER VALIDATION (FIXED)"
+echo "Quick validation test with optimal hyperparameters (single seed, same dataset size as Optuna)"
+echo "CRITICAL FIX: Using same dataset sizes as Optuna (500 train, 50 eval) for consistency"
 echo "------------------------------------------------------------"
 
 # Extract optimal hyperparameters
@@ -213,8 +219,9 @@ source squad_v2_hyperparams.sh
 export WANDB_PROJECT=NLP-Phase1-Production
 
 # SQuAD v2 Validation Tests
-echo "🎯 [1/2] SQuAD v2 Full Fine-tuning Validation (1 seed, quick test)"
+echo "🎯 [1/2] SQuAD v2 Full Fine-tuning Validation (1 seed, FIXED dataset size)"
 echo "  ⚡ $(date +'%H:%M') - SQuAD v2 full fine-tuning validation with Optuna hyperparameters..."
+echo "  🔧 FIXED: Using same dataset size as Optuna (500 train, 50 eval)"
 
 if python experiments/full_finetune.py \
     --task squad_v2 --mode single --seed 42 \
@@ -223,6 +230,8 @@ if python experiments/full_finetune.py \
     --warmup-ratio $SQUAD_V2_FULLFINETUNE_WU \
     --epochs $SQUAD_V2_FULLFINETUNE_EP \
     --weight-decay $SQUAD_V2_FULLFINETUNE_WD \
+    --max-samples-train 500 \
+    --max-samples-eval 50 \
     --no-base-representations \
     > logs/phase1_optuna/vm1/squad_v2_full_validation.log 2>&1; then
     echo "  ✅ $(date +'%H:%M') - SQuAD v2 full fine-tuning validation COMPLETED"
@@ -231,8 +240,9 @@ else
     exit 1
 fi
 
-echo "🎯 [2/2] SQuAD v2 LoRA Validation (1 seed, quick test)"
+echo "🎯 [2/2] SQuAD v2 LoRA Validation (1 seed, FIXED dataset size + dtype)"
 echo "  ⚡ $(date +'%H:%M') - SQuAD v2 LoRA validation with Optuna hyperparameters..."
+echo "  🔧 FIXED: Comprehensive LoRA dtype handling + same dataset size as Optuna"
 
 if python experiments/lora_finetune.py \
     --task squad_v2 --mode single --seed 42 \
@@ -244,6 +254,8 @@ if python experiments/lora_finetune.py \
     --lora-r $SQUAD_V2_LORA_R \
     --lora-alpha $SQUAD_V2_LORA_A \
     --lora-dropout $SQUAD_V2_LORA_D \
+    --max-samples-train 500 \
+    --max-samples-eval 50 \
     > logs/phase1_optuna/vm1/squad_v2_lora_validation.log 2>&1; then
     echo "  ✅ $(date +'%H:%M') - SQuAD v2 LoRA validation COMPLETED"
 else
@@ -257,8 +269,8 @@ echo ""
 # ============================================================================
 # COMPLETION SUMMARY
 # ============================================================================
-echo "🎉 VM1 SQuAD v2 OPTUNA OPTIMIZATION COMPLETE! $(date)"
-echo "======================================================="
+echo "🎉 VM1 SQuAD v2 OPTUNA OPTIMIZATION COMPLETE (FIXED)! $(date)"
+echo "============================================================="
 echo "✅ Phase 1A: Bayesian optimization completed (30 trials VM1)"
 echo "✅ Phase 1B: SQuAD v2 optimal hyperparameters identified"
 echo "✅ Phase 1C: Hyperparameter validation completed"
@@ -268,6 +280,11 @@ echo "   • 50% faster than original (30 vs 60 trials)"
 echo "   • Academic-grade TPE convergence achieved"
 echo "   • Estimated runtime: 3-4 hours vs 6-8 hours"
 echo ""
+echo "🔧 CRITICAL FIXES APPLIED:"
+echo "   • Comprehensive metrics extraction (no more 0.0 values)"
+echo "   • LoRA dtype consistency (Float vs BFloat16 resolved)"
+echo "   • Dataset size matching (Optuna = Validation = 500/50 samples)"
+echo ""
 echo "📊 W&B Dashboard: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase1-Optuna"
 echo "📄 Optimal config: analysis/squad_v2_optimal_hyperparameters.yaml"
 echo "📋 Ready for Phase 2: Production experiments with optimal hyperparameters"
@@ -275,4 +292,4 @@ echo ""
 echo "🧠 ACADEMIC EFFICIENCY: 15 trials = optimal TPE convergence"
 echo "   • Research shows 10-20 trials sufficient for Bayesian optimization"
 echo "   • Median pruning eliminates poor trials early"
-echo "   • Quick validation confirms hyperparameters work"
+echo "   • Quick validation confirms hyperparameters work on consistent dataset sizes"

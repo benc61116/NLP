@@ -11,7 +11,6 @@ transformers.logging.set_verbosity_error()  # Only show errors
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*were not initialized.*")
 warnings.filterwarnings("ignore", message=".*use_cache=True.*")
-warnings.filterwarnings("ignore", message=".*reinit.*deprecated.*")
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'  # Fix memory fragmentation
 
@@ -1915,6 +1914,8 @@ def main():
     parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
     parser.add_argument("--weight-decay", type=float, help="Override weight decay")
     parser.add_argument("--epochs", type=int, help="Override number of training epochs")
+    parser.add_argument("--max-samples-train", type=int, help="Override max training samples")
+    parser.add_argument("--max-samples-eval", type=int, help="Override max evaluation samples")
     parser.add_argument("--no-base-representations", action="store_true", 
                        help="Disable base model representation extraction (for VM1/VM2)")
     parser.add_argument("--sanity-check", action="store_true", 
@@ -2057,6 +2058,12 @@ def main():
             hyperparams['weight_decay'] = args.weight_decay
         if args.epochs:
             hyperparams['num_train_epochs'] = args.epochs
+        
+        # Override dataset sizes if specified (for VM1/VM2 validation)
+        if args.max_samples_train:
+            experiment.config['tasks'][args.task]['max_samples_train'] = args.max_samples_train
+        if args.max_samples_eval:
+            experiment.config['tasks'][args.task]['max_samples_eval'] = args.max_samples_eval
         
         result = experiment.run_single_experiment(args.task, args.seed, **hyperparams)
         print(f"Experiment completed: {result}")

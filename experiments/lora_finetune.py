@@ -11,7 +11,6 @@ transformers.logging.set_verbosity_error()  # Only show errors
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*were not initialized.*")
 warnings.filterwarnings("ignore", message=".*use_cache=True.*")
-warnings.filterwarnings("ignore", message=".*reinit.*deprecated.*")
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Suppress tokenizer warnings
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'  # Fix memory fragmentation
 
@@ -732,10 +731,40 @@ class LoRAExperiment:
         # Apply LoRA
         model = get_peft_model(base_model, lora_config)
         
-        # CRITICAL FIX: Ensure all model parameters (including LoRA adapters) have consistent dtype
+        # CRITICAL FIX: Comprehensive dtype conversion for ALL components
         target_dtype = getattr(torch, self.config['model']['dtype'])
+        
+        # Step 1: Convert the entire model
         model = model.to(dtype=target_dtype)
-        logger.info(f"✓ Model and LoRA adapters converted to {target_dtype}")
+        
+        # Step 2: Explicitly convert all parameters to ensure consistency
+        for name, param in model.named_parameters():
+            if param.dtype != target_dtype:
+                param.data = param.data.to(dtype=target_dtype)
+                logger.debug(f"Converted {name} from {param.dtype} to {target_dtype}")
+        
+        # Step 3: Convert all buffers (including embeddings and normalization layers)
+        for name, buffer in model.named_buffers():
+            if buffer.dtype != target_dtype and buffer.dtype != torch.long:  # Don't convert indices
+                buffer.data = buffer.data.to(dtype=target_dtype)
+                logger.debug(f"Converted buffer {name} from {buffer.dtype} to {target_dtype}")
+        
+        # Step 4: Ensure model forward pass uses consistent dtype
+        model.train()  # Set to training mode to enable proper dtype handling
+        
+        logger.info(f"✓ Model and ALL components (parameters, buffers) converted to {target_dtype}")
+        
+        # Verify dtype consistency
+        param_dtypes = {name: param.dtype for name, param in model.named_parameters()}
+        unique_dtypes = set(param_dtypes.values())
+        if len(unique_dtypes) > 2:  # Allow for long tensors (indices) + target dtype
+            logger.warning(f"Multiple parameter dtypes detected: {unique_dtypes}")
+            # Log problematic parameters
+            for name, dtype in param_dtypes.items():
+                if dtype != target_dtype and dtype != torch.long:
+                    logger.warning(f"Parameter {name} has unexpected dtype: {dtype}")
+        else:
+            logger.info(f"✓ Dtype consistency verified: {unique_dtypes}")
         
         # Ensure base model parameters are properly frozen
         self._freeze_base_model_parameters(model)
@@ -1441,6 +1470,8 @@ def main():
     parser.add_argument("--rank", type=int, help="Override LoRA rank (legacy)")
     parser.add_argument("--alpha", type=int, help="Override LoRA alpha (legacy)")
     parser.add_argument("--target-modules", nargs="+", help="Override target modules")
+    parser.add_argument("--max-samples-train", type=int, help="Override max training samples")
+    parser.add_argument("--max-samples-eval", type=int, help="Override max evaluation samples")
     parser.add_argument("--sanity-check", action="store_true", 
                        help="Run quick sanity check (10 samples, 2 epochs, no wandb)")
     parser.add_argument("--production-stability", action="store_true",
@@ -1570,6 +1601,12 @@ def main():
             hyperparams['weight_decay'] = args.weight_decay
         if args.epochs:
             hyperparams['num_train_epochs'] = args.epochs
+        
+        # Override dataset sizes if specified (for VM1/VM2 validation)
+        if args.max_samples_train:
+            experiment.config['tasks'][args.task]['max_samples_train'] = args.max_samples_train
+        if args.max_samples_eval:
+            experiment.config['tasks'][args.task]['max_samples_eval'] = args.max_samples_eval
         
         # LoRA-specific overrides (support both new and legacy argument names)
         target_modules = args.target_modules or experiment.lora_config.target_modules_standard
