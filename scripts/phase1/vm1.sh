@@ -1,15 +1,15 @@
 #!/bin/bash
 # Phase 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (OPTIMIZED + FIXED)
-# Reduced trials for efficiency: 15 trials per method (vs 30 original)
+# Academic-grade optimization: 50 trials per method (aligned with plan.md requirements)
 # FIXED: Dataset consistency, metrics extraction, LoRA dtype issues
 set -e  # Exit on error
 
 echo "🚀 PHASE 1 - VM1: SQuAD v2 OPTUNA OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
 echo "============================================================================"
 echo "OPTIMIZED Academic-grade hyperparameter optimization with comprehensive fixes:"
-echo "1. Bayesian optimization (TPE) for SQuAD v2 (15 trials × 2 methods = 30 trials)"
-echo "2. 50% reduction in trial count based on academic research"
-echo "3. Expected runtime: ~3-4 hours (vs 6-8 hours original)"
+echo "1. Bayesian optimization (TPE) for SQuAD v2 (50 trials × 2 methods = 100 trials)"
+echo "2. Comprehensive 50-trial optimization per method (academic research standard)"
+echo "3. Expected runtime: ~6-8 hours (comprehensive optimization aligned with plan.md)"
 echo "4. FIXED: Metrics extraction, LoRA dtype consistency, dataset size matching"
 echo "============================================================================"
 
@@ -60,7 +60,7 @@ echo "   🔧 FIXED: Improved metrics extraction and error handling"
 if python experiments/optuna_optimization.py \
     --task squad_v2 \
     --method full_finetune \
-    --n-trials 15 \
+    --n-trials 50 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/squad_v2_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm1/squad_v2_full_optuna.log 2>&1; then
@@ -75,7 +75,7 @@ echo "   🔧 FIXED: Comprehensive dtype consistency for LoRA adapters"
 if python experiments/optuna_optimization.py \
     --task squad_v2 \
     --method lora \
-    --n-trials 15 \
+    --n-trials 50 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/squad_v2_lora_optimal.yaml \
     > logs/phase1_optuna/vm1/squad_v2_lora_optuna.log 2>&1; then
