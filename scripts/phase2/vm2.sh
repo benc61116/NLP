@@ -26,15 +26,41 @@ echo "🔧 Running on workspace: $WORKSPACE_DIR"
 
 # Clear GPU memory cache
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-python -c "
+
+# Function to clean GPU and CPU memory between runs
+cleanup_memory() {
+    echo ""
+    echo "🧹 Cleaning GPU and CPU memory..."
+    python -c "
 import torch
+import gc
+
+# Python garbage collection
+gc.collect()
+
+# CUDA cleanup
 if torch.cuda.is_available():
-    torch.cuda.empty_cache()
-    torch.cuda.ipc_collect()
-    print(f'GPU memory cleared. Available: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB')
+    torch.cuda.empty_cache()  # Clear CUDA cache
+    torch.cuda.synchronize()  # Sync CUDA operations
+    torch.cuda.ipc_collect()  # Clean IPC
+    
+    allocated = torch.cuda.memory_allocated() / 1e9
+    reserved = torch.cuda.memory_reserved() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    free = total - reserved
+    
+    print(f'✓ GPU cleanup complete:')
+    print(f'  • Allocated: {allocated:.2f}GB')
+    print(f'  • Reserved: {reserved:.2f}GB')
+    print(f'  • Free: {free:.2f}GB / {total:.2f}GB total')
 else:
-    print('No CUDA available')
+    print('⚠ No CUDA available')
 "
+    echo ""
+}
+
+# Initial cleanup
+cleanup_memory
 
 # Create directories
 mkdir -p logs/phase2/vm2
@@ -116,7 +142,7 @@ with open('$OPTIMAL_CONFIG') as f:
         fi
         
         # Clear GPU memory between runs
-        python -c "import torch; torch.cuda.empty_cache() if torch.cuda.is_available() else None"
+        cleanup_memory
     done
     
     echo "✅ $TASK full fine-tuning completed (3 seeds)"
@@ -182,7 +208,7 @@ with open('$OPTIMAL_CONFIG') as f:
         fi
         
         # Clear GPU memory between runs
-        python -c "import torch; torch.cuda.empty_cache() if torch.cuda.is_available() else None"
+        cleanup_memory
     done
     
     echo "✅ $TASK LoRA completed (3 seeds)"
