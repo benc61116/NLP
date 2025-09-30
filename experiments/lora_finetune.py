@@ -1370,7 +1370,9 @@ class LoRAExperiment:
             if 'model' in locals():
                 del model
             torch.cuda.empty_cache()
-            wandb.finish()
+            # Only finish wandb if we initialized it (not skipped by caller like Optuna)
+            if not skip_wandb_init:
+                wandb.finish()
             
             # Auto-cleanup after each completed LoRA task+seed run to prevent disk space issues
             try:

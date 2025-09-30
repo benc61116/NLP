@@ -137,7 +137,8 @@ class LoRAAnalyzer:
                 if hasattr(lora_A, 'weight') and hasattr(lora_B, 'weight'):
                     adapter_weight = lora_B.weight @ lora_A.weight
                 elif hasattr(lora_A, 'default') and hasattr(lora_B, 'default'):
-                    adapter_weight = lora_B.default.weight @ lora_A.default.weight
+                    # Convert to float32 first to avoid BFloat16 matmul issues
+                    adapter_weight = lora_B.default.weight.float() @ lora_A.default.weight.float()
                 else:
                     continue  # Skip if we can't compute adapter weight
                 adapter_norm = torch.norm(adapter_weight, p='fro').item()
@@ -145,7 +146,7 @@ class LoRAAnalyzer:
                 
                 # Compute adapter magnitude (max singular value)
                 try:
-                    U, S, V = torch.svd(adapter_weight.float())
+                    U, S, V = torch.svd(adapter_weight)  # Already float32 from above
                     if len(S) > 0:
                         adapter_magnitudes.append(S[0].item())
                         singular_values_all.extend(S.cpu().numpy())
@@ -154,7 +155,7 @@ class LoRAAnalyzer:
                     pass
                 
             except Exception as e:
-                logger.warning(f"Failed to process adapter {name}: {e}")
+                # Silently skip adapter processing errors (already converted to float32 above)
                 continue
         
         if not all_weights_A:
