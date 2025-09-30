@@ -26,15 +26,41 @@ echo "🔧 Running on workspace: $WORKSPACE_DIR"
 
 # Clear GPU memory cache
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-python -c "
+
+# Function to clean GPU and CPU memory between tasks
+cleanup_memory() {
+    echo ""
+    echo "🧹 Cleaning GPU and CPU memory..."
+    python -c "
 import torch
+import gc
+
+# Python garbage collection
+gc.collect()
+
+# CUDA cleanup
 if torch.cuda.is_available():
-    torch.cuda.empty_cache()
-    torch.cuda.ipc_collect()
-    print(f'GPU memory cleared. Available: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB')
+    torch.cuda.empty_cache()  # Clear CUDA cache
+    torch.cuda.synchronize()  # Sync CUDA operations
+    torch.cuda.ipc_collect()  # Clean IPC
+    
+    allocated = torch.cuda.memory_allocated() / 1e9
+    reserved = torch.cuda.memory_reserved() / 1e9
+    total = torch.cuda.get_device_properties(0).total_memory / 1e9
+    free = total - reserved
+    
+    print(f'✓ GPU cleanup complete:')
+    print(f'  • Allocated: {allocated:.2f}GB')
+    print(f'  • Reserved: {reserved:.2f}GB')
+    print(f'  • Free: {free:.2f}GB / {total:.2f}GB total')
 else:
-    print('No CUDA available')
+    print('⚠ No CUDA available')
 "
+    echo ""
+}
+
+# Initial cleanup
+cleanup_memory
 
 # Create logs directory
 mkdir -p logs/phase1_optuna/vm2
@@ -64,6 +90,7 @@ if python experiments/optuna_optimization.py \
     --output-file analysis/mrpc_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/mrpc_full_optuna.log 2>&1; then
     echo "✅ MRPC full fine-tuning optimization completed (12 trials)"
+    cleanup_memory  # Clean up before next task
 else
     echo "❌ MRPC full fine-tuning optimization FAILED"
     exit 1
@@ -78,6 +105,7 @@ if python experiments/optuna_optimization.py \
     --output-file analysis/mrpc_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/mrpc_lora_optuna.log 2>&1; then
     echo "✅ MRPC LoRA optimization completed (12 trials)"
+    cleanup_memory  # Clean up before next task
 else
     echo "❌ MRPC LoRA optimization FAILED"
     exit 1
@@ -93,6 +121,7 @@ if python experiments/optuna_optimization.py \
     --output-file analysis/sst2_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/sst2_full_optuna.log 2>&1; then
     echo "✅ SST-2 full fine-tuning optimization completed (12 trials)"
+    cleanup_memory  # Clean up before next task
 else
     echo "❌ SST-2 full fine-tuning optimization FAILED"
     exit 1
@@ -107,6 +136,7 @@ if python experiments/optuna_optimization.py \
     --output-file analysis/sst2_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/sst2_lora_optuna.log 2>&1; then
     echo "✅ SST-2 LoRA optimization completed (12 trials)"
+    cleanup_memory  # Clean up before next task
 else
     echo "❌ SST-2 LoRA optimization FAILED"
     exit 1
@@ -122,6 +152,7 @@ if python experiments/optuna_optimization.py \
     --output-file analysis/rte_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/rte_full_optuna.log 2>&1; then
     echo "✅ RTE full fine-tuning optimization completed (12 trials)"
+    cleanup_memory  # Clean up before next task
 else
     echo "❌ RTE full fine-tuning optimization FAILED"
     exit 1
@@ -136,6 +167,7 @@ if python experiments/optuna_optimization.py \
     --output-file analysis/rte_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/rte_lora_optuna.log 2>&1; then
     echo "✅ RTE LoRA optimization completed (12 trials)"
+    cleanup_memory  # Final cleanup
 else
     echo "❌ RTE LoRA optimization FAILED"
     exit 1
