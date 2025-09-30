@@ -161,7 +161,9 @@ class OptunaOptimizer:
             experiment.config['training']['save_strategy'] = 'no'  # Don't save checkpoints during training
             experiment.config['training']['save_total_limit'] = 0  # Don't keep any checkpoints
             experiment.config['training']['load_best_model_at_end'] = False  # Don't need to load best model
-            experiment.config['training']['eval_strategy'] = 'no'  # Disable evaluation to match save strategy
+            # CRITICAL FIX: Enable evaluation at end to get eval_metrics (but no saving)
+            experiment.config['training']['eval_strategy'] = 'epoch'  # Evaluate at end of each epoch
+            experiment.config['training']['evaluation_strategy'] = 'epoch'  # Alternative HF name
             
             # CRITICAL: Disable representation extraction to save GPU memory (major OOM source)
             experiment.config['training']['extract_base_model_representations'] = False
@@ -231,13 +233,38 @@ class OptunaOptimizer:
                 torch.cuda.empty_cache()
                 torch.cuda.ipc_collect()
             
+            # CRITICAL FIX: Extract LoRA-specific params from hyperparams and pass as named arguments
+            # LoRA params must be passed as 'rank' and 'alpha', not in **hyperparams
+            lora_rank = hyperparams.pop('lora_r', None) if self.method == 'lora' else None
+            lora_alpha = hyperparams.pop('lora_alpha', None) if self.method == 'lora' else None
+            lora_dropout = hyperparams.pop('lora_dropout', None) if self.method == 'lora' else None
+            
+            # Apply LoRA dropout to config if specified (dropout isn't a run_single_experiment param)
+            if self.method == 'lora' and lora_dropout is not None:
+                experiment.lora_config.dropout = lora_dropout
+            
+            # Log the actual hyperparameters being used for debugging
+            logger.info(f"Trial {trial.number}: Hyperparameters to apply: {hyperparams}")
+            if self.method == 'lora':
+                logger.info(f"Trial {trial.number}: LoRA params: r={lora_rank}, alpha={lora_alpha}, dropout={lora_dropout}")
+            
             # Run the experiment using the correct method
-            results = experiment.run_single_experiment(
-                task_name=self.task,
-                seed=42,  # Fixed seed for reproducibility
-                skip_wandb_init=True,  # W&B already initialized above
-                **hyperparams
-            )
+            if self.method == 'lora':
+                results = experiment.run_single_experiment(
+                    task_name=self.task,
+                    seed=42,  # Fixed seed for reproducibility
+                    skip_wandb_init=True,  # W&B already initialized above
+                    rank=lora_rank,  # Pass as named argument, not in **hyperparams
+                    alpha=lora_alpha,  # Pass as named argument, not in **hyperparams
+                    **hyperparams
+                )
+            else:
+                results = experiment.run_single_experiment(
+                    task_name=self.task,
+                    seed=42,  # Fixed seed for reproducibility
+                    skip_wandb_init=True,  # W&B already initialized above
+                    **hyperparams
+                )
             
             # Extract the best metric value with comprehensive error handling
             if results and 'eval_metrics' in results and results['eval_metrics']:

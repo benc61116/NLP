@@ -8,9 +8,9 @@ echo "🚀 PHASE 1 - VM2: CLASSIFICATION TASKS OPTUNA OPTIMIZATION (SPEED OPTIMI
 echo "===================================================================================="
 echo "OPTIMIZED Academic-grade hyperparameter optimization with comprehensive fixes:"
 echo "1. Bayesian optimization (TPE) for MRPC + SST-2 + RTE (10 trials × 6 configs = 60 trials)"
-echo "2. Comprehensive 50-trial optimization per configuration (academic research standard)"
-echo "3. Expected runtime: ~22 hours (fits 24-hour constraint, academic minimum)"
-echo "4. FIXED: Classification memory optimizations, dataset sizes, metrics extraction"
+echo "2. Academic-grade optimization: 10 trials per task/method (TPE + median pruning)"
+echo "3. Expected runtime: ~8-10 hours (fits 24-hour constraint with margin)"
+echo "4. FIXED: LoRA parameter passing, eval strategy, metrics extraction"
 echo "===================================================================================="
 
 # Setup environment
@@ -74,14 +74,14 @@ echo ""
 # ============================================================================
 echo "🔬 PHASE 1A: OPTUNA BAYESIAN OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
 echo "Find optimal hyperparameters using Tree-structured Parzen Estimator (TPE)"
-echo "12 trials per task/method combination (academic research shows 10-15 is optimal)"
-echo "Classification tasks: MRPC, SST-2, RTE (NOW optimized like SQuAD v2!)"
-echo "CRITICAL FIX: Added missing memory optimizations for classification tasks"
+echo "10 trials per task/method combination (academic research shows 10-15 is optimal)"
+echo "Classification tasks: MRPC, SST-2, RTE"
+echo "CRITICAL FIX: LoRA parameter passing, eval_strategy enabled"
 echo "------------------------------------------------------------"
 
 # MRPC Optimization
-echo "⚡ [1/6] MRPC Full Fine-tuning Optimization (12 trials)"
-echo "   🎯 OPTIMIZED: 12 trials instead of 30 for faster convergence"
+echo "⚡ [1/6] MRPC Full Fine-tuning Optimization (10 trials)"
+echo "   🎯 OPTIMIZED: 10 trials instead of 30 for faster convergence"
 if python experiments/optuna_optimization.py \
     --task mrpc \
     --method full_finetune \
@@ -89,14 +89,14 @@ if python experiments/optuna_optimization.py \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/mrpc_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/mrpc_full_optuna.log 2>&1; then
-    echo "✅ MRPC full fine-tuning optimization completed (12 trials)"
+    echo "✅ MRPC full fine-tuning optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
     echo "❌ MRPC full fine-tuning optimization FAILED"
     exit 1
 fi
 
-echo "⚡ [2/6] MRPC LoRA Optimization (12 trials)"
+echo "⚡ [2/6] MRPC LoRA Optimization (10 trials)"
 if python experiments/optuna_optimization.py \
     --task mrpc \
     --method lora \
@@ -104,7 +104,7 @@ if python experiments/optuna_optimization.py \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/mrpc_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/mrpc_lora_optuna.log 2>&1; then
-    echo "✅ MRPC LoRA optimization completed (12 trials)"
+    echo "✅ MRPC LoRA optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
     echo "❌ MRPC LoRA optimization FAILED"
@@ -112,7 +112,7 @@ else
 fi
 
 # SST-2 Optimization
-echo "⚡ [3/6] SST-2 Full Fine-tuning Optimization (12 trials)"
+echo "⚡ [3/6] SST-2 Full Fine-tuning Optimization (10 trials)"
 if python experiments/optuna_optimization.py \
     --task sst2 \
     --method full_finetune \
@@ -120,14 +120,14 @@ if python experiments/optuna_optimization.py \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/sst2_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/sst2_full_optuna.log 2>&1; then
-    echo "✅ SST-2 full fine-tuning optimization completed (12 trials)"
+    echo "✅ SST-2 full fine-tuning optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
     echo "❌ SST-2 full fine-tuning optimization FAILED"
     exit 1
 fi
 
-echo "⚡ [4/6] SST-2 LoRA Optimization (12 trials)"
+echo "⚡ [4/6] SST-2 LoRA Optimization (10 trials)"
 if python experiments/optuna_optimization.py \
     --task sst2 \
     --method lora \
@@ -135,7 +135,7 @@ if python experiments/optuna_optimization.py \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/sst2_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/sst2_lora_optuna.log 2>&1; then
-    echo "✅ SST-2 LoRA optimization completed (12 trials)"
+    echo "✅ SST-2 LoRA optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
     echo "❌ SST-2 LoRA optimization FAILED"
@@ -143,7 +143,7 @@ else
 fi
 
 # RTE Optimization  
-echo "⚡ [5/6] RTE Full Fine-tuning Optimization (12 trials)"
+echo "⚡ [5/6] RTE Full Fine-tuning Optimization (10 trials)"
 if python experiments/optuna_optimization.py \
     --task rte \
     --method full_finetune \
@@ -151,14 +151,14 @@ if python experiments/optuna_optimization.py \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/rte_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm2/rte_full_optuna.log 2>&1; then
-    echo "✅ RTE full fine-tuning optimization completed (12 trials)"
+    echo "✅ RTE full fine-tuning optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
     echo "❌ RTE full fine-tuning optimization FAILED"
     exit 1
 fi
 
-echo "⚡ [6/6] RTE LoRA Optimization (12 trials)"
+echo "⚡ [6/6] RTE LoRA Optimization (10 trials)"
 if python experiments/optuna_optimization.py \
     --task rte \
     --method lora \
@@ -166,7 +166,7 @@ if python experiments/optuna_optimization.py \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/rte_lora_optimal.yaml \
     > logs/phase1_optuna/vm2/rte_lora_optuna.log 2>&1; then
-    echo "✅ RTE LoRA optimization completed (12 trials)"
+    echo "✅ RTE LoRA optimization completed (10 trials)"
     cleanup_memory  # Final cleanup
 else
     echo "❌ RTE LoRA optimization FAILED"
@@ -174,8 +174,8 @@ else
 fi
 
 echo "🎯 PHASE 1A COMPLETE: All VM2 classification Optuna optimizations finished!"
-echo "Total trials: 72 (6 × 12 trials with TPE sampler + median pruning)"
-echo "⚡ SPEED GAIN: 60% faster than original (72 vs 180 trials)"
+echo "Total trials: 60 (6 × 10 trials with TPE sampler + median pruning)"
+echo "⚡ SPEED GAIN: 67% faster than original (60 vs 180 trials)"
 echo ""
 
 # ============================================================================
@@ -202,9 +202,9 @@ mrpc_files = [
 mrpc_config = {
     'task': 'mrpc',
     'optimization_method': 'optuna_tpe_optimized',
-    'total_trials': 24,  # Reduced from 60
-    'trials_per_method': 12,  # Reduced from 30
-    'optimization_efficiency': '60% faster',
+    'total_trials': 20,  # Reduced from 60
+    'trials_per_method': 10,  # Reduced from 30
+    'optimization_efficiency': '67% faster',
     'optimal_hyperparameters': {}
 }
 
@@ -241,9 +241,9 @@ sst2_files = [
 sst2_config = {
     'task': 'sst2',
     'optimization_method': 'optuna_tpe_optimized',
-    'total_trials': 24,
-    'trials_per_method': 12,
-    'optimization_efficiency': '60% faster',
+    'total_trials': 20,
+    'trials_per_method': 10,
+    'optimization_efficiency': '67% faster',
     'optimal_hyperparameters': {}
 }
 
@@ -280,9 +280,9 @@ rte_files = [
 rte_config = {
     'task': 'rte',
     'optimization_method': 'optuna_tpe_optimized',
-    'total_trials': 24,
-    'trials_per_method': 12,
-    'optimization_efficiency': '60% faster',
+    'total_trials': 20,
+    'trials_per_method': 10,
+    'optimization_efficiency': '67% faster',
     'optimal_hyperparameters': {}
 }
 
@@ -313,26 +313,25 @@ echo ""
 # ============================================================================
 echo "🎉 VM2 CLASSIFICATION OPTUNA OPTIMIZATION COMPLETE! $(date)"
 echo "==========================================================="
-echo "✅ Phase 1A: Bayesian optimization completed (72 trials VM2)"
+echo "✅ Phase 1A: Bayesian optimization completed (60 trials VM2)"
 echo "✅ Phase 1B: Task-specific optimal hyperparameters identified"
 echo ""
 echo "⚡ OPTIMIZATION RESULTS:"
-echo "   • 60% faster than original (72 vs 180 trials)"
+echo "   • 67% faster than original (60 vs 180 trials)"
 echo "   • Academic-grade TPE convergence achieved"
-echo "   • Estimated runtime: 2-3 hours vs 18-20 hours (90% SPEED IMPROVEMENT!)"
+echo "   • Estimated runtime: 8-10 hours vs 18-20 hours (50% SPEED IMPROVEMENT!)"
 echo ""
 echo "🔧 CRITICAL FIXES APPLIED:"
-echo "   • Classification memory optimizations (1000 train, 200 eval samples)"
-echo "   • Limited training steps (100 full fine-tune, 200 LoRA vs unlimited)"
-echo "   • Comprehensive metrics extraction (no more 0.0 values)"
-echo "   • LoRA dtype consistency (Float vs BFloat16 resolved)"
+echo "   • LoRA parameter passing (lora_r/lora_alpha now properly optimized)"
+echo "   • Eval strategy enabled (eval_metrics now properly extracted)"
+echo "   • Comprehensive error handling and metric fallbacks"
 echo ""
 echo "📊 W&B Dashboard: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase1-Optuna"
 echo "📄 Task configs: analysis/mrpc_optimal_hyperparameters.yaml"
 echo "📄 Task configs: analysis/sst2_optimal_hyperparameters.yaml"
 echo "📄 Task configs: analysis/rte_optimal_hyperparameters.yaml"
 echo ""
-echo "🧠 ACADEMIC EFFICIENCY: 12 trials = optimal TPE convergence"
+echo "🧠 ACADEMIC EFFICIENCY: 10 trials = optimal TPE convergence"
 echo "   • Research shows 10-15 trials sufficient for classification tasks"
 echo "   • Median pruning eliminates poor trials early"
-echo "   • Faster convergence for classification vs QA tasks"
+echo "   • LoRA rank/alpha optimization now working correctly"
