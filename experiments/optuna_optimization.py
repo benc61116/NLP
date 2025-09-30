@@ -54,8 +54,9 @@ class OptunaOptimizer:
         # Create study name for reproducibility
         self.study_name = f"{task}_{method}_optuna_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Configure Optuna study
-        sampler = TPESampler(seed=42, n_startup_trials=10)  # 10 random trials before TPE
+        # Configure Optuna study with per-task seed for independent exploration
+        task_seed = hash(f"{task}_{method}") % 10000  # Reproducible but different per task
+        sampler = TPESampler(seed=task_seed, n_startup_trials=10)  # 10 random trials before TPE
         pruner = MedianPruner(n_startup_trials=5, n_warmup_steps=4, interval_steps=1) if pruning else None
         
         self.study = optuna.create_study(
@@ -170,45 +171,38 @@ class OptunaOptimizer:
             # Memory optimization for ALL tasks (QA and Classification)
             if self.task == 'squad_v2':
                 experiment.config['model']['max_length'] = 384  # QA needs longer context for Q+A pairs
-                experiment.config['tasks']['squad_v2']['max_samples_train'] = 500   # ULTRA AGGRESSIVE: Only 500 samples
-                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 50    # ULTRA AGGRESSIVE: Only 50 eval samples
+                experiment.config['tasks']['squad_v2']['max_samples_train'] = 5000  # Research-grade: 3.8% coverage
+                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 500   # ~4% of validation set
                 
                 # CRITICAL: Emergency memory optimizations 
                 experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
                 
-                # EMERGENCY: Additional aggressive optimizations for full fine-tuning
+                # Let num_train_epochs (suggested by Optuna) control duration
+                # No max_steps limit - proper full epoch training
                 if self.method == "full_finetune":
-                    experiment.config['training']['max_steps'] = 50  # ULTRA EMERGENCY: Even fewer steps
-                    experiment.config['training']['logging_steps'] = 25  # Reduce logging frequency
-                    # eval_strategy already set to 'no' globally above
-                    
-                    # CRITICAL: CPU offloading and memory optimizations
-                    experiment.config['training']['gradient_accumulation_steps'] = 8  # Accumulate gradients to simulate larger batches
-                    experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory
-                    experiment.config['training']['dataloader_num_workers'] = 0  # No parallel workers
-                    
-                    # CRITICAL: Enable mixed precision for memory savings (risk vs reward)
-                    experiment.config['training']['fp16'] = True  # Enable FP16 for memory savings
-                    experiment.config['training']['bf16'] = False  # Disable bfloat16 
-                    experiment.config['training']['fp16_opt_level'] = 'O1'  # Conservative FP16 level
-                    
-                    # CRITICAL: Optimizer memory optimization
-                    experiment.config['training']['optim'] = 'adafactor'  # Use Adafactor (more memory efficient than AdamW)
-                    experiment.config['training']['lr_scheduler_type'] = 'constant'  # Simpler scheduler
+                    experiment.config['training']['logging_steps'] = 100
+                    experiment.config['training']['gradient_accumulation_steps'] = 4  # Memory optimization
                 else:
-                    # For LoRA, keep conservative settings and add step limit for consistency
-                    experiment.config['training']['max_steps'] = 100  # FIXED: Consistent LoRA limit
-                    experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
-                    experiment.config['training']['bf16'] = False  # Disable bfloat16
+                    # LoRA settings
+                    experiment.config['training']['logging_steps'] = 100
             
             # CRITICAL FIX: Add memory optimizations for classification tasks (MRPC, SST-2, RTE)
-            elif self.task in ['mrpc', 'sst2', 'rte']:
-                # AGGRESSIVE: Reduce dataset sizes for faster trials
-                experiment.config['tasks'][self.task]['max_samples_train'] = 500   # FIXED: Same as SQuAD
-                experiment.config['tasks'][self.task]['max_samples_eval'] = 50     # FIXED: Same as SQuAD
+            elif self.task == 'sst2':
+                # Large dataset: Research-grade coverage (3000 = 4.5% of 67K)
+                experiment.config['tasks']['sst2']['max_samples_train'] = 3000
+                experiment.config['tasks']['sst2']['max_samples_eval'] = 150  # ~17% of validation set
                 experiment.config['model']['max_length'] = 256  # Shorter sequences for classification
                 
-                # CRITICAL: Emergency memory optimizations for classification
+                # Memory optimizations for classification
+                experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
+                
+            elif self.task in ['mrpc', 'rte']:
+                # Small datasets: Already good coverage at 500 (13-20%)
+                experiment.config['tasks'][self.task]['max_samples_train'] = 500
+                experiment.config['tasks'][self.task]['max_samples_eval'] = 50
+                experiment.config['model']['max_length'] = 256  # Shorter sequences for classification
+                
+                # Memory optimizations for classification
                 experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
                 
                 # EMERGENCY: Speed optimizations for classification full fine-tuning
