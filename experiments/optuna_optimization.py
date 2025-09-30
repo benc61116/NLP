@@ -169,7 +169,7 @@ class OptunaOptimizer:
             
             # Memory optimization for ALL tasks (QA and Classification)
             if self.task == 'squad_v2':
-                experiment.config['model']['max_length'] = 128  # ULTRA AGGRESSIVE: Reduce to 128 for full fine-tuning
+                experiment.config['model']['max_length'] = 384  # QA needs longer context for Q+A pairs
                 experiment.config['tasks']['squad_v2']['max_samples_train'] = 500   # ULTRA AGGRESSIVE: Only 500 samples
                 experiment.config['tasks']['squad_v2']['max_samples_eval'] = 50    # ULTRA AGGRESSIVE: Only 50 eval samples
                 
