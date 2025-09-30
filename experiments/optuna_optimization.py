@@ -88,8 +88,8 @@ class OptunaOptimizer:
         
         # Method-specific batch size suggestions (Optuna requires fixed categories)
         if self.method == "full_finetune":
-            # Conservative batch sizes for full fine-tuning to avoid OOM
-            hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [1, 2, 4])
+            # EMERGENCY: Ultra-conservative batch sizes for full fine-tuning to avoid OOM
+            hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [1])  # FORCE batch size 1
         else:
             # More aggressive batch sizes for LoRA
             hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [4, 8, 16])
@@ -160,6 +160,7 @@ class OptunaOptimizer:
             experiment.config['training']['save_strategy'] = 'no'  # Don't save checkpoints during training
             experiment.config['training']['save_total_limit'] = 0  # Don't keep any checkpoints
             experiment.config['training']['load_best_model_at_end'] = False  # Don't need to load best model
+            experiment.config['training']['eval_strategy'] = 'no'  # Disable evaluation to match save strategy
             
             # CRITICAL: Disable representation extraction to save GPU memory (major OOM source)
             experiment.config['training']['extract_base_model_representations'] = False
@@ -168,14 +169,36 @@ class OptunaOptimizer:
             
             # Memory optimization for QA tasks
             if self.task == 'squad_v2':
-                experiment.config['model']['max_length'] = 384  # Reduce from default 512
-                experiment.config['tasks']['squad_v2']['max_samples_train'] = 5000  # Reduce training data for speed
-                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 500   # Reduce eval data
+                experiment.config['model']['max_length'] = 128  # ULTRA AGGRESSIVE: Reduce to 128 for full fine-tuning
+                experiment.config['tasks']['squad_v2']['max_samples_train'] = 500   # ULTRA AGGRESSIVE: Only 500 samples
+                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 50    # ULTRA AGGRESSIVE: Only 50 eval samples
                 
-                # CRITICAL: Additional memory optimizations for SQuAD v2
+                # CRITICAL: Emergency memory optimizations 
                 experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
-                experiment.config['training']['fp16'] = False  # Disable mixed precision for numerical stability
-                experiment.config['training']['bf16'] = False  # Disable bfloat16 to reduce memory usage slightly
+                
+                # EMERGENCY: Additional aggressive optimizations for full fine-tuning
+                if self.method == "full_finetune":
+                    experiment.config['training']['max_steps'] = 50  # ULTRA EMERGENCY: Even fewer steps
+                    experiment.config['training']['logging_steps'] = 25  # Reduce logging frequency
+                    # eval_strategy already set to 'no' globally above
+                    
+                    # CRITICAL: CPU offloading and memory optimizations
+                    experiment.config['training']['gradient_accumulation_steps'] = 8  # Accumulate gradients to simulate larger batches
+                    experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory
+                    experiment.config['training']['dataloader_num_workers'] = 0  # No parallel workers
+                    
+                    # CRITICAL: Enable mixed precision for memory savings (risk vs reward)
+                    experiment.config['training']['fp16'] = True  # Enable FP16 for memory savings
+                    experiment.config['training']['bf16'] = False  # Disable bfloat16 
+                    experiment.config['training']['fp16_opt_level'] = 'O1'  # Conservative FP16 level
+                    
+                    # CRITICAL: Optimizer memory optimization
+                    experiment.config['training']['optim'] = 'adafactor'  # Use Adafactor (more memory efficient than AdamW)
+                    experiment.config['training']['lr_scheduler_type'] = 'constant'  # Simpler scheduler
+                else:
+                    # For LoRA, keep conservative settings
+                    experiment.config['training']['fp16'] = False  # Disable mixed precision for LoRA stability
+                    experiment.config['training']['bf16'] = False  # Disable bfloat16
             
             # Run single experiment with suggested hyperparameters
             # The run_single_experiment method handles all configuration including LoRA params
