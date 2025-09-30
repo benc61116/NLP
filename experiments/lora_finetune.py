@@ -702,7 +702,8 @@ class LoRAExperiment:
                 from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
                 base_model = SquadV2QuestionAnsweringModel(
                     model_name,
-                    answerability_weight=1.0
+                    answerability_weight=1.0,
+                    dtype=self.config['model']['dtype']  # Pass dtype to avoid float32 → bfloat16 conversion spike
                 )
                 base_model = base_model.to(dtype=getattr(torch, self.config['model']['dtype']))
             else:
