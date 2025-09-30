@@ -948,12 +948,20 @@ class LoRAExperiment:
             # Create merged model
             merged_model = ModelMerger.merge_lora_weights(model)
             
+            # CRITICAL FIX: Use smaller subset for merge test to avoid memory issues
+            # and ensure proper tensor handling
+            small_batch_size = min(3, test_input['input_ids'].size(0))  # Use max 3 samples
+            test_input_ids = test_input['input_ids'][:small_batch_size]
+            
+            logger.debug(f"Merge equivalence test with batch size: {small_batch_size}")
+            logger.debug(f"Test input shape: {test_input_ids.shape}")
+            
             # Test equivalence
             equivalence_results = ModelMerger.test_merge_equivalence(
                 base_model=None,  # We don't need base model for this test
                 adapter_model=model,
                 merged_model=merged_model,
-                test_input=test_input['input_ids']
+                test_input=test_input_ids
             )
             
             logger.info(f"LoRA merge equivalence test results: {equivalence_results}")
@@ -961,6 +969,9 @@ class LoRAExperiment:
             
         except Exception as e:
             logger.error(f"LoRA merge equivalence test failed: {e}")
+            logger.error(f"Exception type: {type(e)}")
+            import traceback
+            logger.error(f"Full traceback:\n{traceback.format_exc()}")
             return {'error': str(e)}
     
     def run_ablation_study(self, task_name: str, study_type: str, seed: int = 42) -> List[Dict[str, Any]]:

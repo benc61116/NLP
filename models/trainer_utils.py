@@ -345,21 +345,91 @@ class ModelMerger:
             if test_input.device != device:
                 test_input = test_input.to(device)
             
+            # CRITICAL FIX: Create proper attention mask for QA models
+            batch_size, seq_len = test_input.shape
+            attention_mask = torch.ones_like(test_input)  # All tokens are attended to
+            
+            logger.debug(f"Merge test input shape: {test_input.shape}, device: {test_input.device}")
+            logger.debug(f"Adapter model device: {device}")
+            
             with torch.no_grad():
-                # Get outputs from both models
-                adapter_output = adapter_model(test_input)
-                merged_output = merged_model(test_input)
+                # CRITICAL FIX: Pass both input_ids and attention_mask for QA models
+                try:
+                    adapter_output = adapter_model(input_ids=test_input, attention_mask=attention_mask)
+                    merged_output = merged_model(input_ids=test_input, attention_mask=attention_mask)
+                except Exception as model_call_error:
+                    logger.warning(f"Model call with attention_mask failed: {model_call_error}")
+                    # Fallback to simple input
+                    adapter_output = adapter_model(test_input)
+                    merged_output = merged_model(test_input)
                 
-                # Extract logits or raw output
+                logger.debug(f"Adapter output type: {type(adapter_output)}")
+                logger.debug(f"Merged output type: {type(merged_output)}")
+                
+                # Extract logits or raw output with comprehensive error handling for QA models
+                adapter_logits = None
+                merged_logits = None
+                
+                logger.debug(f"Adapter output attributes: {list(dir(adapter_output))}")
+                logger.debug(f"Merged output attributes: {list(dir(merged_output))}")
+                
+                # Priority 1: Try .logits for classification/QA models
                 if hasattr(adapter_output, 'logits') and hasattr(merged_output, 'logits'):
                     adapter_logits = adapter_output.logits
                     merged_logits = merged_output.logits
+                    logger.debug(f"Using .logits - adapter: {adapter_logits.shape}, merged: {merged_logits.shape}")
+                    
+                # Priority 2: Try specific QA outputs (start_logits, end_logits)
+                elif hasattr(adapter_output, 'start_logits') and hasattr(merged_output, 'start_logits'):
+                    # For QA models, concatenate start and end logits for comparison
+                    adapter_start = adapter_output.start_logits
+                    adapter_end = adapter_output.end_logits
+                    merged_start = merged_output.start_logits
+                    merged_end = merged_output.end_logits
+                    
+                    adapter_logits = torch.cat([adapter_start, adapter_end], dim=-1)
+                    merged_logits = torch.cat([merged_start, merged_end], dim=-1)
+                    logger.debug(f"Using QA logits (start+end) - adapter: {adapter_logits.shape}, merged: {merged_logits.shape}")
+                    
+                # Priority 3: Try .last_hidden_state for encoder models
                 elif hasattr(adapter_output, 'last_hidden_state') and hasattr(merged_output, 'last_hidden_state'):
                     adapter_logits = adapter_output.last_hidden_state
                     merged_logits = merged_output.last_hidden_state
+                    logger.debug(f"Using .last_hidden_state - adapter: {adapter_logits.shape}, merged: {merged_logits.shape}")
+                    
+                # Priority 4: Try direct tensor access
+                elif torch.is_tensor(adapter_output) and torch.is_tensor(merged_output):
+                    adapter_logits = adapter_output
+                    merged_logits = merged_output
+                    logger.debug(f"Using direct tensors - adapter: {adapter_logits.shape}, merged: {merged_logits.shape}")
+                    
+                # Priority 5: Try tuple/list indexing with safe error handling
                 else:
-                    adapter_logits = adapter_output if torch.is_tensor(adapter_output) else adapter_output[0]
-                    merged_logits = merged_output if torch.is_tensor(merged_output) else merged_output[0]
+                    try:
+                        if hasattr(adapter_output, '__getitem__') and hasattr(merged_output, '__getitem__'):
+                            # Try accessing first element if it's a sequence
+                            adapter_logits = adapter_output[0] if len(adapter_output) > 0 else None
+                            merged_logits = merged_output[0] if len(merged_output) > 0 else None
+                            if adapter_logits is not None and merged_logits is not None:
+                                logger.debug(f"Using indexed access - adapter: {adapter_logits.shape}, merged: {merged_logits.shape}")
+                        else:
+                            logger.warning("Cannot extract comparable outputs from model outputs")
+                            adapter_logits = None
+                            merged_logits = None
+                    except (KeyError, IndexError, TypeError) as index_error:
+                        logger.warning(f"Failed to index model outputs: {index_error}")
+                        adapter_logits = None
+                        merged_logits = None
+                
+                if adapter_logits is None or merged_logits is None:
+                    logger.error("Could not extract comparable outputs from model outputs")
+                    return {
+                        'max_absolute_difference': float('inf'),
+                        'mean_absolute_difference': float('inf'),
+                        'relative_difference': float('inf'),
+                        'equivalence_check': False,
+                        'error': 'Cannot extract comparable outputs'
+                    }
                 
                 # Ensure same shape
                 if adapter_logits.shape != merged_logits.shape:
@@ -372,21 +442,72 @@ class ModelMerger:
                         'error': 'Shape mismatch'
                     }
                 
-                # Compute differences
+                # CRITICAL FIX: Comprehensive tensor validation
+                logger.debug(f"Adapter logits - shape: {adapter_logits.shape}, dtype: {adapter_logits.dtype}")
+                logger.debug(f"Merged logits - shape: {merged_logits.shape}, dtype: {merged_logits.dtype}")
+                
+                # Check for NaN or infinite values
+                adapter_has_nan = torch.isnan(adapter_logits).any().item()
+                merged_has_nan = torch.isnan(merged_logits).any().item()
+                adapter_has_inf = torch.isinf(adapter_logits).any().item()
+                merged_has_inf = torch.isinf(merged_logits).any().item()
+                
+                if adapter_has_nan or merged_has_nan:
+                    logger.warning(f"NaN detected - adapter: {adapter_has_nan}, merged: {merged_has_nan}")
+                    return {
+                        'max_absolute_difference': float('inf'),
+                        'mean_absolute_difference': float('inf'),
+                        'relative_difference': float('inf'),
+                        'equivalence_check': False,
+                        'error': 'NaN values detected'
+                    }
+                
+                if adapter_has_inf or merged_has_inf:
+                    logger.warning(f"Infinite values detected - adapter: {adapter_has_inf}, merged: {merged_has_inf}")
+                    return {
+                        'max_absolute_difference': float('inf'),
+                        'mean_absolute_difference': float('inf'),
+                        'relative_difference': float('inf'),
+                        'equivalence_check': False,
+                        'error': 'Infinite values detected'
+                    }
+                
+                # Compute differences with error handling
                 abs_diff = torch.abs(adapter_logits - merged_logits)
+                
+                # Check if abs_diff is valid
+                if torch.isnan(abs_diff).any() or torch.isinf(abs_diff).any():
+                    logger.warning("Invalid difference computation")
+                    return {
+                        'max_absolute_difference': float('inf'),
+                        'mean_absolute_difference': float('inf'),
+                        'relative_difference': float('inf'),
+                        'equivalence_check': False,
+                        'error': 'Invalid difference computation'
+                    }
+                
                 max_diff = torch.max(abs_diff).item()
                 mean_diff = torch.mean(abs_diff).item()
                 
-                # Relative difference
+                # CRITICAL FIX: Safe relative difference computation
                 adapter_magnitude = torch.mean(torch.abs(adapter_logits)).item()
-                relative_diff = mean_diff / adapter_magnitude if adapter_magnitude > 0 else float('inf')
+                logger.debug(f"Adapter magnitude: {adapter_magnitude}")
+                
+                if adapter_magnitude > 1e-12:  # Use more conservative threshold
+                    relative_diff = mean_diff / adapter_magnitude
+                else:
+                    logger.debug(f"Adapter magnitude too small ({adapter_magnitude}), using inf for relative_diff")
+                    relative_diff = float('inf')
                 
                 # Element-wise relative differences for detailed analysis
-                rel_diff_elementwise = abs_diff / (torch.abs(adapter_logits) + 1e-8)
+                adapter_abs = torch.abs(adapter_logits)
+                rel_diff_elementwise = abs_diff / (adapter_abs + 1e-8)
                 max_rel_diff = torch.max(rel_diff_elementwise).item()
                 
                 # Equivalence check
                 equivalence_check = max_diff < tolerance
+                
+                logger.debug(f"Merge test results - max_diff: {max_diff}, mean_diff: {mean_diff}, relative_diff: {relative_diff}")
                 
                 return {
                     'max_absolute_difference': max_diff,
@@ -401,6 +522,10 @@ class ModelMerger:
                 
         except Exception as e:
             logger.error(f"Error in merge equivalence test: {e}")
+            logger.error(f"Exception type: {type(e)}")
+            logger.error(f"Exception args: {e.args}")
+            import traceback
+            logger.error(f"Full traceback:\n{traceback.format_exc()}")
             return {
                 'max_absolute_difference': float('inf'),
                 'mean_absolute_difference': float('inf'),
