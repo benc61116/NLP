@@ -84,7 +84,7 @@ class OptunaOptimizer:
             "learning_rate": trial.suggest_float("learning_rate", 1e-6, 5e-4, log=True),
             "warmup_ratio": trial.suggest_float("warmup_ratio", 0.0, 0.3),
             "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
-            "num_train_epochs": trial.suggest_int("num_train_epochs", 2, 6),
+            "num_train_epochs": trial.suggest_int("num_train_epochs", 2, 4),  # Optimized for hyperparameter search efficiency
         }
         
         # Method-specific batch size suggestions (Optuna requires fixed categories)
@@ -98,7 +98,7 @@ class OptunaOptimizer:
         # Task-specific adjustments
         if self.task == "squad_v2":
             # QA tasks typically need more epochs and lower learning rates
-            hyperparams["num_train_epochs"] = trial.suggest_int("num_train_epochs", 3, 8)
+            hyperparams["num_train_epochs"] = trial.suggest_int("num_train_epochs", 2, 4)  # Optimized for hyperparameter search efficiency
             hyperparams["learning_rate"] = trial.suggest_float("learning_rate", 5e-7, 1e-4, log=True)
         
         # Method-specific parameters

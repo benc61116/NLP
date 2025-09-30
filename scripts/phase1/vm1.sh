@@ -74,23 +74,23 @@ echo ""
 # ============================================================================
 echo "🔬 PHASE 1A: OPTUNA BAYESIAN OPTIMIZATION (SPEED OPTIMIZED + FIXED)"
 echo "Find optimal hyperparameters using Tree-structured Parzen Estimator (TPE)"
-echo "20 trials per method (academic research shows 10-20 is optimal)"
+echo "15 trials per method (exceeds TPE minimum, optimized for efficiency)"
 echo "SQuAD v2 focus: QA task optimization"
 echo "FIXES: LoRA parameter passing, eval_strategy, metrics extraction"
 echo "------------------------------------------------------------"
 
 # SQuAD v2 Optimization
-echo "⚡ [1/2] SQuAD v2 Full Fine-tuning Optimization (20 trials)"
-echo "   🎯 OPTIMIZED: 20 trials instead of 30 for faster convergence"
+echo "⚡ [1/2] SQuAD v2 Full Fine-tuning Optimization (15 trials)"
+echo "   🎯 OPTIMIZED: 15 trials (50% above TPE minimum, efficient convergence)"
 echo "   🔧 FIXED: Eval strategy enabled for metrics extraction"
 if python experiments/optuna_optimization.py \
     --task squad_v2 \
     --method full_finetune \
-    --n-trials 20 \
+    --n-trials 15 \
     --wandb-project NLP-Phase1-Optuna \
     --output-file analysis/squad_v2_full_finetune_optimal.yaml \
     > logs/phase1_optuna/vm1/squad_v2_full_optuna.log 2>&1; then
-    echo "✅ SQuAD v2 full fine-tuning optimization completed (20 trials)"
+    echo "✅ SQuAD v2 full fine-tuning optimization completed (15 trials)"
     cleanup_memory  # Clean up before next method
 else
     echo "❌ SQuAD v2 full fine-tuning optimization FAILED"
