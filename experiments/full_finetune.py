@@ -1593,6 +1593,7 @@ class FullFinetuneExperiment:
                 per_device_train_batch_size=batch_size,
                 per_device_eval_batch_size=self.config['training']['per_device_eval_batch_size'],
                 gradient_accumulation_steps=self.config['training']['gradient_accumulation_steps'],
+                eval_accumulation_steps=self.config['training'].get('eval_accumulation_steps'),  # Chunk eval for memory
                 
                 # Optimization
                 learning_rate=learning_rate,
