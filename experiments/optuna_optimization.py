@@ -161,11 +161,21 @@ class OptunaOptimizer:
             experiment.config['training']['save_total_limit'] = 0  # Don't keep any checkpoints
             experiment.config['training']['load_best_model_at_end'] = False  # Don't need to load best model
             
+            # CRITICAL: Disable representation extraction to save GPU memory (major OOM source)
+            experiment.config['training']['extract_base_model_representations'] = False
+            experiment.config['training']['save_final_representations'] = False
+            experiment.config['training']['extract_representations_every_steps'] = None  # Disable step-based extraction
+            
             # Memory optimization for QA tasks
             if self.task == 'squad_v2':
                 experiment.config['model']['max_length'] = 384  # Reduce from default 512
                 experiment.config['tasks']['squad_v2']['max_samples_train'] = 5000  # Reduce training data for speed
                 experiment.config['tasks']['squad_v2']['max_samples_eval'] = 500   # Reduce eval data
+                
+                # CRITICAL: Additional memory optimizations for SQuAD v2
+                experiment.config['training']['eval_accumulation_steps'] = 1  # Process eval in smaller chunks
+                experiment.config['training']['fp16'] = False  # Disable mixed precision for numerical stability
+                experiment.config['training']['bf16'] = False  # Disable bfloat16 to reduce memory usage slightly
             
             # Run single experiment with suggested hyperparameters
             # The run_single_experiment method handles all configuration including LoRA params

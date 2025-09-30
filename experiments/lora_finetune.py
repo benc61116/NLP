@@ -1433,6 +1433,7 @@ def main():
     parser.add_argument("--learning-rate", type=float, help="Override learning rate")
     parser.add_argument("--batch-size", type=int, help="Override batch size")
     parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
+    parser.add_argument("--weight-decay", type=float, help="Override weight decay")
     parser.add_argument("--epochs", type=int, help="Override number of training epochs")
     parser.add_argument("--lora-r", type=int, help="Override LoRA rank")
     parser.add_argument("--lora-alpha", type=int, help="Override LoRA alpha")
@@ -1565,6 +1566,8 @@ def main():
             hyperparams['per_device_train_batch_size'] = args.batch_size
         if args.warmup_ratio:
             hyperparams['warmup_ratio'] = args.warmup_ratio
+        if args.weight_decay:
+            hyperparams['weight_decay'] = args.weight_decay
         if args.epochs:
             hyperparams['num_train_epochs'] = args.epochs
         
