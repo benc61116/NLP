@@ -1,13 +1,13 @@
 best_hyperparameters:
-  learning_rate: 0.0003823496201652767
-  lora_alpha: 16
-  lora_dropout: 0.286899218846719
+  learning_rate: 0.00030877607280944177
+  lora_alpha: 8
+  lora_dropout: 0.21696008259943417
   lora_r: 8
-  num_train_epochs: 2
-  per_device_train_batch_size: 16
-  warmup_ratio: 0.09385407381922162
-  weight_decay: 0.010328085443767267
-expected_performance: 0.62
+  num_train_epochs: 4
+  per_device_train_batch_size: 4
+  warmup_ratio: 0.03754747316791479
+  weight_decay: 0.06313890282596046
+expected_performance: 0.6
 method: lora
 optimization_summary:
   n_completed: 10
