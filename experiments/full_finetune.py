@@ -1546,7 +1546,7 @@ class FullFinetuneExperiment:
             
             # Create representation extractor (disabled to save memory)
             representation_extractor = None
-            if self.config['training'].get('save_final_representations', True):
+            if self.config['training'].get('save_final_representations', False):  # FIXED: Default to False, not True!
                 representation_extractor = RepresentationExtractor(
                     self.representation_config,
                     self.output_dir,

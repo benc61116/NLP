@@ -152,9 +152,15 @@ The choice of 10-15 trials per task is methodologically sound based on:
 - Performance gaps between best/worst >5% ✅
 - Consistent results across validation seeds ✅
 
-### Phase 2: Production Experiments (20-25 hours runtime)
+### Phase 2: Production Training (20-25 hours runtime)
 
-**Purpose**: Execute main experiments with optimal hyperparameters
+**Purpose**: Train final models with optimal hyperparameters (representation extraction DISABLED for memory efficiency)
+
+**IMPORTANT**: Representation extraction is disabled during Phases 1-2 to enable:
+- Higher batch sizes (2-4 instead of forced batch_size=1)
+- Faster training (2-4x speedup)
+- Ability to use full datasets without OOM
+- Models are saved for Phase 3 representation extraction
 
 - ✅ Phase 2 scripts implemented (`scripts/phase2/vm1.sh`, `vm2.sh`)
 - Load optimal configs from Phase 1 (`analysis/*.yaml`)
