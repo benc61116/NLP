@@ -104,7 +104,7 @@ class OptunaOptimizer:
         # Method-specific parameters
         if self.method == "lora":
             hyperparams.update({
-                "lora_r": trial.suggest_categorical("lora_r", [4, 8, 16, 32]),
+                "lora_r": 8,  # FIXED: Use consistent rank across all tasks for fair comparison
                 "lora_alpha": trial.suggest_categorical("lora_alpha", [8, 16, 32, 64]),
                 "lora_dropout": trial.suggest_float("lora_dropout", 0.0, 0.3),
             })
