@@ -1145,7 +1145,6 @@ class LoRAExperiment:
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 max_grad_norm=self.config['training'].get('max_grad_norm', 1.0),  # Add gradient clipping
                 optim="adamw_bnb_8bit",  # CRITICAL: 8-bit optimizer saves ~6GB (same as Full FT)
-                optim_args={"use_cpu_offload": True} if self.config['training'].get('optim_cpu_offload', False) else {},  # CPU offload for SQuAD v2
                 
                 # Evaluation and saving
                 eval_strategy=self.config['training'].get('eval_strategy', 'steps'),  # Read what optuna sets
