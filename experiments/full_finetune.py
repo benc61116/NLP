@@ -1539,7 +1539,7 @@ class FullFinetuneExperiment:
             train_dataset, eval_dataset = self.prepare_datasets(task_name)
             
             # Extract base model representations first (only if enabled)
-            if self.config['training'].get('extract_base_model_representations', True):
+            if self.config['training'].get('extract_base_model_representations', False):
                 self.extract_base_model_representations(eval_dataset, task_name)
             else:
                 logger.info("Base model representation extraction disabled")
