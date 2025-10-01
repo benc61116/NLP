@@ -80,6 +80,8 @@ class ManualOptunaManager:
                         'trial_idx': trial_idx,
                         'status': 'success',
                         'result': trial_result,
+                        'hyperparameters': trial_result.get('best_hyperparameters', {}),
+                        'performance': trial_result.get('expected_performance', 0.0),
                         'stdout': result.stdout[-500:],  # Last 500 chars
                         'stderr': result.stderr[-500:] if result.stderr else ""
                     }
@@ -156,25 +158,24 @@ class ManualOptunaManager:
                 'results': self.results
             }
         
-        # Find best trial by performance
+        # Find best trial by performance (FIXED: Use correct data structure)
         best_trial = None
         best_value = -1
         
         for trial in successful_trials:
-            result = trial['result']
-            if 'best_trial' in result and 'value' in result['best_trial']:
-                value = result['best_trial']['value']
-                if value > best_value:
-                    best_value = value
-                    best_trial = trial
+            # FIXED: Use the extracted performance value directly
+            value = trial.get('performance', 0.0)
+            if value > best_value:
+                best_value = value
+                best_trial = trial
         
         if best_trial is None:
             logger.warning("Could not determine best trial - using first successful")
             best_trial = successful_trials[0]
-            best_value = best_trial['result']['best_trial']['value']
+            best_value = best_trial.get('performance', 0.0)
         
-        # Create final optimal configuration
-        best_hyperparams = best_trial['result']['best_trial']['hyperparameters']
+        # Create final optimal configuration (FIXED: Use extracted hyperparameters)
+        best_hyperparams = best_trial.get('hyperparameters', {})
         
         optimal_config = {
             "task": self.task,
