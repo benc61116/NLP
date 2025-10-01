@@ -50,15 +50,18 @@ class DriftAnalyzer:
         logger.info(f"  Output: {self.output_dir}")
     
     def load_base_representations(self, task: str) -> Dict[str, np.ndarray]:
-        """Load base model representations for a task."""
+        """Load base model representations for a task (extracted in Phase 0)."""
         base_task_dir = self.base_representations_dir / task
         
         if not base_task_dir.exists():
-            # Fallback: load from extract_base_representations.py output
-            base_task_dir = Path("results/base_representations") / task
+            # Fallback: Check workspace root
+            base_task_dir = Path("base_representations") / task
         
         if not base_task_dir.exists():
-            raise FileNotFoundError(f"Base representations not found for {task}")
+            raise FileNotFoundError(
+                f"Base representations not found for {task}. "
+                f"Run Phase 0 VM2 to extract base representations first!"
+            )
         
         representations = {}
         

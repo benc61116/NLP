@@ -71,7 +71,9 @@ echo ""
 echo "3️⃣ Extracting base model representations..."
 echo "   🔍 This provides the baseline for measuring representational drift"
 echo "   📊 Extracting from all tasks for comprehensive analysis..."
-run_critical_step "Base model representations extraction" "python scripts/extract_base_representations.py" "logs/phase0/vm2/base_representations_extraction.log"
+echo "   💾 Saving to base_representations/ (persistent, tracked in git)"
+echo "   ☁️  Auto-uploading to WandB artifacts"
+run_critical_step "Base model representations extraction & upload" "python scripts/extract_base_representations.py" "logs/phase0/vm2/base_representations_extraction.log"
 echo ""
 
 # 4. Memory profiling test

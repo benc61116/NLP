@@ -10,7 +10,7 @@ echo "1. MRPC, SST-2, RTE: Full fine-tuning × 3 seeds (42, 1337, 2024)"
 echo "2. MRPC, SST-2, RTE: LoRA × 3 seeds (42, 1337, 2024)"
 echo "3. Representation extraction for drift analysis"
 echo "4. Total: 18 experiments (3 tasks × 2 methods × 3 seeds)"
-echo "Expected runtime: ~20 hours"
+echo "Expected runtime: ~20-24 hours (SST-2: 18-24h, MRPC: 3h, RTE: 2h)"
 echo "============================================================================"
 
 # Setup environment

@@ -62,8 +62,9 @@ bash scripts/phase0/vm2.sh
 
 ### Representations
 - Base model representations extracted from all tasks
-- Saved for drift analysis in Phase 3
-- Format: `.npy` files in `representations/base/`
+- Saved to `base_representations/` (persistent, tracked in git, ~500MB-2GB)
+- Also uploaded to WandB artifacts for cloud backup
+- Used in Phase 3 for drift analysis
 
 ### Logs
 - Detailed logs in `logs/phase0/vm1/` and `logs/phase0/vm2/`

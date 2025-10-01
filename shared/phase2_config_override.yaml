@@ -9,7 +9,7 @@ tasks:
     num_labels: null
     metric: "f1"
     max_samples_train: null      # FULL dataset (130K samples)
-    max_samples_eval: null       # FULL validation set (~11K samples)
+    max_samples_eval: 2000       # REDUCED for faster training evals (full eval at end)
 
   sst2:
     name: "SST-2 Sentiment Analysis"
@@ -17,7 +17,7 @@ tasks:
     num_labels: 2
     metric: "accuracy"
     max_samples_train: null      # FULL dataset (67K samples)
-    max_samples_eval: null       # FULL validation set (~872 samples)
+    max_samples_eval: 800        # REDUCED for faster training evals (full eval at end)
 
   mrpc:
     name: "MRPC Paraphrase Detection"
@@ -39,9 +39,9 @@ tasks:
 training:
   # Batch sizes optimized for full dataset training with memory fixes applied
   per_device_train_batch_size: 2    # Increased from 1 (memory fixes enabled)
-  per_device_eval_batch_size: 1     # Keep conservative for large eval sets
+  per_device_eval_batch_size: 2     # INCREASED: faster evals with reduced eval sets
   gradient_accumulation_steps: 8    # Maintain effective batch size = 16
-  eval_accumulation_steps: 8        # Process large eval sets in chunks
+  eval_accumulation_steps: 4        # REDUCED: faster with smaller eval sets
 
   # Representation extraction DISABLED for Phase 2 (extracted in Phase 3)
   extract_representations_every_steps: null
@@ -53,15 +53,28 @@ training:
   dataloader_pin_memory: false      # Memory efficiency
   dataloader_num_workers: 0         # Memory efficiency
   optim: "paged_adamw_8bit"         # 8-bit optimizer for large datasets
+  
+  # SPEED OPTIMIZATIONS for Phase 2
+  eval_strategy: "epoch"            # Eval only at end of epoch (not every N steps)
+  save_strategy: "epoch"            # Save only at end of epoch
+  logging_steps: 500                # Reduce logging overhead (was 100)
 
 # Expected Memory Usage with Full Datasets:
-# - Squad v2: ~8-12GB (130K samples, batch_size=2)
-# - SST-2: ~6-10GB (67K samples, batch_size=2) 
+# - Squad v2: ~8-12GB (130K samples, batch_size=2, eval=2K samples)
+# - SST-2: ~6-10GB (67K samples, batch_size=2, eval=800 samples) 
 # - MRPC/RTE: ~4-6GB (small datasets)
 # - Available: 17-20GB after memory fixes
 # - Status: FEASIBLE ✅
+#
+# Speed Optimizations Applied:
+# - Reduced eval sets during training (2K for Squad, 800 for SST-2)
+# - Eval only at epoch boundaries (not every 100 steps)
+# - Increased eval batch size to 2 (2x faster evals)
+# - Final model still trains on FULL dataset, just faster intermediate evals
 
-# Expected Training Time:
-# - Squad v2: 8-16 hours per method per seed
-# - Classification: 4-8 hours per method per seed  
-# - Total Phase 2: 40-60 hours across 2 VMs
+# OPTIMIZED Training Time Strategy:
+# - Reduce epochs to 2-3 (optimal from Phase 1)
+# - Use smaller eval sets during training (full eval only at end)
+# - Expected: Squad v2 Full FT: 6-8 hours/seed, LoRA: 3-4 hours/seed
+# - Expected: SST-2 Full FT: 4-5 hours/seed, LoRA: 2-3 hours/seed
+# - Target Phase 2: 24-30 hours per VM (down from 40-60)

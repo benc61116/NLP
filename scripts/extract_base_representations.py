@@ -45,8 +45,8 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
         else:
             eval_dataset = data_loader.prepare_classification_data(task_name, 'validation', num_samples=num_samples)
         
-        # Create output directory
-        output_dir = Path('results/base_model_representations')
+        # Create output directory (NOT in results/ - this is persistent!)
+        output_dir = Path('base_representations')
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Create memory-optimized representation extractor
@@ -162,6 +162,15 @@ def main():
     parser.add_argument('--task', type=str, help='Specific task to process (default: all tasks)')
     args = parser.parse_args()
     
+    # Initialize wandb for base representation extraction
+    import wandb
+    wandb.init(
+        project="NLP-Phase0",
+        name=f"base_representations_extraction",
+        tags=["base_representations", "phase0"],
+        notes="Extracting base model representations for drift analysis"
+    )
+    
     logger.info("Starting base model representation extraction")
     
     # Load model configuration from shared config
@@ -223,10 +232,33 @@ def main():
     logger.info(f"✅ Base model representation extraction complete!")
     logger.info(f"Successful extractions: {successful_extractions}/{len(tasks)}")
     
+    # Upload base representations to wandb as artifact
     if successful_extractions == len(tasks):
+        logger.info("☁️  Uploading base representations to WandB...")
+        try:
+            artifact = wandb.Artifact(
+                name="base_representations",
+                type="base_representations",
+                description="Base model representations for all tasks (for drift analysis)",
+                metadata={
+                    "model": "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
+                    "tasks": tasks,
+                    "num_samples_per_task": 750,
+                    "num_layers": 24
+                }
+            )
+            artifact.add_dir("base_representations")
+            wandb.log_artifact(artifact)
+            logger.info("✅ Base representations uploaded to WandB!")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to upload to WandB: {e}")
+            logger.info("Local copy still saved in base_representations/")
+        
+        wandb.finish()
         logger.info("🎉 All base model representations extracted successfully!")
         return 0
     else:
+        wandb.finish()
         logger.error(f"❌ {len(tasks) - successful_extractions} extractions failed")
         return 1
 

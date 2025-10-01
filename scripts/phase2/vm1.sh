@@ -10,7 +10,7 @@ echo "1. SQuAD v2: Full fine-tuning × 3 seeds (42, 1337, 2024)"
 echo "2. SQuAD v2: LoRA × 3 seeds (42, 1337, 2024)"
 echo "3. Representation extraction for drift analysis"
 echo "4. Total: 6 experiments (1 task × 2 methods × 3 seeds)"
-echo "Expected runtime: ~23 hours"
+echo "Expected runtime: ~24-30 hours (Full FT: 18-24h, LoRA: 9-12h)"
 echo "============================================================================"
 
 # Setup environment
