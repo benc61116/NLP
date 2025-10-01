@@ -1144,7 +1144,7 @@ class LoRAExperiment:
                 warmup_ratio=self.lora_config.warmup_ratio,  # 6% as specified
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 max_grad_norm=self.config['training'].get('max_grad_norm', 1.0),  # Add gradient clipping
-                optim="adamw_bnb_8bit",  # CRITICAL: 8-bit optimizer saves ~6GB (same as Full FT)
+                optim="paged_adamw_8bit",  # CRITICAL: Paged 8-bit optimizer with automatic CPU offload (saves ~6GB)
                 
                 # Evaluation and saving
                 eval_strategy=self.config['training'].get('eval_strategy', 'steps'),  # Read what optuna sets

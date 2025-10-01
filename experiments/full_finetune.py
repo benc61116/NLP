@@ -1607,7 +1607,7 @@ class FullFinetuneExperiment:
                 warmup_ratio=hyperparams.get('warmup_ratio', 0.1),  # Increased to 0.1 for better gradient stability
                 lr_scheduler_type=self.config['training']['lr_scheduler_type'],
                 max_grad_norm=0.3,  # Very aggressive gradient clipping to prevent gradient explosion
-                optim="adamw_bnb_8bit",  # CRITICAL: 8-bit optimizer saves ~6GB (optimizer states: 8GB→2GB)
+                optim="paged_adamw_8bit",  # CRITICAL: Paged 8-bit optimizer with automatic CPU offload (saves ~6GB)
                 
                 # Evaluation and saving
                 eval_strategy=self.config['training'].get('eval_strategy', 'steps'),  # Read what optuna sets
