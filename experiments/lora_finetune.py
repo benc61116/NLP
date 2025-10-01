@@ -1146,7 +1146,7 @@ class LoRAExperiment:
                 max_grad_norm=self.config['training'].get('max_grad_norm', 1.0),  # Add gradient clipping
                 
                 # Evaluation and saving
-                eval_strategy=self.config['training'].get('evaluation_strategy', 'steps'),
+                eval_strategy=self.config['training'].get('eval_strategy', 'steps'),  # Read what optuna sets
                 eval_steps=100,
                 save_strategy=self.config['training'].get('save_strategy', 'steps'),
                 save_steps=500,

@@ -1610,7 +1610,7 @@ class FullFinetuneExperiment:
                 optim="adamw_bnb_8bit",  # CRITICAL: 8-bit optimizer saves ~6GB (optimizer states: 8GB→2GB)
                 
                 # Evaluation and saving
-                eval_strategy=self.config['training'].get('evaluation_strategy', 'steps'),  # Updated parameter name
+                eval_strategy=self.config['training'].get('eval_strategy', 'steps'),  # Read what optuna sets
                 eval_steps=100,
                 save_strategy=self.config['training'].get('save_strategy', 'steps'),
                 save_steps=500,

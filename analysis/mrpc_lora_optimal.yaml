@@ -1,0 +1,16 @@
+best_hyperparameters:
+  learning_rate: 0.00038269770508019034
+  lora_alpha: 16
+  lora_dropout: 0.04626805922039857
+  lora_r: 8
+  num_train_epochs: 3
+  per_device_train_batch_size: 8
+  warmup_ratio: 0.1139705119739972
+  weight_decay: 0.0337605113187364
+expected_performance: 0.78
+method: lora
+optimization_summary:
+  n_completed: 10
+  n_pruned: 0
+  n_trials: 10
+task: mrpc
