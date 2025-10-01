@@ -184,6 +184,10 @@ class OptunaOptimizer:
                 experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory (saves ~2GB)
                 experiment.config['training']['dataloader_num_workers'] = 0  # No extra workers (saves memory)
                 
+                # MINIMAL CPU offloading for Full FT only (LoRA doesn't need it)
+                if self.method == "full_finetune":
+                    experiment.config['training']['optim_cpu_offload'] = True  # Offload optimizer states to CPU (saves ~4-6GB)
+                
                 # Let num_train_epochs (suggested by Optuna) control duration
                 # No max_steps limit - proper full epoch training
                 if self.method == "full_finetune":
