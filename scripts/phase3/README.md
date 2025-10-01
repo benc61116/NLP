@@ -39,22 +39,25 @@ Phase 3 extracts representations from models trained in Phase 2 and performs dri
    - CKA (Centered Kernel Alignment) in `shared/metrics.py`
    - Cosine similarity metrics in `shared/metrics.py`
 
-### ❌ **Needs Implementation**
-1. **Phase 3 Extraction Scripts** (CREATED):
-   - `scripts/phase3/extract_representations.py` - Load model and extract
+### ✅ **Fully Implemented**
+1. **Phase 3 Extraction Scripts** ✅:
+   - `scripts/phase3/extract_representations.py` - Complete model loading and extraction
    - `scripts/phase3/vm1.sh` - SQuAD v2 extraction pipeline
-   - `scripts/phase3/vm2.sh` - Classification tasks pipeline
+   - `scripts/phase3/vm2.sh` - Classification tasks pipeline (CREATED)
 
-2. **Drift Analysis Scripts** (TODO):
+2. **Drift Analysis Scripts** ✅:
+   - `scripts/phase3/analyze_drift.py` - Complete CKA/cosine similarity analysis (CREATED)
    - Compare base model vs fine-tuned representations
-   - Compute CKA similarity across layers
-   - Compare LoRA vs Full FT drift
-   - Statistical significance testing
+   - Compare LoRA vs Full FT drift across all seeds
+   - Statistical significance testing with permutation tests
+   - Hypothesis testing for 20% drift reduction target
 
-3. **Visualization Scripts** (TODO):
+3. **Visualization Scripts** ✅:
+   - `scripts/phase3/visualize_drift.py` - Publication-quality plots (CREATED)
    - Layer-wise drift heatmaps
-   - CKA similarity matrices
-   - Comparative plots (LoRA vs Full FT)
+   - Drift reduction comparison plots
+   - Statistical significance visualizations
+   - Comprehensive research dashboard
 
 ---
 
@@ -73,20 +76,38 @@ bash scripts/phase3/vm2.sh
 
 **Runtime**: ~8-12 hours total (both VMs in parallel)
 
-### **Step 2: Drift Analysis** (TODO)
+### **Step 2: Drift Analysis** ✅
 
 ```bash
-# Analyze drift for each task
-python scripts/phase3/analyze_drift.py --task squad_v2
-python scripts/phase3/analyze_drift.py --task mrpc
-# ... etc
+# Analyze drift for all tasks (recommended)
+python scripts/phase3/analyze_drift.py --task all --output-dir results/drift_analysis
+
+# Or analyze individual tasks
+python scripts/phase3/analyze_drift.py --task squad_v2 --output-dir results/drift_analysis
+python scripts/phase3/analyze_drift.py --task mrpc --output-dir results/drift_analysis
+python scripts/phase3/analyze_drift.py --task sst2 --output-dir results/drift_analysis
+python scripts/phase3/analyze_drift.py --task rte --output-dir results/drift_analysis
 ```
 
-### **Step 3: Visualization** (TODO)
+### **Step 3: Visualization** ✅
 
 ```bash
-# Generate comparative visualizations
-python scripts/phase3/visualize_drift.py --output-dir results/phase3_analysis
+# Generate comprehensive visualizations
+python scripts/phase3/visualize_drift.py \
+    --results-file results/drift_analysis/drift_analysis_results.json \
+    --output-dir results/drift_visualizations
+
+# Output: Publication-quality plots for research paper
+```
+
+### **Step 4: Complete Analysis Pipeline** ✅
+
+```bash
+# Run the complete Phase 3 pipeline
+bash scripts/phase3/vm1.sh     # SQuAD v2 extraction
+bash scripts/phase3/vm2.sh     # Classification extraction  
+python scripts/phase3/analyze_drift.py --task all  # Comprehensive analysis
+python scripts/phase3/visualize_drift.py           # Generate all plots
 ```
 
 ---

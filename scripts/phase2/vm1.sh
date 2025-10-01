@@ -19,6 +19,13 @@ WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$WORKSPACE_DIR"
 export PYTHONPATH="$WORKSPACE_DIR:$PYTHONPATH"
 
+# PHASE 2 FIX: Apply full dataset configuration override
+echo "🔧 Applying Phase 2 full dataset configuration..."
+export PHASE2_FULL_DATASET=true
+export PHASE2_CONFIG_OVERRIDE="$WORKSPACE_DIR/shared/phase2_config_override.yaml"
+echo "   Full dataset mode enabled for production experiments"
+echo "   Config override: $PHASE2_CONFIG_OVERRIDE"
+
 export WANDB_PROJECT=NLP-Phase2
 export WANDB_ENTITY=galavny-tel-aviv-university
 
@@ -56,6 +63,48 @@ if torch.cuda.is_available():
 else:
     print('⚠ No CUDA available')
 "
+    echo ""
+}
+
+# Function to validate memory before large dataset experiments
+validate_memory_for_task() {
+    local task=$1
+    local method=$2
+    local seed=$3
+    
+    echo "🔍 Memory validation for $task ($method, seed $seed)..."
+    
+    # Get current GPU memory
+    gpu_info=$(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits)
+    gpu_used=$(echo $gpu_info | cut -d',' -f1)
+    gpu_total=$(echo $gpu_info | cut -d',' -f2)
+    gpu_free=$((gpu_total - gpu_used))
+    
+    echo "   GPU Memory: ${gpu_used}GB used, ${gpu_free}GB free (${gpu_total}GB total)"
+    
+    # Task-specific memory requirements (with full datasets)
+    case "$task" in
+        "squad_v2")
+            required_gb=12
+            samples="130K"
+            ;;
+        *)
+            required_gb=8
+            samples="full dataset"
+            ;;
+    esac
+    
+    echo "   Required: ~${required_gb}GB for $samples samples"
+    
+    if [ $gpu_free -lt $required_gb ]; then
+        echo "⚠️  WARNING: Low GPU memory ($gpu_free GB < $required_gb GB required)"
+        echo "   This experiment may encounter OOM. Consider:"
+        echo "   1. Reducing batch size in phase2_config_override.yaml"
+        echo "   2. Increasing gradient_accumulation_steps"
+        echo "   3. Running cleanup_memory() again"
+    else
+        echo "✅ Memory validation passed: ${gpu_free}GB >= ${required_gb}GB required"
+    fi
     echo ""
 }
 
@@ -98,7 +147,10 @@ TASK="squad_v2"
 METHOD="full_finetune"
 
 for SEED in "${SEEDS[@]}"; do
-    echo "⚡ [Full FT - Seed $SEED] SQuAD v2 Production Experiment"
+    echo "⚡ [Full FT - Seed $SEED] SQuAD v2 Production Experiment (FULL DATASET)"
+    
+    # Memory validation before large experiment
+    validate_memory_for_task "$TASK" "$METHOD" "$SEED"
     
     # Load optimal hyperparameters from Phase 1
     OPTIMAL_CONFIG="analysis/${TASK}_${METHOD}_optimal.yaml"
@@ -118,17 +170,21 @@ with open('$OPTIMAL_CONFIG') as f:
         args.append(f'--weight-decay {hp[\"weight_decay\"]}')
     if 'num_train_epochs' in hp:
         args.append(f'--epochs {hp[\"num_train_epochs\"]}')
+    # PHASE 2 FIX: Add configuration override for full dataset
+    args.append(f'--config-override $PHASE2_CONFIG_OVERRIDE')
     print(' '.join(args))
 ")
     
+    echo "🚀 Starting full dataset experiment: SQuAD v2 (130K samples)..."
     if python experiments/full_finetune.py \
         --task "$TASK" \
         --seed "$SEED" \
         $HYPERPARAMS \
         > "logs/phase2/vm1/${TASK}_${METHOD}_seed${SEED}.log" 2>&1; then
-        echo "✅ SQuAD v2 full fine-tuning (seed $SEED) completed"
+        echo "✅ SQuAD v2 full fine-tuning (seed $SEED) completed - FULL DATASET"
     else
         echo "❌ SQuAD v2 full fine-tuning (seed $SEED) FAILED"
+        echo "   Check logs: logs/phase2/vm1/${TASK}_${METHOD}_seed${SEED}.log"
         exit 1
     fi
     
@@ -150,7 +206,10 @@ echo "------------------------------------------------------------"
 METHOD="lora"
 
 for SEED in "${SEEDS[@]}"; do
-    echo "⚡ [LoRA - Seed $SEED] SQuAD v2 Production Experiment"
+    echo "⚡ [LoRA - Seed $SEED] SQuAD v2 Production Experiment (FULL DATASET)"
+    
+    # Memory validation before large experiment
+    validate_memory_for_task "$TASK" "$METHOD" "$SEED"
     
     # Load optimal hyperparameters from Phase 1
     OPTIMAL_CONFIG="analysis/${TASK}_${METHOD}_optimal.yaml"
@@ -176,17 +235,21 @@ with open('$OPTIMAL_CONFIG') as f:
         args.append(f'--lora-alpha {hp[\"lora_alpha\"]}')
     if 'lora_dropout' in hp:
         args.append(f'--lora-dropout {hp[\"lora_dropout\"]}')
+    # PHASE 2 FIX: Add configuration override for full dataset
+    args.append(f'--config-override $PHASE2_CONFIG_OVERRIDE')
     print(' '.join(args))
 ")
     
+    echo "🚀 Starting full dataset experiment: SQuAD v2 LoRA (130K samples)..."
     if python experiments/lora_finetune.py \
         --task "$TASK" \
         --seed "$SEED" \
         $HYPERPARAMS \
         > "logs/phase2/vm1/${TASK}_${METHOD}_seed${SEED}.log" 2>&1; then
-        echo "✅ SQuAD v2 LoRA (seed $SEED) completed"
+        echo "✅ SQuAD v2 LoRA (seed $SEED) completed - FULL DATASET"
     else
         echo "❌ SQuAD v2 LoRA (seed $SEED) FAILED"
+        echo "   Check logs: logs/phase2/vm1/${TASK}_${METHOD}_seed${SEED}.log"
         exit 1
     fi
     

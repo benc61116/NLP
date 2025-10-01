@@ -1,0 +1,67 @@
+# Phase 2 Configuration Override - Full Production Datasets
+# This overrides the Phase 1 reduced dataset sizes for production experiments
+
+# Task-Specific Dataset Sizes for Phase 2 Production
+tasks:
+  squad_v2:
+    name: "SQuAD v2.0 Question Answering"
+    type: "question_answering"
+    num_labels: null
+    metric: "f1"
+    max_samples_train: null      # FULL dataset (130K samples)
+    max_samples_eval: null       # FULL validation set (~11K samples)
+
+  sst2:
+    name: "SST-2 Sentiment Analysis"
+    type: "classification"
+    num_labels: 2
+    metric: "accuracy"
+    max_samples_train: null      # FULL dataset (67K samples)
+    max_samples_eval: null       # FULL validation set (~872 samples)
+
+  mrpc:
+    name: "MRPC Paraphrase Detection"
+    type: "classification"
+    num_labels: 2
+    metric: "f1"
+    max_samples_train: null      # FULL dataset (3.7K samples - already small)
+    max_samples_eval: null       # FULL validation set (~408 samples)
+
+  rte:
+    name: "RTE Textual Entailment"
+    type: "classification"
+    num_labels: 2
+    metric: "accuracy"
+    max_samples_train: null      # FULL dataset (2.5K samples - already small)
+    max_samples_eval: null       # FULL validation set (~277 samples)
+
+# Memory-Optimized Training Settings for Full Datasets
+training:
+  # Batch sizes optimized for full dataset training with memory fixes applied
+  per_device_train_batch_size: 2    # Increased from 1 (memory fixes enabled)
+  per_device_eval_batch_size: 1     # Keep conservative for large eval sets
+  gradient_accumulation_steps: 8    # Maintain effective batch size = 16
+  eval_accumulation_steps: 8        # Process large eval sets in chunks
+
+  # Representation extraction DISABLED for Phase 2 (extracted in Phase 3)
+  extract_representations_every_steps: null
+  save_final_representations: false
+  extract_base_model_representations: false
+
+  # Memory optimization settings
+  gradient_checkpointing: true
+  dataloader_pin_memory: false      # Memory efficiency
+  dataloader_num_workers: 0         # Memory efficiency
+  optim: "paged_adamw_8bit"         # 8-bit optimizer for large datasets
+
+# Expected Memory Usage with Full Datasets:
+# - Squad v2: ~8-12GB (130K samples, batch_size=2)
+# - SST-2: ~6-10GB (67K samples, batch_size=2) 
+# - MRPC/RTE: ~4-6GB (small datasets)
+# - Available: 17-20GB after memory fixes
+# - Status: FEASIBLE ✅
+
+# Expected Training Time:
+# - Squad v2: 8-16 hours per method per seed
+# - Classification: 4-8 hours per method per seed  
+# - Total Phase 2: 40-60 hours across 2 VMs

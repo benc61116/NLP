@@ -1481,6 +1481,7 @@ def main():
                        help="Type of ablation study")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--config", default="shared/config.yaml", help="Config file path")
+    parser.add_argument("--config-override", type=str, help="Config override file (for Phase 2 full datasets)")
     parser.add_argument("--learning-rate", type=float, help="Override learning rate")
     parser.add_argument("--batch-size", type=int, help="Override batch size")
     parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
@@ -1503,6 +1504,34 @@ def main():
     
     # Initialize experiment
     experiment = LoRAExperiment(args.config)
+    
+    # PHASE 2 FIX: Apply configuration override for full dataset experiments
+    if args.config_override and Path(args.config_override).exists():
+        logger.info(f"🔧 Applying config override: {args.config_override}")
+        import yaml
+        with open(args.config_override, 'r') as f:
+            override_config = yaml.safe_load(f)
+        
+        # Merge override config (override takes precedence)
+        def deep_merge(base_dict, override_dict):
+            """Deep merge two dictionaries."""
+            result = base_dict.copy()
+            for key, value in override_dict.items():
+                if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+                    result[key] = deep_merge(result[key], value)
+                else:
+                    result[key] = value
+            return result
+        
+        experiment.config = deep_merge(experiment.config, override_config)
+        logger.info("✅ Configuration override applied")
+        
+        # Log key override changes
+        if 'tasks' in override_config:
+            for task_name, task_config in override_config['tasks'].items():
+                max_train = task_config.get('max_samples_train', 'unchanged')
+                max_eval = task_config.get('max_samples_eval', 'unchanged')
+                logger.info(f"   {task_name}: train={max_train}, eval={max_eval}")
     
     # Ensure model is set to TinyLlama for all experiments  
     experiment.config['model']['name'] = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
