@@ -407,6 +407,7 @@ class OptunaOptimizer:
             torch.cuda.empty_cache()
             
             # Report disk usage
+            import shutil  # Ensure shutil is available
             total, used, free = shutil.disk_usage('/')
             usage_percent = (used / total) * 100
             logger.info(f"💾 Disk usage after cleanup: {usage_percent:.1f}% ({used//(1024**3)}GB used, {free//(1024**3)}GB free)")
@@ -504,13 +505,13 @@ class OptunaOptimizer:
         logger.info(f"Results saved to: {results_file}")
         
         # CONSERVATIVE FINAL CLEANUP: Only if disk usage is high
+        import shutil  # Ensure shutil is available for disk usage check
         total, used, free = shutil.disk_usage('/')
         usage_percent = (used / total) * 100
         
         if usage_percent > 70:  # Only clean if disk is >70% full
             logger.info("Performing final cleanup of trial artifacts (disk usage high)...")
-            import shutil
-            import time
+            import time  # shutil already imported above
             
             # Add delay before final cleanup to ensure all processes are settled
             time.sleep(5)
@@ -532,7 +533,7 @@ class OptunaOptimizer:
         else:
             logger.info(f"Skipping final cleanup (disk usage: {usage_percent:.1f}% < 70%)")
         
-        # Report final disk usage
+        # Report final disk usage (shutil already imported above)
         total, used, free = shutil.disk_usage('/')
         usage_percent = (used / total) * 100
         logger.info(f"💾 Final disk usage: {usage_percent:.1f}% ({used//(1024**3)}GB used, {free//(1024**3)}GB free)")
