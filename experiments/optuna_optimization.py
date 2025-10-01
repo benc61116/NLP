@@ -186,32 +186,25 @@ class OptunaOptimizer:
             
             # Memory optimization for ALL tasks (QA and Classification)
             if self.task == 'squad_v2':
-<<<<<<< HEAD
-                experiment.config['model']['max_length'] = 256  # Reduced from 384 to save ~30% activation memory
-                experiment.config['tasks']['squad_v2']['max_samples_train'] = 3000  # Research-grade: 2.3% coverage
-                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 300   # Proportional eval set
-=======
-                experiment.config['model']['max_length'] = 384  # QA needs longer context for Q+A pairs
-                experiment.config['tasks']['squad_v2']['max_samples_train'] = 1500  # REDUCED: Emergency memory reduction
-                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 150   # REDUCED: Proportional eval set
->>>>>>> 6030272e46dba79e79efa8eccb36d0dbf39fffd5
+                experiment.config['model']['max_length'] = 384  # Restored: representation extraction disabled, memory available
+                experiment.config['tasks']['squad_v2']['max_samples_train'] = 1500  # Reduced for Optuna speed
+                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 150   # Proportional eval set
                 
-                # CRITICAL: Balanced memory optimizations for 22GB GPU
-                # The key issue: eval creates massive activation memory with large eval sets
-                experiment.config['training']['per_device_eval_batch_size'] = 1  # Reduce eval batch to 1
-                experiment.config['training']['eval_accumulation_steps'] = 8  # Process eval in chunks (increased for memory efficiency)
+                # Memory optimizations for 22GB GPU (with representation extraction DISABLED)
+                experiment.config['training']['per_device_eval_batch_size'] = 2  # Can increase now
+                experiment.config['training']['eval_accumulation_steps'] = 8  # More aggressive chunking
                 
-                # Minimal memory optimizations - only what's needed
-                experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory (saves ~2GB)
-                experiment.config['training']['dataloader_num_workers'] = 0  # No extra workers (saves memory)
+                # Keep minimal optimizations
+                experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory
+                experiment.config['training']['dataloader_num_workers'] = 0  # No extra workers
+                experiment.config['training']['max_grad_norm'] = 0.1  # More aggressive clipping
                 
-                # Let num_train_epochs (suggested by Optuna) control duration
-                # No max_steps limit - proper full epoch training
+                # Gradient accumulation based on batch size (will be adjusted by Optuna)
                 if self.method == "full_finetune":
                     experiment.config['training']['logging_steps'] = 100
-                    experiment.config['training']['gradient_accumulation_steps'] = 8  # Increased: simulate batch_size=8
+                    experiment.config['training']['gradient_accumulation_steps'] = 16  # Higher: batch_size will be 1 or 2
                 else:
-                    # LoRA settings - can use smaller gradient accumulation (less memory intensive)
+                    # LoRA settings
                     experiment.config['training']['logging_steps'] = 100
                     experiment.config['training']['gradient_accumulation_steps'] = 4
             
