@@ -1,9 +1,9 @@
 best_hyperparameters:
-  learning_rate: 3.770366746308486e-06
+  learning_rate: 1.6774962151753295e-05
   num_train_epochs: 2
   per_device_train_batch_size: 1
-  warmup_ratio: 0.18379468474842162
-  weight_decay: 0.02633138019808441
+  warmup_ratio: 0.0791031802824938
+  weight_decay: 0.0863604797174436
 expected_performance: 0.0
 method: full_finetune
 optimization_summary:
