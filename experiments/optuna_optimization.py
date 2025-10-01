@@ -113,7 +113,8 @@ class OptunaOptimizer:
         if self.task == "squad_v2":
             # QA tasks typically need more epochs and lower learning rates
             hyperparams["num_train_epochs"] = trial.suggest_int("num_train_epochs", 2, 4)  # Optimized for hyperparameter search efficiency
-            hyperparams["learning_rate"] = trial.suggest_float("learning_rate", 5e-7, 1e-4, log=True)
+            # REMOVED OVERRIDE: Use method-specific ranges instead (full FT: 5e-5 max, LoRA: 5e-3 max)
+            # The method-specific ranges above already account for QA task needs
         
         # Method-specific parameters
         if self.method == "lora":
