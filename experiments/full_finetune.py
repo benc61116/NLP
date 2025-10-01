@@ -1983,7 +1983,7 @@ def main():
             'num_train_epochs': max_epochs,  # Task-specific epochs for optimal performance
             'learning_rate': sanity_lr,  # CRITICAL FIX: Boost learning rate for sanity checks
             'per_device_train_batch_size': 1,  # Perfect overfitting needs batch size 1
-            'evaluation_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation to test overfitting
+            'eval_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation to test overfitting
             'save_strategy': 'no',
             'load_best_model_at_end': False,  # CRITICAL FIX: Disable to avoid save/eval strategy mismatch
             'logging_steps': 1,
@@ -2019,7 +2019,7 @@ def main():
         
         experiment.config['training'].update({
             'num_train_epochs': 1,  # Just 1 epoch to test initial stability
-            'evaluation_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation for production stability
+            'eval_strategy': 'epoch',  # CRITICAL FIX: Enable evaluation for production stability
             'save_strategy': 'no',
             'load_best_model_at_end': False,  # CRITICAL FIX: Disable to avoid save/eval strategy mismatch
             'logging_steps': 1,

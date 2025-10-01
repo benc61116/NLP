@@ -163,7 +163,6 @@ class OptunaOptimizer:
             experiment.config['training']['load_best_model_at_end'] = False  # Don't need to load best model
             # CRITICAL FIX: Enable evaluation at end to get eval_metrics (but no saving)
             experiment.config['training']['eval_strategy'] = 'epoch'  # Evaluate at end of each epoch
-            experiment.config['training']['evaluation_strategy'] = 'epoch'  # Alternative HF name
             
             # CRITICAL: Disable representation extraction to save GPU memory (major OOM source)
             experiment.config['training']['extract_base_model_representations'] = False
