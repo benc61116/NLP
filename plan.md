@@ -66,6 +66,13 @@ This research project investigates two critical questions in parameter-efficient
 - Proven architecture with good task transfer
 - Enables thorough experimentation within time constraints
 
+
+**LoRA Configuration**: Rank 8 (fixed across all tasks)
+- **Methodological Justification**: Following Hu et al. (2021), rank 8 balances efficiency and performance
+- **Research Standard**: Ranks 4-32 show diminishing returns; rank 8 is commonly used in GLUE benchmarks
+- **Controlled Comparison**: Fixed rank ensures fair cross-task comparison (not optimizing rank per task)
+- **Scope**: Task-specific rank optimization is future work; this study focuses on LoRA vs Full FT trade-offs
+- **Limitation Acknowledged**: Rank 8 may be suboptimal for complex tasks (e.g., sentiment analysis), but provides consistent baseline
 ## Phase-Based Execution Plan
 
 ### Phase 0: Methodology Validation & Baselines (7-10 hours runtime)
