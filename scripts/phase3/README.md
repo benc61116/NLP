@@ -174,3 +174,20 @@ results/phase3_representations/
 - Extraction uses same 750 validation samples as Phase 0-2 for consistency
 - All 24 transformer layers extracted for comprehensive analysis
 
+
+## 🔄 Base Representations Management
+
+**Storage**: Base model representations (48GB) are stored in WandB artifacts, NOT in git.
+
+**Download when needed** (e.g., for Phase 3 analysis on a new VM):
+```bash
+bash scripts/download_base_representations.sh
+```
+
+This downloads the base representations from WandB to `base_representations/` directory.
+
+**Why not in git?**
+- 48GB is too large for git/GitHub
+- Would consume limited VM disk space unnecessarily  
+- Already safely stored in WandB artifacts
+- Can be re-downloaded anytime for analysis
