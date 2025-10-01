@@ -48,6 +48,23 @@ if torch.cuda.is_available():
     echo ""
 }
 
+# Function to clean disk cache between tasks (non-disruptive)
+cleanup_disk_cache() {
+    echo "🧹 Cleaning disk cache (wandb artifacts only)..."
+    
+    # Only clean wandb cache if disk usage > 70%
+    disk_usage=$(df / | tail -1 | awk '{print int($5)}')
+    
+    if [ $disk_usage -gt 70 ]; then
+        echo "   Disk usage: ${disk_usage}% - cleaning wandb cache..."
+        rm -rf ~/.cache/wandb/* 2>/dev/null || true
+        echo "   ✓ Wandb cache cleaned"
+    else
+        echo "   Disk usage: ${disk_usage}% - no cleanup needed (< 70%)"
+    fi
+    echo ""
+}
+
 echo "📅 Started at: $(date)"
 echo ""
 

@@ -66,6 +66,23 @@ else:
     echo ""
 }
 
+# Function to clean disk cache between tasks (non-disruptive)
+cleanup_disk_cache() {
+    echo "🧹 Cleaning disk cache (wandb artifacts only)..."
+    
+    # Only clean wandb cache if disk usage > 70%
+    disk_usage=$(df / | tail -1 | awk '{print int($5)}')
+    
+    if [ $disk_usage -gt 70 ]; then
+        echo "   Disk usage: ${disk_usage}% - cleaning wandb cache..."
+        rm -rf ~/.cache/wandb/* 2>/dev/null || true
+        echo "   ✓ Wandb cache cleaned"
+    else
+        echo "   Disk usage: ${disk_usage}% - no cleanup needed (< 70%)"
+    fi
+    echo ""
+}
+
 # Function to validate memory before large dataset experiments
 validate_memory_for_task() {
     local task=$1
@@ -193,6 +210,9 @@ with open('$OPTIMAL_CONFIG') as f:
     echo ""
 done
 
+# Clean disk cache after method completion (non-disruptive)
+cleanup_disk_cache
+
 echo "✅ All SQuAD v2 full fine-tuning experiments completed (3 seeds)"
 echo ""
 
@@ -257,6 +277,9 @@ with open('$OPTIMAL_CONFIG') as f:
         cleanup_memory
     echo ""
 done
+
+# Clean disk cache after method completion (non-disruptive)
+cleanup_disk_cache
 
 echo "✅ All SQuAD v2 LoRA experiments completed (3 seeds)"
 echo ""
