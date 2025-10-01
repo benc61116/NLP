@@ -79,13 +79,22 @@ class OptunaOptimizer:
         Based on literature best practices and empirical ranges for TinyLlama fine-tuning.
         """
         
-        # Common hyperparameters for both methods
-        hyperparams = {
-            "learning_rate": trial.suggest_float("learning_rate", 1e-6, 5e-4, log=True),
-            "warmup_ratio": trial.suggest_float("warmup_ratio", 0.0, 0.3),
-            "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
-            "num_train_epochs": trial.suggest_int("num_train_epochs", 2, 4),  # Optimized for hyperparameter search efficiency
-        }
+        # Method-specific hyperparameters (FIXED: Conservative ranges for full fine-tuning)
+        if self.method == "full_finetune":
+            # CONSERVATIVE: Full fine-tuning needs much lower learning rates
+            hyperparams = {
+                "learning_rate": trial.suggest_float("learning_rate", 1e-6, 5e-5, log=True),  # REDUCED: max 5e-5 vs 5e-4
+                "warmup_ratio": trial.suggest_float("warmup_ratio", 0.0, 0.2),  # REDUCED: max 0.2 vs 0.3  
+                "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.01),  # REDUCED: max 0.01 vs 0.1
+                "num_train_epochs": trial.suggest_int("num_train_epochs", 2, 4),
+            }
+        else:  # LoRA can handle higher learning rates
+            hyperparams = {
+                "learning_rate": trial.suggest_float("learning_rate", 5e-5, 5e-3, log=True),  # LoRA range (higher)
+                "warmup_ratio": trial.suggest_float("warmup_ratio", 0.0, 0.3),
+                "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1), 
+                "num_train_epochs": trial.suggest_int("num_train_epochs", 2, 4),
+            }
         
         # Method-specific batch size suggestions (Optuna requires fixed categories)
         if self.method == "full_finetune":
@@ -160,7 +169,12 @@ class OptunaOptimizer:
             experiment.config['training']['dataloader_num_workers'] = 0     # Reduce memory
             experiment.config['training']['per_device_eval_batch_size'] = 1  # Minimize eval memory
             experiment.config['training']['gradient_accumulation_steps'] = max(8 // hyperparams['per_device_train_batch_size'], 1)  # Maintain effective batch size
-            experiment.config['training']['max_grad_norm'] = 1.0  # Prevent gradient explosion in small batches
+            
+            # CRITICAL FIX: Much more aggressive gradient clipping for full fine-tuning
+            if self.method == "full_finetune":
+                experiment.config['training']['max_grad_norm'] = 0.1  # VERY aggressive clipping for full FT
+            else:
+                experiment.config['training']['max_grad_norm'] = 1.0  # Standard for LoRA
             
             # CRITICAL: Disable model checkpoint saving for Optuna (we only need metrics, not models)
             experiment.config['training']['save_strategy'] = 'no'  # Don't save checkpoints during training
