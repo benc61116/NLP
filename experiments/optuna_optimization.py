@@ -528,10 +528,18 @@ def main():
     
     # Save optimal hyperparameters in format expected by VM scripts
     if args.output_file:
+        best_hyperparams = results["best_trial"]["hyperparameters"].copy()
+        
+        # CRITICAL FIX: Add fixed hyperparameters that weren't searched
+        # LoRA rank was fixed at 8, but Optuna doesn't save it since it wasn't searched
+        if args.method == 'lora':
+            if 'lora_r' not in best_hyperparams:
+                best_hyperparams['lora_r'] = 8  # Add the fixed rank used in optimization
+        
         optimal_config = {
             "task": args.task,
             "method": args.method,
-            "best_hyperparameters": results["best_trial"]["hyperparameters"],
+            "best_hyperparameters": best_hyperparams,
             "expected_performance": results["best_trial"]["value"],
             "optimization_summary": {
                 "n_trials": results["n_trials"],
