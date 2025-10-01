@@ -31,8 +31,9 @@ training:
   
   # Batch sizes (adjust based on GPU memory)
   per_device_train_batch_size: 1  # Reduced for memory efficiency
-  per_device_eval_batch_size: 2   # Reduced for memory efficiency  
+  per_device_eval_batch_size: 1   # Further reduced to 1 for SQuAD v2 OOM fix
   gradient_accumulation_steps: 4  # Reduced to help with gradient stability
+  eval_accumulation_steps: 4      # Added: chunk evaluation for memory efficiency
   
   # Learning rates (reduced to prevent gradient explosion)
   learning_rate: 0.0002      # Higher for LoRA
