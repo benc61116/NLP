@@ -52,7 +52,8 @@ class ManualOptunaManager:
             "--method", self.method,
             "--n-trials", "1",  # Single trial to avoid VM detection
             "--wandb-project", wandb_project,
-            "--output-file", str(output_file)
+            "--output-file", str(output_file),
+            "--trial-offset", str(trial_idx)  # Pass trial index for proper W&B naming
         ]
         
         logger.info(f"Executing: {' '.join(cmd)}")

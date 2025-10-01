@@ -36,7 +36,7 @@ class OptunaOptimizer:
     """Bayesian optimization for hyperparameter tuning using Optuna."""
     
     def __init__(self, task: str, method: str, n_trials: int = 30, 
-                 pruning: bool = True, wandb_project: str = "NLP-Phase1-Optuna"):
+                 pruning: bool = True, wandb_project: str = "NLP-Phase1-Optuna", trial_offset: int = 0):
         """Initialize Optuna optimizer.
         
         Args:
@@ -45,11 +45,13 @@ class OptunaOptimizer:
             n_trials: Number of optimization trials (default: 30 for research efficiency)
             pruning: Enable MedianPruner for early stopping of poor trials
             wandb_project: W&B project for logging
+            trial_offset: Trial number offset for manual sweep (default: 0)
         """
         self.task = task
         self.method = method
         self.n_trials = n_trials
         self.wandb_project = wandb_project
+        self.trial_offset = trial_offset
         
         # Create study name for reproducibility
         self.study_name = f"{task}_{method}_optuna_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -138,7 +140,7 @@ class OptunaOptimizer:
                 project=self.wandb_project,
                 group=f"{self.task}_{self.method}",
                 job_type="optuna_trial",
-                name=f"{self.study_name}_trial_{trial.number}",
+                name=f"{self.study_name}_trial_{trial.number + self.trial_offset}",
                 config=hyperparams,
                 reinit="finish_previous"
             )
@@ -558,6 +560,8 @@ def main():
                       help="W&B project name")
     parser.add_argument("--output-file", type=str,
                       help="Output file for best hyperparameters (YAML format)")
+    parser.add_argument("--trial-offset", type=int, default=0,
+                      help="Trial number offset for manual sweep naming (default: 0)")
     
     args = parser.parse_args()
     
@@ -570,7 +574,8 @@ def main():
         method=args.method,
         n_trials=args.n_trials,
         pruning=not args.no_pruning,
-        wandb_project=args.wandb_project
+        wandb_project=args.wandb_project,
+        trial_offset=args.trial_offset
     )
     
     # Run optimization
