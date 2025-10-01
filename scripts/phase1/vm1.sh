@@ -83,13 +83,10 @@ echo "------------------------------------------------------------"
 echo "⚡ [1/2] SQuAD v2 Full Fine-tuning Optimization (15 trials)"
 echo "   🎯 OPTIMIZED: 15 trials (50% above TPE minimum, efficient convergence)"
 echo "   🔧 FIXED: Eval strategy enabled for metrics extraction"
-if python experiments/optuna_optimization.py \
-    --task squad_v2 \
-    --method full_finetune \
-    --n-trials 15 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/squad_v2_full_finetune_optimal.yaml \
-    > logs/phase1_optuna/vm1/squad_v2_full_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task squad_v2 --method full_finetune --n-trials 15 --wandb-project NLP-Phase1-Optuna --output-file analysis/squad_v2_full_finetune_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm1/squad_v2_full_optuna.log 2>&1; then
     echo "✅ SQuAD v2 full fine-tuning optimization completed (15 trials)"
     cleanup_memory  # Clean up before next method
 else
@@ -99,13 +96,10 @@ fi
 
 echo "⚡ [2/2] SQuAD v2 LoRA Optimization (15 trials)"
 echo "   🔧 FIXED: LoRA parameter passing (lora_r/lora_alpha now properly used)"
-if python experiments/optuna_optimization.py \
-    --task squad_v2 \
-    --method lora \
-    --n-trials 15 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/squad_v2_lora_optimal.yaml \
-    > logs/phase1_optuna/vm1/squad_v2_lora_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task squad_v2 --method lora --n-trials 15 --wandb-project NLP-Phase1-Optuna --output-file analysis/squad_v2_lora_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm1/squad_v2_lora_optuna.log 2>&1; then
     echo "✅ SQuAD v2 LoRA optimization completed (15 trials)"
     cleanup_memory  # Final cleanup
 else
