@@ -29,11 +29,11 @@ training:
   dataloader_pin_memory: false  # Changed to false for memory efficiency (Phase 1 OOM fix)
   dataloader_num_workers: 0     # Changed to 0 for memory efficiency (Phase 1 OOM fix)
   
-  # Batch sizes (adjust based on GPU memory)
-  per_device_train_batch_size: 1  # Reduced for memory efficiency
-  per_device_eval_batch_size: 1   # Further reduced to 1 for SQuAD v2 OOM fix
-  gradient_accumulation_steps: 4  # Reduced to help with gradient stability
-  eval_accumulation_steps: 4      # Added: chunk evaluation for memory efficiency
+  # Batch sizes (adjust based on GPU memory) - OPTIMIZED FOR MEMORY RECOVERY
+  per_device_train_batch_size: 2  # INCREASED: Now possible with representation extraction disabled
+  per_device_eval_batch_size: 1   # Keep at 1 for memory safety during eval
+  gradient_accumulation_steps: 8  # Maintain effective batch size
+  eval_accumulation_steps: 8      # Increased: chunk evaluation for better memory efficiency
   
   # Learning rates (reduced to prevent gradient explosion)
   learning_rate: 0.0002      # Higher for LoRA
@@ -59,10 +59,10 @@ training:
   save_steps: 500
   logging_steps: 50
   
-  # Representation extraction settings (enabled for drift analysis)
-  extract_representations_every_steps: 100  # Extract every 100 steps for drift analysis
-  save_final_representations: true         # Save final representations for drift analysis
-  extract_base_model_representations: true # Extract base model representations (should be VM3 only)
+  # Representation extraction settings (DISABLED for Phase 1 memory recovery)
+  extract_representations_every_steps: null  # DISABLED: Major memory savings for Phase 1/2
+  save_final_representations: false         # DISABLED: Save memory during training
+  extract_base_model_representations: false # DISABLED: Enable only in Phase 3 analysis
   
   # Early stopping
   load_best_model_at_end: true
@@ -101,8 +101,8 @@ tasks:
     type: "question_answering"
     num_labels: null
     metric: "f1"
-    max_samples_train: 10000  # Limit for computational efficiency
-    max_samples_eval: 2000
+    max_samples_train: 5000   # REDUCED for Phase 1 memory efficiency 
+    max_samples_eval: 500     # REDUCED proportionally
 
 # Sanity Check Configuration
 sanity_check:

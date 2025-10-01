@@ -89,10 +89,15 @@ class OptunaOptimizer:
         
         # Method-specific batch size suggestions (Optuna requires fixed categories)
         if self.method == "full_finetune":
-            # EMERGENCY: Ultra-conservative batch sizes for full fine-tuning to avoid OOM
-            hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [1])  # FORCE batch size 1
+            # With representation extraction DISABLED, we can use higher batch sizes
+            if self.task == "squad_v2":
+                # SQuAD v2: Start conservative, test batch size 2
+                hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [1, 2])
+            else:
+                # Classification: Can use higher batch sizes
+                hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [2, 4])
         else:
-            # More aggressive batch sizes for LoRA
+            # More aggressive batch sizes for LoRA (less memory intensive)
             hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [4, 8, 16])
         
         # Task-specific adjustments
@@ -164,21 +169,37 @@ class OptunaOptimizer:
             # CRITICAL FIX: Enable evaluation at end to get eval_metrics (but no saving)
             experiment.config['training']['eval_strategy'] = 'epoch'  # Evaluate at end of each epoch
             
-            # CRITICAL: Disable representation extraction to save GPU memory (major OOM source)
+            # CRITICAL: Disable ALL representation extraction to save GPU memory (major OOM source)
             experiment.config['training']['extract_base_model_representations'] = False
             experiment.config['training']['save_final_representations'] = False
             experiment.config['training']['extract_representations_every_steps'] = None  # Disable step-based extraction
             
+            # EMERGENCY: Additional memory optimizations for batch size recovery
+            experiment.config['training']['eval_accumulation_steps'] = 8  # Increased from 4
+            experiment.config['training']['max_grad_norm'] = 0.1  # Much more aggressive clipping
+            
+            # CRITICAL: Test higher batch sizes with representation extraction disabled
+            if self.method == "full_finetune" and self.task == "squad_v2":
+                # Try batch size 2 now that representation extraction is disabled
+                hyperparams["per_device_train_batch_size"] = trial.suggest_categorical("per_device_train_batch_size", [1, 2])
+                experiment.config['training']['gradient_accumulation_steps'] = 16  # Maintain effective batch size
+            
             # Memory optimization for ALL tasks (QA and Classification)
             if self.task == 'squad_v2':
+<<<<<<< HEAD
                 experiment.config['model']['max_length'] = 256  # Reduced from 384 to save ~30% activation memory
                 experiment.config['tasks']['squad_v2']['max_samples_train'] = 3000  # Research-grade: 2.3% coverage
                 experiment.config['tasks']['squad_v2']['max_samples_eval'] = 300   # Proportional eval set
+=======
+                experiment.config['model']['max_length'] = 384  # QA needs longer context for Q+A pairs
+                experiment.config['tasks']['squad_v2']['max_samples_train'] = 1500  # REDUCED: Emergency memory reduction
+                experiment.config['tasks']['squad_v2']['max_samples_eval'] = 150   # REDUCED: Proportional eval set
+>>>>>>> 6030272e46dba79e79efa8eccb36d0dbf39fffd5
                 
                 # CRITICAL: Balanced memory optimizations for 22GB GPU
                 # The key issue: eval creates massive activation memory with large eval sets
                 experiment.config['training']['per_device_eval_batch_size'] = 1  # Reduce eval batch to 1
-                experiment.config['training']['eval_accumulation_steps'] = 4  # Process eval in chunks (keep at 4 for efficiency)
+                experiment.config['training']['eval_accumulation_steps'] = 8  # Process eval in chunks (increased for memory efficiency)
                 
                 # Minimal memory optimizations - only what's needed
                 experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory (saves ~2GB)
