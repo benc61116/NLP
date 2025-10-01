@@ -223,23 +223,23 @@ class SanityCheckFramework:
                 except:
                     continue
         
-        # Calculate metrics - prioritize eval_losses for overfitting detection
-        if eval_losses and len(eval_losses) > 1:
-            # Use eval_loss progression for overfitting detection (more reliable)
+        # Calculate metrics - MUST use train_losses for overfitting detection (eval_loss is expected to increase)
+        if train_losses and len(train_losses) > 1:
+            # Use train_loss progression for overfitting detection (methodologically correct)
+            metrics['initial_loss'] = train_losses[0]
+            metrics['final_loss'] = train_losses[-1]
+            metrics['min_loss'] = min(train_losses)
+            metrics['loss_reduction'] = train_losses[0] - train_losses[-1]
+            metrics['loss_values'] = train_losses[-5:]  # Last 5 values
+            metrics['loss_type'] = 'train'
+        elif eval_losses and len(eval_losses) > 1:
+            # Fallback to eval_loss if no train_losses available (less reliable for overfitting checks)
             metrics['initial_loss'] = eval_losses[0]
             metrics['final_loss'] = eval_losses[-1]
             metrics['min_loss'] = min(eval_losses)
             metrics['loss_reduction'] = eval_losses[0] - eval_losses[-1]
             metrics['loss_values'] = eval_losses[-5:]  # Last 5 values
             metrics['loss_type'] = 'eval'
-        elif train_losses:
-            # Fallback to train_loss if no eval_losses available
-            metrics['initial_loss'] = train_losses[0]
-            metrics['final_loss'] = train_losses[-1]
-            metrics['min_loss'] = min(train_losses)
-            metrics['loss_reduction'] = train_losses[0] - train_losses[-1] if len(train_losses) > 1 else 0
-            metrics['loss_values'] = train_losses[-5:]  # Last 5 values
-            metrics['loss_type'] = 'train'
         
         if grad_norms:
             metrics['max_grad_norm'] = max(grad_norms)
@@ -280,13 +280,20 @@ class SanityCheckFramework:
         
         # Check loss behavior (only training loss matters for sanity checks)
         if 'final_loss' in metrics and 'initial_loss' in metrics:
-            # For sanity checks, only care if TRAINING loss increased (eval loss can diverge during overfitting)
+            loss_type = metrics.get('loss_type', 'unknown')
             loss_increased = metrics['final_loss'] > metrics['initial_loss']
-            # Only flag as issue if it's a significant increase (> 10% to avoid noise)
-            if loss_increased and (metrics['final_loss'] - metrics['initial_loss']) > 0.1 * metrics['initial_loss']:
-                issues.append(f"Training loss increased significantly: {metrics['initial_loss']:.3f} → {metrics['final_loss']:.3f}")
-            elif metrics['final_loss'] > 20.0:  # Increased threshold for high loss
-                issues.append(f"High final training loss: {metrics['final_loss']:.3f}")
+            
+            # CRITICAL: For overfitting checks, only flag TRAIN loss increases as issues
+            # Eval loss can and SHOULD increase during overfitting (expected behavior)
+            if loss_type == 'train':
+                # Only flag as issue if it's a significant increase (> 10% to avoid noise)
+                if loss_increased and (metrics['final_loss'] - metrics['initial_loss']) > 0.1 * metrics['initial_loss']:
+                    issues.append(f"Training loss increased significantly: {metrics['initial_loss']:.3f} → {metrics['final_loss']:.3f}")
+                elif metrics['final_loss'] > 20.0:  # Increased threshold for high loss
+                    issues.append(f"High final training loss: {metrics['final_loss']:.3f}")
+            elif loss_type == 'eval' and loss_increased:
+                # Eval loss increasing is EXPECTED during overfitting - just log it, don't fail
+                logger.info(f"Eval loss increased (expected during overfitting): {metrics['initial_loss']:.3f} → {metrics['final_loss']:.3f}")
         
         # Check for no learning (different thresholds for different check types)  
         if 'loss_reduction' in metrics:
