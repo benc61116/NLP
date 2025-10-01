@@ -357,38 +357,51 @@ class OptunaOptimizer:
             # Finish W&B (syncs data)
             wandb.finish()
             
-            # CRITICAL: Delete wandb run directory after sync to save disk space
-            if wandb_run_dir and wandb_run_dir.exists():
-                try:
-                    shutil.rmtree(wandb_run_dir)
-                    logger.info(f"Cleaned up W&B run directory: {wandb_run_dir}")
-                except Exception as e:
-                    logger.warning(f"Failed to clean W&B directory: {e}")
+            # CONSERVATIVE CLEANUP: Add delay to prevent race conditions during multi-trial runs
+            import time
+            time.sleep(2)  # Give W&B time to fully sync before cleanup
             
-            # CRITICAL: Delete results directory for this trial (we only need metrics in W&B)
-            # Find and delete all results directories created in this trial
-            results_base = Path("results")
-            if results_base.exists():
-                # Get all directories created in the last few minutes (this trial)
-                import time
-                current_time = time.time()
-                for results_dir in results_base.glob("full_finetune_*"):
-                    # Delete if created recently (within this trial's runtime)
-                    if results_dir.is_dir() and (current_time - results_dir.stat().st_mtime) < 3600:  # Last hour
-                        try:
-                            shutil.rmtree(results_dir)
-                            logger.info(f"Cleaned up results directory: {results_dir}")
-                        except Exception as e:
-                            logger.warning(f"Failed to clean results directory {results_dir}: {e}")
-                
-                # Also clean lora directories
-                for results_dir in results_base.glob("lora_finetune_*"):
-                    if results_dir.is_dir() and (current_time - results_dir.stat().st_mtime) < 3600:
-                        try:
-                            shutil.rmtree(results_dir)
-                            logger.info(f"Cleaned up LoRA results directory: {results_dir}")
-                        except Exception as e:
-                            logger.warning(f"Failed to clean LoRA results directory {results_dir}: {e}")
+            # LESS AGGRESSIVE: Only clean if disk usage is high (prevent race conditions)
+            import shutil
+            total, used, free = shutil.disk_usage('/')
+            usage_percent = (used / total) * 100
+            
+            if usage_percent > 80:  # Only clean if disk is >80% full
+                if wandb_run_dir and wandb_run_dir.exists():
+                    try:
+                        shutil.rmtree(wandb_run_dir)
+                        logger.info(f"Cleaned up W&B run directory: {wandb_run_dir}")
+                    except Exception as e:
+                        logger.warning(f"Failed to clean W&B directory: {e}")
+            else:
+                logger.info(f"Skipping W&B cleanup (disk usage: {usage_percent:.1f}% < 80%)")
+            
+            # CONSERVATIVE: Only clean results if disk usage is very high (prevent race conditions)
+            if usage_percent > 85:  # Only if disk is >85% full
+                results_base = Path("results")
+                if results_base.exists():
+                    # Get all directories created in the last few minutes (this trial)
+                    import time
+                    current_time = time.time()
+                    for results_dir in results_base.glob("full_finetune_*"):
+                        # Delete if created recently (within this trial's runtime)
+                        if results_dir.is_dir() and (current_time - results_dir.stat().st_mtime) < 3600:  # Last hour
+                            try:
+                                shutil.rmtree(results_dir)
+                                logger.info(f"Cleaned up results directory: {results_dir}")
+                            except Exception as e:
+                                logger.warning(f"Failed to clean results directory {results_dir}: {e}")
+                    
+                    # Also clean lora directories
+                    for results_dir in results_base.glob("lora_finetune_*"):
+                        if results_dir.is_dir() and (current_time - results_dir.stat().st_mtime) < 3600:
+                            try:
+                                shutil.rmtree(results_dir)
+                                logger.info(f"Cleaned up LoRA results directory: {results_dir}")
+                            except Exception as e:
+                                logger.warning(f"Failed to clean LoRA results directory {results_dir}: {e}")
+            else:
+                logger.info(f"Skipping results cleanup (disk usage: {usage_percent:.1f}% < 85%)")
             
             # Clean GPU cache
             torch.cuda.empty_cache()
@@ -490,31 +503,34 @@ class OptunaOptimizer:
         
         logger.info(f"Results saved to: {results_file}")
         
-        # Final cleanup: Remove any remaining wandb and results directories
-        logger.info("Performing final cleanup of trial artifacts...")
-        import shutil
+        # CONSERVATIVE FINAL CLEANUP: Only if disk usage is high
+        total, used, free = shutil.disk_usage('/')
+        usage_percent = (used / total) * 100
         
-        # Clean wandb directories
-        wandb_dir = Path("wandb")
-        if wandb_dir.exists():
-            for run_dir in wandb_dir.glob("run-*"):
-                try:
-                    shutil.rmtree(run_dir)
-                    logger.info(f"Cleaned up: {run_dir}")
-                except Exception as e:
-                    logger.warning(f"Could not clean {run_dir}: {e}")
-        
-        # Clean wandb cache to free up space
-        try:
-            import subprocess
-            result = subprocess.run(["wandb", "artifact", "cache", "cleanup", "1GB"], 
-                                  capture_output=True, text=True, timeout=60)
-            if result.returncode == 0:
-                logger.info("Cleaned wandb artifact cache")
-            else:
-                logger.warning(f"Wandb cache cleanup: {result.stderr}")
-        except Exception as e:
-            logger.warning(f"Could not clean wandb cache: {e}")
+        if usage_percent > 70:  # Only clean if disk is >70% full
+            logger.info("Performing final cleanup of trial artifacts (disk usage high)...")
+            import shutil
+            import time
+            
+            # Add delay before final cleanup to ensure all processes are settled
+            time.sleep(5)
+            
+            # Clean wandb directories (conservatively)
+            wandb_dir = Path("wandb")
+            if wandb_dir.exists():
+                for run_dir in wandb_dir.glob("run-*"):
+                    try:
+                        # Additional check: only delete if not accessed recently
+                        if (time.time() - run_dir.stat().st_atime) > 300:  # 5 minutes old
+                            shutil.rmtree(run_dir)
+                            logger.info(f"Cleaned up: {run_dir}")
+                    except Exception as e:
+                        logger.warning(f"Could not clean {run_dir}: {e}")
+            
+            # Skip aggressive cache cleanup that might cause conflicts
+            logger.info("Skipping wandb cache cleanup to prevent conflicts")
+        else:
+            logger.info(f"Skipping final cleanup (disk usage: {usage_percent:.1f}% < 70%)")
         
         # Report final disk usage
         total, used, free = shutil.disk_usage('/')
