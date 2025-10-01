@@ -1617,7 +1617,7 @@ class FullFinetuneExperiment:
                 logging_steps=50,
                 
                 # Model selection
-                load_best_model_at_end=self.config['training'].get('load_best_model_at_end', self.config['training'].get('evaluation_strategy', 'steps') != 'no'),
+                load_best_model_at_end=self.config['training'].get('load_best_model_at_end', self.config['training'].get('eval_strategy', 'steps') != 'no'),
                 metric_for_best_model="eval_loss",
                 greater_is_better=False,
                 
@@ -1650,7 +1650,7 @@ class FullFinetuneExperiment:
                 data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
             # Create custom callback (conditional based on representation extraction and sanity check mode)
-            if self.config['training'].get('evaluation_strategy') == 'no':
+            if self.config['training'].get('eval_strategy') == 'no':
                 # Sanity check mode - no callback to avoid evaluation issues
                 custom_callback = None
             elif representation_extractor is not None:
@@ -1668,7 +1668,7 @@ class FullFinetuneExperiment:
             # Create trainer
             callbacks = []
             # Only add EarlyStoppingCallback if evaluation is enabled
-            if self.config['training'].get('evaluation_strategy', 'steps') != 'no':
+            if self.config['training'].get('eval_strategy', 'steps') != 'no':
                 callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
             if custom_callback is not None:
                 callbacks.append(custom_callback)

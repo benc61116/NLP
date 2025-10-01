@@ -1153,7 +1153,7 @@ class LoRAExperiment:
                 logging_steps=50,
                 
                 # Model selection
-                load_best_model_at_end=self.config['training'].get('load_best_model_at_end', self.config['training'].get('evaluation_strategy', 'steps') != 'no'),
+                load_best_model_at_end=self.config['training'].get('load_best_model_at_end', self.config['training'].get('eval_strategy', 'steps') != 'no'),
                 metric_for_best_model="eval_loss",
                 greater_is_better=False,
                 
@@ -1190,7 +1190,7 @@ class LoRAExperiment:
                 data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
             # Create custom callback (skip for sanity checks to avoid adapter reset issues)  
-            if (self.config['training'].get('evaluation_strategy') == 'no' or 
+            if (self.config['training'].get('eval_strategy') == 'no' or 
                 self.config['training'].get('num_train_epochs', 10) <= 5):
                 # Sanity check mode (short training) - disable callback to prevent adapter reset bug
                 custom_callback = None
@@ -1207,7 +1207,7 @@ class LoRAExperiment:
             # Create trainer
             callbacks = []
             # Only add EarlyStoppingCallback if evaluation is enabled
-            if self.config['training'].get('evaluation_strategy', 'steps') != 'no':
+            if self.config['training'].get('eval_strategy', 'steps') != 'no':
                 callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
             if custom_callback is not None:
                 callbacks.append(custom_callback)
