@@ -82,13 +82,10 @@ echo "------------------------------------------------------------"
 # MRPC Optimization
 echo "⚡ [1/6] MRPC Full Fine-tuning Optimization (10 trials)"
 echo "   🎯 OPTIMIZED: 10 trials instead of 30 for faster convergence"
-if python experiments/optuna_optimization.py \
-    --task mrpc \
-    --method full_finetune \
-    --n-trials 10 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/mrpc_full_finetune_optimal.yaml \
-    > logs/phase1_optuna/vm2/mrpc_full_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task mrpc --method full_finetune --n-trials 10 --wandb-project NLP-Phase1-Optuna --output-file analysis/mrpc_full_finetune_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm2/mrpc_full_optuna.log 2>&1; then
     echo "✅ MRPC full fine-tuning optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
@@ -97,13 +94,10 @@ else
 fi
 
 echo "⚡ [2/6] MRPC LoRA Optimization (10 trials)"
-if python experiments/optuna_optimization.py \
-    --task mrpc \
-    --method lora \
-    --n-trials 10 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/mrpc_lora_optimal.yaml \
-    > logs/phase1_optuna/vm2/mrpc_lora_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task mrpc --method lora --n-trials 10 --wandb-project NLP-Phase1-Optuna --output-file analysis/mrpc_lora_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm2/mrpc_lora_optuna.log 2>&1; then
     echo "✅ MRPC LoRA optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
@@ -113,13 +107,10 @@ fi
 
 # SST-2 Optimization
 echo "⚡ [3/6] SST-2 Full Fine-tuning Optimization (10 trials)"
-if python experiments/optuna_optimization.py \
-    --task sst2 \
-    --method full_finetune \
-    --n-trials 10 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/sst2_full_finetune_optimal.yaml \
-    > logs/phase1_optuna/vm2/sst2_full_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task sst2 --method full_finetune --n-trials 10 --wandb-project NLP-Phase1-Optuna --output-file analysis/sst2_full_finetune_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm2/sst2_full_optuna.log 2>&1; then
     echo "✅ SST-2 full fine-tuning optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
@@ -128,13 +119,10 @@ else
 fi
 
 echo "⚡ [4/6] SST-2 LoRA Optimization (10 trials)"
-if python experiments/optuna_optimization.py \
-    --task sst2 \
-    --method lora \
-    --n-trials 10 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/sst2_lora_optimal.yaml \
-    > logs/phase1_optuna/vm2/sst2_lora_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task sst2 --method lora --n-trials 10 --wandb-project NLP-Phase1-Optuna --output-file analysis/sst2_lora_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm2/sst2_lora_optuna.log 2>&1; then
     echo "✅ SST-2 LoRA optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
@@ -144,13 +132,10 @@ fi
 
 # RTE Optimization  
 echo "⚡ [5/6] RTE Full Fine-tuning Optimization (10 trials)"
-if python experiments/optuna_optimization.py \
-    --task rte \
-    --method full_finetune \
-    --n-trials 10 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/rte_full_finetune_optimal.yaml \
-    > logs/phase1_optuna/vm2/rte_full_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task rte --method full_finetune --n-trials 10 --wandb-project NLP-Phase1-Optuna --output-file analysis/rte_full_finetune_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm2/rte_full_optuna.log 2>&1; then
     echo "✅ RTE full fine-tuning optimization completed (10 trials)"
     cleanup_memory  # Clean up before next task
 else
@@ -159,13 +144,10 @@ else
 fi
 
 echo "⚡ [6/6] RTE LoRA Optimization (10 trials)"
-if python experiments/optuna_optimization.py \
-    --task rte \
-    --method lora \
-    --n-trials 10 \
-    --wandb-project NLP-Phase1-Optuna \
-    --output-file analysis/rte_lora_optimal.yaml \
-    > logs/phase1_optuna/vm2/rte_lora_optuna.log 2>&1; then
+# FIXED: More robust command execution to prevent shell corruption
+OPTUNA_CMD="python experiments/optuna_optimization.py --task rte --method lora --n-trials 10 --wandb-project NLP-Phase1-Optuna --output-file analysis/rte_lora_optimal.yaml"
+echo "🚀 Executing: $OPTUNA_CMD"
+if $OPTUNA_CMD > logs/phase1_optuna/vm2/rte_lora_optuna.log 2>&1; then
     echo "✅ RTE LoRA optimization completed (10 trials)"
     cleanup_memory  # Final cleanup
 else
