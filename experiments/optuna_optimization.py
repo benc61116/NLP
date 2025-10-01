@@ -175,10 +175,14 @@ class OptunaOptimizer:
                 experiment.config['tasks']['squad_v2']['max_samples_train'] = 3000  # Research-grade: 2.3% coverage
                 experiment.config['tasks']['squad_v2']['max_samples_eval'] = 300   # Proportional eval set
                 
-                # CRITICAL: Memory optimizations for 22GB GPU
+                # CRITICAL: Balanced memory optimizations for 22GB GPU
                 # The key issue: eval creates massive activation memory with large eval sets
                 experiment.config['training']['per_device_eval_batch_size'] = 1  # Reduce eval batch to 1
-                experiment.config['training']['eval_accumulation_steps'] = 4  # Process eval in chunks
+                experiment.config['training']['eval_accumulation_steps'] = 4  # Process eval in chunks (keep at 4 for efficiency)
+                
+                # Minimal memory optimizations - only what's needed
+                experiment.config['training']['dataloader_pin_memory'] = False  # Disable pin memory (saves ~2GB)
+                experiment.config['training']['dataloader_num_workers'] = 0  # No extra workers (saves memory)
                 
                 # Let num_train_epochs (suggested by Optuna) control duration
                 # No max_steps limit - proper full epoch training
