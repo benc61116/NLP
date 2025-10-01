@@ -26,8 +26,8 @@ training:
   # General settings
   seed: 42
   gradient_checkpointing: true
-  dataloader_pin_memory: true
-  dataloader_num_workers: 4
+  dataloader_pin_memory: false  # Changed to false for memory efficiency (Phase 1 OOM fix)
+  dataloader_num_workers: 0     # Changed to 0 for memory efficiency (Phase 1 OOM fix)
   
   # Batch sizes (adjust based on GPU memory)
   per_device_train_batch_size: 1  # Reduced for memory efficiency
