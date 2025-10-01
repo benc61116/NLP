@@ -52,8 +52,8 @@ training:
   max_steps: -1            # -1 means use num_train_epochs
   
   # Evaluation
-  eval_strategy: "steps"
-  eval_steps: 100
+  eval_strategy: "epoch"  # Changed from 'steps' to prevent memory issues (was evaluating too frequently)
+  eval_steps: 100  # Only used if eval_strategy is 'steps'
   save_strategy: "steps"
   save_steps: 500
   logging_steps: 50
