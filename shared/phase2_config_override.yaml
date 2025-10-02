@@ -9,7 +9,7 @@ tasks:
     num_labels: null
     metric: "f1"
     max_samples_train: null      # FULL dataset (130K samples)
-    max_samples_eval: 2000       # REDUCED for faster training evals (full eval at end)
+    max_samples_eval: 1000       # PLATFORM-SAFE: Tested threshold (2000 triggers kills)
 
   sst2:
     name: "SST-2 Sentiment Analysis"
@@ -17,7 +17,7 @@ tasks:
     num_labels: 2
     metric: "accuracy"
     max_samples_train: null      # FULL dataset (67K samples)
-    max_samples_eval: 800        # REDUCED for faster training evals (full eval at end)
+    max_samples_eval: 800        # WORKING FINE: VM2 SST-2 runs for hours with this size
 
   mrpc:
     name: "MRPC Paraphrase Detection"
