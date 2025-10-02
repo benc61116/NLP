@@ -191,7 +191,7 @@ for method, info in optimal_hp.items():
     ep = hp['num_train_epochs']
     
     print(f'  {method:15}: LR={lr:.2e} BS={bs:2} WU={wu:.2f} EP={ep} → F1={perf:.3f}')
-    print(f'                   Trials: {summary[\"n_completed\"]}/{summary[\"n_trials\"]} completed, {summary[\"n_pruned\"]} pruned')
+    print(f'                   Trials: {summary[\"n_completed\"]}/{summary[\"n_trials\"]} completed, {summary.get(\"n_pruned\", 0)} pruned')
     
     if method == 'lora':
         r = hp.get('lora_r', 'N/A')
