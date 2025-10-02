@@ -21,6 +21,12 @@ Phase 3 extracts representations from models trained in Phase 2 and performs dri
 - Produces identical results to in-training extraction
 - Enables memory-efficient layer-by-layer processing
 
+**Critical Configuration Consistency:**
+- **Sequence Length**: All phases use `max_length=384` for methodological consistency
+- **Justification**: Drift analysis requires identical tokenization across base and fine-tuned models
+- **Implementation**: Phase 3 enforces max_length=384 to match Phase 2 training configuration
+- **Research Impact**: Ensures valid representation comparisons for drift analysis
+
 ---
 
 ## Infrastructure Status
@@ -173,6 +179,7 @@ results/phase3_representations/
 - Can optionally extract at multiple checkpoints if Phase 2 saved them
 - Extraction uses same 750 validation samples as Phase 0-2 for consistency
 - All 24 transformer layers extracted for comprehensive analysis
+- **CRITICAL**: Uses max_length=384 to match Phase 2 training configuration (methodological consistency)
 
 
 ## 🔄 Base Representations Management

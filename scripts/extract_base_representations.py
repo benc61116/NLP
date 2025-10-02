@@ -210,8 +210,11 @@ def main():
         trust_remote_code=True
     )
     
-    # Initialize data loader
-    data_loader = TaskDataLoader(model_name)
+    # Initialize data loader with methodological consistency (max_length=384)
+    # CRITICAL: Must match Phase 2 training for valid drift analysis
+    data_loader = TaskDataLoader(model_name, max_length=384)
+    
+    logger.info("Using max_length=384 for methodological consistency with Phase 2 training")
     
     # Extract representations for each task
     successful_extractions = 0

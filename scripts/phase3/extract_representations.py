@@ -110,10 +110,18 @@ def extract_representations_from_model(
     else:  # lora
         experiment = LoRAExperiment(config_path="shared/config.yaml")
     
-    # FIXED: Correct data loader initialization
+    # FIXED: Correct data loader initialization with Phase 2 consistency
     model_name = experiment.config['model']['name']
     max_length = experiment.config['model']['max_length']
+    
+    # CRITICAL: Ensure max_length matches Phase 2 training configuration
+    if max_length != 384:
+        logger.warning(f"max_length={max_length} differs from Phase 2 standard (384)")
+        logger.info("Using Phase 2 consistent max_length=384 for methodological rigor")
+        max_length = 384
+    
     data_loader = TaskDataLoader(model_name=model_name, max_length=max_length)
+    logger.info(f"Using max_length={max_length} for representation extraction (Phase 2 consistent)")
     
     # FIXED: Load task-specific data using correct methods
     if task == "squad_v2":

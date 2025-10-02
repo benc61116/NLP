@@ -191,6 +191,12 @@ The choice of 10-15 trials per task is methodologically sound based on:
 - vLLM benchmarking needs implementation
 - Statistical framework needs implementation
 
+**Phase 3 Methodological Consistency Requirements**:
+- **CRITICAL**: All representation extraction uses max_length=384 (matches Phase 2 training)
+- **Base model extraction**: Must use same tokenization as fine-tuned models
+- **Drift analysis validity**: Requires identical sequence length for meaningful comparison
+- **Research rigor**: Configuration consistency enforced across all extraction scripts
+
 #### VM Distribution for Phase 3
 
 | Component | VM1 | VM2 | Time |
@@ -269,23 +275,40 @@ def test_all_hypotheses(results):
 5. **Configuration Consistency**: Phase 2 uses identical model configuration as Phase 1 optimization
 6. **Balanced Execution**: No dependencies between VMs within phases
 
-### **Critical Methodological Fix: Sequence Length Consistency**
+### **Critical Methodological Fix: Complete Sequence Length Consistency**
 
-**Issue Discovered**: Phase 1 optimized hyperparameters with `max_length=384`, but Phase 2 attempted to use `max_length=768` (from `qa_max_length` in base config).
+**Issue Discovered**: Sequence length inconsistency across phases that would invalidate drift analysis research.
 
-**Methodological Violation**: Hyperparameters optimized under conditions X must be applied under identical conditions X. Using different sequence lengths invalidates the optimization and violates experimental rigor.
+**Original Configuration Problems**:
+- **Phase 0** (base extraction): Default max_length=512  
+- **Phase 1** (optimization): max_length=384
+- **Phase 2** (training): max_length=768 (from qa_max_length in base config)
+- **Phase 3** (analysis): Inherited inconsistent lengths
 
-**Solution Implemented**: 
-- **Phase 2 Configuration Override**: Force `max_length=384` to match Phase 1
-- **Justification**: Maintains optimization validity and ensures reproducible results
+**Methodological Violations**:
+1. **Hyperparameter validity**: Phase 1 optimized for 384 tokens, Phase 2 applied with 768 tokens
+2. **Drift analysis validity**: Cannot compare representations from different sequence lengths
+3. **Experimental rigor**: Configuration drift between phases invalidates results
+
+**Complete Solution Implemented**: 
+- **All Phases**: Standardized to `max_length=384` for full consistency
+- **Phase 0**: Base model extraction with 384 tokens (will re-run for consistency)
+- **Phase 1**: Already optimized with 384 tokens ✅
+- **Phase 2**: Configuration override enforces 384 tokens  
+- **Phase 3**: Inherits 384 tokens from experiment configs
+- **Justification**: Enables valid drift analysis while resolving platform compatibility
 - **Evidence**: 240-second stability test confirms fix resolves platform kills
-- **Research Impact**: Preserves full dataset training (130K SQuAD v2) with methodological consistency
 
-**Compliance with Research Standards**:
-- ✅ **Consistent train/eval configuration**: Same sequence length throughout pipeline
-- ✅ **Reproducible results**: Identical model configuration Phase 1↔Phase 2  
-- ✅ **Appropriate hyperparameters**: Applied under same conditions as optimization
-- ✅ **Rigorous experimental design**: No configuration drift between phases
+**Methodological Benefits**:
+- ✅ **Valid drift analysis**: Identical tokenization for base vs fine-tuned comparisons
+- ✅ **Consistent hyperparameters**: Applied under optimization conditions
+- ✅ **Reproducible results**: Identical configuration across all phases
+- ✅ **Platform compatibility**: Resolves resource exhaustion without compromising research
+- ✅ **Research integrity**: Full dataset training (130K SQuAD v2) with methodological consistency
+
+**Re-execution Requirements**:
+- **Phase 0**: Re-run base extraction with max_length=384 (computational cost justified for research validity)
+- **Phase 2-3**: Can proceed with full methodological consistency
 
 ## Risk Mitigation
 
@@ -925,6 +948,12 @@ The choice of 10 trials per task is methodologically sound based on:
 - CKA/drift analysis using saved representations
 - vLLM benchmarking needs implementation
 - Statistical framework needs implementation
+
+**Phase 3 Methodological Consistency Requirements**:
+- **CRITICAL**: All representation extraction uses max_length=384 (matches Phase 2 training)
+- **Base model extraction**: Must use same tokenization as fine-tuned models
+- **Drift analysis validity**: Requires identical sequence length for meaningful comparison
+- **Research rigor**: Configuration consistency enforced across all extraction scripts
 
 #### VM Distribution for Phase 3
 
