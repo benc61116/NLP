@@ -1,0 +1,19 @@
+best_hyperparameters:
+  learning_rate: 0.00024371003900392795
+  lora_alpha: 64
+  lora_dropout: 0.2726772085613049
+  lora_r: 8
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  warmup_ratio: 0.04371157655588848
+  weight_decay: 0.07764226130886216
+expected_performance: 0.5666666666666667
+method: lora
+optimization_summary:
+  n_completed: 15
+  n_failed: 0
+  n_trials: 15
+  success_rate: 100.0
+  total_time_seconds: 7675.124737262726
+optimization_type: manual_single_trial_sweep
+task: squad_v2
