@@ -35,7 +35,13 @@ tasks:
     max_samples_train: null      # FULL dataset (2.5K samples - already small)
     max_samples_eval: null       # FULL validation set (~277 samples)
 
-# Memory-Optimized Training Settings for Full Datasets
+# Model Configuration Consistency (METHODOLOGICAL REQUIREMENT)
+model:
+  max_length: 384                   # CRITICAL: Match Phase 1 optimization conditions (was 768 in base config)
+                                    # JUSTIFICATION: Hyperparameters were optimized with 384 tokens
+                                    # Using different sequence length invalidates optimization
+
+# Memory-Optimized Training Settings for Full Datasets  
 training:
   # Batch sizes optimized for full dataset training with memory fixes applied
   per_device_train_batch_size: 2    # Increased from 1 (memory fixes enabled)

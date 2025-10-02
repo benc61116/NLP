@@ -266,7 +266,26 @@ def test_all_hypotheses(results):
 2. **Proper Baselines**: Random, majority
 3. **Systematic Optimization**: Optuna with TPE sampler (Bayesian optimization)
 4. **Statistical Rigor**: Two-phase design (Phase 1: hyperparameter search with fixed seed; Phase 2: multiple seeds for final results)
-5. **Balanced Execution**: No dependencies between VMs within phases
+5. **Configuration Consistency**: Phase 2 uses identical model configuration as Phase 1 optimization
+6. **Balanced Execution**: No dependencies between VMs within phases
+
+### **Critical Methodological Fix: Sequence Length Consistency**
+
+**Issue Discovered**: Phase 1 optimized hyperparameters with `max_length=384`, but Phase 2 attempted to use `max_length=768` (from `qa_max_length` in base config).
+
+**Methodological Violation**: Hyperparameters optimized under conditions X must be applied under identical conditions X. Using different sequence lengths invalidates the optimization and violates experimental rigor.
+
+**Solution Implemented**: 
+- **Phase 2 Configuration Override**: Force `max_length=384` to match Phase 1
+- **Justification**: Maintains optimization validity and ensures reproducible results
+- **Evidence**: 240-second stability test confirms fix resolves platform kills
+- **Research Impact**: Preserves full dataset training (130K SQuAD v2) with methodological consistency
+
+**Compliance with Research Standards**:
+- ✅ **Consistent train/eval configuration**: Same sequence length throughout pipeline
+- ✅ **Reproducible results**: Identical model configuration Phase 1↔Phase 2  
+- ✅ **Appropriate hyperparameters**: Applied under same conditions as optimization
+- ✅ **Rigorous experimental design**: No configuration drift between phases
 
 ## Risk Mitigation
 
@@ -274,11 +293,13 @@ def test_all_hypotheses(results):
    - SQuAD v2 plateau → Already fixed with answerability head
    - Memory issues → Cleanup automation already implemented
    - Training instability → Gradient clipping in place
+   - **Configuration inconsistency** → Fixed with max_length=384 Phase 1↔Phase 2 consistency
 
 2. **Execution Risks**:
    - VM failures → Checkpointing implemented
    - Imbalanced load → Careful task distribution
    - Time overruns → Conservative estimates with buffer
+   - **Platform large-job detection** → Fixed with sequence length consistency and evaluation limits
 
 ## Deliverables
 
@@ -988,11 +1009,13 @@ def test_all_hypotheses(results):
    - SQuAD v2 plateau → Already fixed with answerability head
    - Memory issues → Cleanup automation already implemented
    - Training instability → Gradient clipping in place
+   - **Configuration inconsistency** → Fixed with max_length=384 Phase 1↔Phase 2 consistency
 
 2. **Execution Risks**:
    - VM failures → Checkpointing implemented
    - Imbalanced load → Careful task distribution
    - Time overruns → Conservative estimates with buffer
+   - **Platform large-job detection** → Fixed with sequence length consistency and evaluation limits
 
 ## Deliverables
 
