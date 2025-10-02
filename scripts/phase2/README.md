@@ -17,16 +17,15 @@ Phase 2 runs production experiments with optimal hyperparameters from Phase 1, u
 
 ## VM Distribution
 
-### VM1 (SQuAD v2)
+### VM1 (SQuAD v2 Full Fine-tuning)
 - **Tasks**: squad_v2
-- **Methods**: full_finetune, lora
+- **Methods**: full_finetune
 - **Seeds**: 42, 1337, 2024
-- **Total experiments**: 6 (1 task × 2 methods × 3 seeds)
-- **Estimated runtime**: ~24-30 hours
+- **Total experiments**: 3 (1 task × 1 method × 3 seeds)
+- **Estimated runtime**: ~18-24 hours
   - Full FT: 6-8 hours/seed × 3 seeds = 18-24 hours
-  - LoRA: 3-4 hours/seed × 3 seeds = 9-12 hours
 
-### VM2 (Classification)
+### VM2 (Classification Tasks)
 - **Tasks**: mrpc, sst2, rte
 - **Methods**: full_finetune, lora
 - **Seeds**: 42, 1337, 2024
@@ -36,23 +35,37 @@ Phase 2 runs production experiments with optimal hyperparameters from Phase 1, u
   - MRPC (3.7K): ~30 min/seed each method = 3 hours total
   - RTE (2.5K): ~20 min/seed each method = 2 hours total
 
+### VM3 (SQuAD v2 LoRA)
+- **Tasks**: squad_v2
+- **Methods**: lora
+- **Seeds**: 42, 1337, 2024
+- **Total experiments**: 3 (1 task × 1 method × 3 seeds)
+- **Estimated runtime**: ~9-12 hours
+  - LoRA: 3-4 hours/seed × 3 seeds = 9-12 hours
+
 ## Execution
 
-### On VM1:
+### On VM1 (SQuAD v2 Full Fine-tuning):
 ```bash
 cd /path/to/workspace/NLP
 bash scripts/phase2/vm1.sh
 ```
 
-### On VM2:
+### On VM2 (Classification Tasks):
 ```bash
 cd /path/to/workspace/NLP
 bash scripts/phase2/vm2.sh
 ```
 
+### On VM3 (SQuAD v2 LoRA):
+```bash
+cd /path/to/workspace/NLP
+bash scripts/phase2/vm3.sh
+```
+
 ## Key Features
 
-1. **No Overlap**: VM1 and VM2 handle different tasks - can run in parallel
+1. **No Overlap**: VM1, VM2, VM3 handle different tasks/methods - can run in parallel
 2. **Optimal Hyperparameters**: Automatically loads from Phase 1 YAML files
 3. **Multiple Seeds**: Runs each task/method with 3 seeds for statistical validity
 4. **Speed Optimized**: Reduced eval sets during training (full dataset training preserved)
