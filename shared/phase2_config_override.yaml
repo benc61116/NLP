@@ -1,15 +1,14 @@
-# Phase 2 Configuration Override - Platform-Compatible Datasets
-# PRAGMATIC: Reduced from full dataset due to VM platform large-job detection
-# Research-valid compromise: Significant scale-up from Phase 1 while staying platform-safe
+# Phase 2 Configuration Override - Full Production Datasets
+# This overrides the Phase 1 reduced dataset sizes for production experiments
 
-# Task-Specific Dataset Sizes for Phase 2 (Platform-Compatible)
+# Task-Specific Dataset Sizes for Phase 2 Production
 tasks:
   squad_v2:
     name: "SQuAD v2.0 Question Answering"
     type: "question_answering"
     num_labels: null
     metric: "f1"
-    max_samples_train: 25000     # PRAGMATIC: 25K samples (19% coverage, platform-safe)
+    max_samples_train: null      # FULL dataset (130K samples)
     max_samples_eval: 2000       # REDUCED for faster training evals (full eval at end)
 
   sst2:
@@ -17,7 +16,7 @@ tasks:
     type: "classification"
     num_labels: 2
     metric: "accuracy"
-    max_samples_train: 15000     # PRAGMATIC: 15K samples (22% coverage, platform-safe)
+    max_samples_train: null      # FULL dataset (67K samples)
     max_samples_eval: 800        # REDUCED for faster training evals (full eval at end)
 
   mrpc:
@@ -60,12 +59,12 @@ training:
   save_strategy: "epoch"            # Save only at end of epoch
   logging_steps: 500                # Reduce logging overhead (was 100)
 
-# Expected Memory Usage with Platform-Compatible Datasets:
-# - Squad v2: ~6-8GB (25K samples, batch_size=2, eval=2K samples)
-# - SST-2: ~4-6GB (15K samples, batch_size=2, eval=800 samples) 
-# - MRPC/RTE: ~4-6GB (small datasets, unchanged)
-# - Available: 17-20GB after memory fixes
-# - Status: PLATFORM-SAFE ✅
+# Expected Memory Usage with Full Datasets:
+# - Squad v2: ~8-12GB (130K samples, batch_size=2, eval=2K samples)
+# - SST-2: ~6-10GB (67K samples, batch_size=2, eval=800 samples) 
+# - MRPC/RTE: ~4-6GB (small datasets)
+# - Available: 17-20GB after memory fixes  
+# - Status: TECHNICALLY FEASIBLE ✅
 #
 # Speed Optimizations Applied:
 # - Reduced eval sets during training (2K for Squad, 800 for SST-2)
@@ -76,7 +75,7 @@ training:
 # OPTIMIZED Training Time Strategy:
 # - Reduce epochs to 2-3 (optimal from Phase 1)
 # - Use smaller eval sets during training (full eval only at end)
-# Expected with Platform-Compatible Datasets:
-# - Squad v2 Full FT: 3-4 hours/seed, LoRA: 2-3 hours/seed (25K samples)
-# - SST-2 Full FT: 2-3 hours/seed, LoRA: 1-2 hours/seed (15K samples)
-# - Target Phase 2: 15-20 hours per VM (platform-safe timeline)
+# Expected Training Time with Full Datasets:
+# - Squad v2 Full FT: 6-8 hours/seed, LoRA: 3-4 hours/seed (130K samples)
+# - SST-2 Full FT: 4-5 hours/seed, LoRA: 2-3 hours/seed (67K samples)
+# - Target Phase 2: 24-30 hours per VM (full dataset timeline)
