@@ -130,6 +130,22 @@ def extract_representations_from_model(
     logger.info(f"Model path: {model_path}")
     logger.info(f"=" * 80)
     
+    # Initialize WandB for this extraction
+    import wandb
+    wandb.init(
+        project=os.environ.get("WANDB_PROJECT", "NLP-Phase3-Representations"),
+        entity=os.environ.get("WANDB_ENTITY", "galavny-tel-aviv-university"),
+        name=f"extract_{method}_{task}_seed{seed}",
+        job_type="representation_extraction",
+        config={
+            "task": task,
+            "method": method,
+            "seed": seed,
+            "phase": "phase3"
+        },
+        reinit=True  # Allow multiple init calls in same script
+    )
+    
     # Load optimal config
     optimal_config = load_optimal_config(task, method)
     hyperparams = optimal_config['best_hyperparameters']
@@ -241,6 +257,8 @@ def extract_representations_from_model(
                 base_model.config.pad_token_id = tokenizer.pad_token_id
                 
                 model = PeftModel.from_pretrained(base_model, str(model_path))
+                # Ensure pad_token_id persists after PEFT loading
+                model.config.pad_token_id = tokenizer.pad_token_id
             else:
                 # Full fine-tuned model
                 model = SquadV2QuestionAnsweringModel.from_pretrained(str(model_path))
@@ -261,10 +279,14 @@ def extract_representations_from_model(
                 base_model = AutoModelForSequenceClassification.from_pretrained(
                     model_name,
                     num_labels=num_labels,
-                    torch_dtype=target_dtype,
-                    pad_token_id=tokenizer.pad_token_id
+                    torch_dtype=target_dtype
                 )
+                # Set pad_token_id before loading adapter
+                base_model.config.pad_token_id = tokenizer.pad_token_id
+                
                 model = PeftModel.from_pretrained(base_model, str(model_path))
+                # Ensure pad_token_id persists after PEFT loading
+                model.config.pad_token_id = tokenizer.pad_token_id
             else:
                 # Full fine-tuned model
                 model = AutoModelForSequenceClassification.from_pretrained(
@@ -323,6 +345,9 @@ def extract_representations_from_model(
     # Cleanup
     del model
     torch.cuda.empty_cache()
+    
+    # Finish WandB run
+    wandb.finish()
 
 
 def main():
