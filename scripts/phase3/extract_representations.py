@@ -228,10 +228,18 @@ def extract_representations_from_model(
             if method == "lora":
                 # LoRA model: Load adapter on top of base model
                 from peft import PeftModel
+                from transformers import AutoTokenizer
+                
+                # Load tokenizer to get pad_token_id
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                
                 base_model = SquadV2QuestionAnsweringModel(
                     model_name=model_name,
                     dtype=experiment.config['model']['dtype']
                 )
+                # Set pad_token_id in model config
+                base_model.config.pad_token_id = tokenizer.pad_token_id
+                
                 model = PeftModel.from_pretrained(base_model, str(model_path))
             else:
                 # Full fine-tuned model
@@ -245,10 +253,16 @@ def extract_representations_from_model(
             if method == "lora":
                 # LoRA model: Load adapter on top of base model  
                 from peft import PeftModel
+                from transformers import AutoTokenizer
+                
+                # Load tokenizer to get pad_token_id
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                
                 base_model = AutoModelForSequenceClassification.from_pretrained(
                     model_name,
                     num_labels=num_labels,
-                    torch_dtype=target_dtype
+                    torch_dtype=target_dtype,
+                    pad_token_id=tokenizer.pad_token_id
                 )
                 model = PeftModel.from_pretrained(base_model, str(model_path))
             else:
