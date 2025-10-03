@@ -207,11 +207,21 @@ class LoRARepresentationExtractor:
                 base_model = model
             
             # Hook transformer layers
-            if hasattr(base_model, 'layers'):
-                for i in range(min(len(base_model.layers), 24)):  # Llama-2-1.3B has 24 layers
-                    layer = base_model.layers[i]
+            # TinyLlama has the layers under model.model.layers or model.base_model.model.model.layers
+            transformer_model = base_model
+            if not hasattr(transformer_model, 'layers') and hasattr(transformer_model, 'model'):
+                transformer_model = transformer_model.model
+            
+            if hasattr(transformer_model, 'layers'):
+                num_layers = len(transformer_model.layers)
+                logger.info(f"Registering hooks for {num_layers} transformer layers")
+                for i in range(num_layers):
+                    layer = transformer_model.layers[i]
                     hook = layer.register_forward_hook(create_hook(f'layer_{i}'))
                     hooks.append(hook)
+            else:
+                logger.warning(f"Could not find transformer layers in model. Attributes: {dir(base_model)[:10]}")
+                return {}
             
             # Forward pass (process in batches to avoid OOM)
             with torch.no_grad():
@@ -220,7 +230,7 @@ class LoRARepresentationExtractor:
                 
                 batch_size = 16  # Process in smaller batches to avoid OOM
                 num_samples = input_ids.shape[0]
-                all_layer_outputs = {f'layer_{i}': [] for i in range(min(24, len(base_model.layers) if hasattr(base_model, 'layers') else 0))}
+                all_layer_outputs = {f'layer_{i}': [] for i in range(num_layers)}
                 all_final_hidden_states = []
                 
                 for i in range(0, num_samples, batch_size):

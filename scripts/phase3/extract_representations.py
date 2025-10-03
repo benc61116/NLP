@@ -329,9 +329,9 @@ def extract_representations_from_model(
     # Save representations
     extractor.save_representations(representations, step=0)
     
-    logger.info(f"✅ Representations extracted and saved to {output_dir}")
+    logger.info(f"✅ Representations extracted and saved to {extractor.output_dir}")
     
-    # Upload to WandB as artifact for safe storage
+    # Upload to WandB as artifact for safe storage (ONLY the specific extraction, not entire parent dir)
     try:
         import wandb
         if wandb.run is not None:
@@ -347,7 +347,8 @@ def extract_representations_from_model(
                     "phase": "phase3"
                 }
             )
-            artifact.add_dir(str(output_dir))
+            # FIX: Upload ONLY the specific extraction directory, not the entire parent
+            artifact.add_dir(str(extractor.output_dir))
             wandb.log_artifact(artifact)
             logger.info(f"✅ Representations uploaded to WandB: {artifact.name}")
     except Exception as e:

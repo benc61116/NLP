@@ -51,55 +51,90 @@ class DriftAnalyzer:
     
     def load_base_representations(self, task: str) -> Dict[str, np.ndarray]:
         """Load base model representations for a task (extracted in Phase 0)."""
-        base_task_dir = self.base_representations_dir / task
+        # Try multiple possible locations
+        possible_dirs = [
+            self.base_representations_dir / f"base_pretrained_{task}" / "step_000000",
+            self.base_representations_dir / task / "step_000000",
+            Path("base_representations") / "representations" / f"base_pretrained_{task}" / "step_000000",
+            Path("base_representations") / task / "step_000000",
+        ]
         
-        if not base_task_dir.exists():
-            # Fallback: Check workspace root
-            base_task_dir = Path("base_representations") / task
+        base_task_dir = None
+        for dir_path in possible_dirs:
+            if dir_path.exists():
+                base_task_dir = dir_path
+                break
         
-        if not base_task_dir.exists():
+        if base_task_dir is None:
             raise FileNotFoundError(
                 f"Base representations not found for {task}. "
-                f"Run Phase 0 VM2 to extract base representations first!"
+                f"Tried locations: {possible_dirs}"
             )
         
         representations = {}
         
-        # Load all layer representations
-        for layer_idx in range(24):  # TinyLlama has 24 layers
+        # Load all layer representations (TinyLlama has 22 layers: 0-21)
+        for layer_idx in range(22):
             layer_file = base_task_dir / f"layer_{layer_idx}.pt"
             if layer_file.exists():
-                representations[f'layer_{layer_idx}'] = torch.load(layer_file, map_location='cpu').numpy()
+                tensor = torch.load(layer_file, map_location='cpu')
+                # Convert bfloat16 to float32 for numpy compatibility
+                if tensor.dtype == torch.bfloat16:
+                    tensor = tensor.float()
+                representations[f'layer_{layer_idx}'] = tensor.numpy()
         
         # Load final hidden states if available
         final_file = base_task_dir / "final_hidden_states.pt"
         if final_file.exists():
-            representations['final_hidden_states'] = torch.load(final_file, map_location='cpu').numpy()
+            tensor = torch.load(final_file, map_location='cpu')
+            if tensor.dtype == torch.bfloat16:
+                tensor = tensor.float()
+            representations['final_hidden_states'] = tensor.numpy()
         
-        logger.info(f"Loaded base representations for {task}: {len(representations)} layers")
+        logger.info(f"Loaded base representations for {task} from {base_task_dir}: {len(representations)} layers")
         return representations
     
     def load_finetuned_representations(self, task: str, method: str, seed: int) -> Dict[str, np.ndarray]:
         """Load fine-tuned model representations."""
-        repr_dir = self.representations_dir / f"{task}_{method}_seed{seed}" / "step_000000"
+        # Try both possible naming conventions
+        possible_dirs = [
+            self.representations_dir / f"{method}_seed{seed}_{task}" / "step_000000",
+            self.representations_dir / f"{task}_{method}_seed{seed}" / "step_000000",
+        ]
         
-        if not repr_dir.exists():
-            raise FileNotFoundError(f"Fine-tuned representations not found: {repr_dir}")
+        repr_dir = None
+        for dir_path in possible_dirs:
+            if dir_path.exists():
+                repr_dir = dir_path
+                break
+        
+        if repr_dir is None:
+            raise FileNotFoundError(
+                f"Fine-tuned representations not found for {task}/{method}/seed{seed}. "
+                f"Tried: {possible_dirs}"
+            )
         
         representations = {}
         
-        # Load all layer representations
-        for layer_idx in range(24):
+        # Load all layer representations (TinyLlama has 22 layers: 0-21)
+        for layer_idx in range(22):
             layer_file = repr_dir / f"layer_{layer_idx}.pt"
             if layer_file.exists():
-                representations[f'layer_{layer_idx}'] = torch.load(layer_file, map_location='cpu').numpy()
+                tensor = torch.load(layer_file, map_location='cpu')
+                # Convert bfloat16 to float32 for numpy compatibility
+                if tensor.dtype == torch.bfloat16:
+                    tensor = tensor.float()
+                representations[f'layer_{layer_idx}'] = tensor.numpy()
         
         # Load final hidden states if available
         final_file = repr_dir / "final_hidden_states.pt"
         if final_file.exists():
-            representations['final_hidden_states'] = torch.load(final_file, map_location='cpu').numpy()
+            tensor = torch.load(final_file, map_location='cpu')
+            if tensor.dtype == torch.bfloat16:
+                tensor = tensor.float()
+            representations['final_hidden_states'] = tensor.numpy()
         
-        logger.info(f"Loaded {method} representations for {task} (seed {seed}): {len(representations)} layers")
+        logger.info(f"Loaded {method} representations for {task} (seed {seed}) from {repr_dir}: {len(representations)} layers")
         return representations
     
     def analyze_task_drift(self, task: str, method: str, seed: int) -> Dict[str, float]:
@@ -123,7 +158,7 @@ class DriftAnalyzer:
         layer_ckas = []
         layer_cosines = []
         
-        for layer_idx in range(24):
+        for layer_idx in range(22):
             layer_name = f'layer_{layer_idx}'
             
             if layer_name in base_reprs and layer_name in ft_reprs:
@@ -134,6 +169,13 @@ class DriftAnalyzer:
                 min_samples = min(base_layer.shape[0], ft_layer.shape[0])
                 base_layer = base_layer[:min_samples]
                 ft_layer = ft_layer[:min_samples]
+                
+                # CRITICAL: Mean-pool over token dimension (axis=1) to avoid OOM
+                # Shapes: (samples, tokens, hidden_dim) -> (samples, hidden_dim)
+                if base_layer.ndim == 3:
+                    base_layer = base_layer.mean(axis=1)
+                if ft_layer.ndim == 3:
+                    ft_layer = ft_layer.mean(axis=1)
                 
                 # Compute CKA and cosine similarity
                 try:
@@ -233,8 +275,8 @@ class DriftAnalyzer:
                 comparison_stats['significance_test'] = {
                     't_statistic': float(t_stat),
                     'p_value': float(p_value),
-                    'significant_at_05': p_value < 0.05,
-                    'hypothesis_20_percent': float(np.mean(drift_reductions)) > 20.0
+                    'significant_at_05': bool(p_value < 0.05),
+                    'hypothesis_20_percent': bool(float(np.mean(drift_reductions)) > 20.0)
                 }
         
         return {
@@ -245,7 +287,7 @@ class DriftAnalyzer:
             'research_hypothesis': {
                 'target_drift_reduction': 20.0,  # 20% target from research plan
                 'achieved_reduction': comparison_stats.get('mean_drift_reduction_percent', np.nan),
-                'hypothesis_supported': comparison_stats.get('mean_drift_reduction_percent', 0) > 20.0
+                'hypothesis_supported': bool(comparison_stats.get('mean_drift_reduction_percent', 0) > 20.0)
             }
         }
     
@@ -282,7 +324,7 @@ class DriftAnalyzer:
                     valid_reductions.append(reduction)
                     task_summary[task] = {
                         'drift_reduction': reduction,
-                        'hypothesis_supported': reduction > 20.0
+                        'hypothesis_supported': bool(reduction > 20.0)
                     }
         
         # Overall research conclusions
@@ -295,7 +337,7 @@ class DriftAnalyzer:
                 'std_drift_reduction_all_tasks': float(np.std(valid_reductions)) if valid_reductions else np.nan,
                 'tasks_supporting_hypothesis': sum(1 for s in task_summary.values() if s['hypothesis_supported']),
                 'total_tasks_analyzed': len(task_summary),
-                'overall_hypothesis_supported': len(task_summary) > 0 and sum(1 for s in task_summary.values() if s['hypothesis_supported']) >= len(task_summary) * 0.75
+                'overall_hypothesis_supported': bool(len(task_summary) > 0 and sum(1 for s in task_summary.values() if s['hypothesis_supported']) >= len(task_summary) * 0.75)
             }
         }
         
@@ -364,11 +406,11 @@ class DriftAnalyzer:
 def main():
     """Main function for drift analysis."""
     parser = argparse.ArgumentParser(description="Analyze representational drift between LoRA and Full FT")
-    parser.add_argument("--task", choices=["mrpc", "sst2", "rte", "squad_v2", "all"], 
+    parser.add_argument("--task", choices=["mrpc", "sst2", "rte", "all"], 
                        default="all", help="Task to analyze (default: all)")
-    parser.add_argument("--representations-dir", type=str, default="results/phase3_representations",
+    parser.add_argument("--representations-dir", type=str, default="results/phase3_representations/representations",
                        help="Directory with extracted representations")
-    parser.add_argument("--base-representations-dir", type=str, default="results/base_representations", 
+    parser.add_argument("--base-representations-dir", type=str, default="base_representations/representations", 
                        help="Directory with base model representations")
     parser.add_argument("--output-dir", type=str, default="results/drift_analysis",
                        help="Output directory for analysis results")
@@ -385,8 +427,8 @@ def main():
     )
     
     if args.task == "all":
-        # Analyze all tasks
-        tasks = ["mrpc", "sst2", "rte", "squad_v2"]
+        # Analyze all tasks (classification only)
+        tasks = ["mrpc", "sst2", "rte"]
         results = analyzer.analyze_all_tasks(tasks, args.seeds)
         
         logger.info("✅ Comprehensive drift analysis completed for all tasks")
