@@ -130,6 +130,22 @@ def extract_representations_from_model(
     logger.info(f"Model path: {model_path}")
     logger.info(f"=" * 80)
     
+    # Initialize WandB for this extraction
+    import wandb
+    wandb.init(
+        project=os.environ.get("WANDB_PROJECT", "NLP-Phase3-Representations"),
+        entity=os.environ.get("WANDB_ENTITY", "galavny-tel-aviv-university"),
+        name=f"extract_{method}_{task}_seed{seed}",
+        job_type="representation_extraction",
+        config={
+            "task": task,
+            "method": method,
+            "seed": seed,
+            "phase": "phase3"
+        },
+        settings=wandb.Settings(start_method="thread")  # Fix deprecation warning
+    )
+    
     # Load optimal config
     optimal_config = load_optimal_config(task, method)
     hyperparams = optimal_config['best_hyperparameters']
@@ -191,6 +207,11 @@ def extract_representations_from_model(
             method=f"{method}_seed{seed}"
         )
     else:
+        # LoRARepresentationExtractor needs the full experiment config, not RepresentationConfig
+        # Add required attributes to rep_config for LoRA extraction
+        rep_config.save_adapter_weights = False  # Don't save adapter weights during extraction
+        rep_config.analyze_rank_utilization = False  # Don't analyze rank during extraction
+        
         extractor = LoRARepresentationExtractor(
             config=rep_config,
             output_dir=output_dir,
@@ -198,13 +219,20 @@ def extract_representations_from_model(
             method=f"{method}_seed{seed}"
         )
     
-    # Set validation examples
+    # Set validation examples (convert to proper format)
+    num_samples = min(len(eval_dataset), 750)
     eval_examples = {
-        'input_ids': torch.stack([torch.tensor(ex['input_ids']) for ex in eval_dataset[:750]]),
-        'attention_mask': torch.stack([torch.tensor(ex['attention_mask']) for ex in eval_dataset[:750]])
+        'input_ids': torch.tensor(eval_dataset['input_ids'][:num_samples]),
+        'attention_mask': torch.tensor(eval_dataset['attention_mask'][:num_samples])
     }
-    if 'labels' in eval_dataset[0]:
-        eval_examples['labels'] = torch.stack([torch.tensor(ex['labels']) for ex in eval_dataset[:750]])
+    
+    # Add task-specific labels
+    if task == "squad_v2":
+        eval_examples['start_positions'] = torch.tensor(eval_dataset['start_positions'][:num_samples])
+        eval_examples['end_positions'] = torch.tensor(eval_dataset['end_positions'][:num_samples])
+        eval_examples['answerability_labels'] = torch.tensor(eval_dataset['answerability_labels'][:num_samples])
+    else:
+        eval_examples['labels'] = torch.tensor(eval_dataset['labels'][:num_samples])
     
     extractor.set_validation_examples(eval_examples)
     
@@ -221,11 +249,24 @@ def extract_representations_from_model(
             if method == "lora":
                 # LoRA model: Load adapter on top of base model
                 from peft import PeftModel
+                from transformers import AutoTokenizer
+                
+                # Load tokenizer and setup padding (same as training)
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if tokenizer.pad_token is None:
+                    tokenizer.pad_token = tokenizer.eos_token
+                    tokenizer.pad_token_id = tokenizer.eos_token_id
+                
                 base_model = SquadV2QuestionAnsweringModel(
                     model_name=model_name,
                     dtype=experiment.config['model']['dtype']
                 )
+                # Set pad_token_id in model config
+                base_model.config.pad_token_id = tokenizer.pad_token_id
+                
                 model = PeftModel.from_pretrained(base_model, str(model_path))
+                # Ensure pad_token_id persists after PEFT loading
+                model.config.pad_token_id = tokenizer.pad_token_id
             else:
                 # Full fine-tuned model
                 model = SquadV2QuestionAnsweringModel.from_pretrained(str(model_path))
@@ -238,12 +279,25 @@ def extract_representations_from_model(
             if method == "lora":
                 # LoRA model: Load adapter on top of base model  
                 from peft import PeftModel
+                from transformers import AutoTokenizer
+                
+                # Load tokenizer and setup padding (same as training)
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if tokenizer.pad_token is None:
+                    tokenizer.pad_token = tokenizer.eos_token
+                    tokenizer.pad_token_id = tokenizer.eos_token_id
+                
                 base_model = AutoModelForSequenceClassification.from_pretrained(
                     model_name,
                     num_labels=num_labels,
                     torch_dtype=target_dtype
                 )
+                # Set pad_token_id before loading adapter
+                base_model.config.pad_token_id = tokenizer.pad_token_id
+                
                 model = PeftModel.from_pretrained(base_model, str(model_path))
+                # Ensure pad_token_id persists after PEFT loading
+                model.config.pad_token_id = tokenizer.pad_token_id
             else:
                 # Full fine-tuned model
                 model = AutoModelForSequenceClassification.from_pretrained(
@@ -277,9 +331,34 @@ def extract_representations_from_model(
     
     logger.info(f"✅ Representations extracted and saved to {output_dir}")
     
+    # Upload to WandB as artifact for safe storage
+    try:
+        import wandb
+        if wandb.run is not None:
+            logger.info(f"📦 Uploading representations to WandB as artifact...")
+            artifact = wandb.Artifact(
+                name=f"representations_{method}_{task}_seed{seed}",
+                type="representations",
+                description=f"Extracted representations for {task}/{method}/seed{seed}",
+                metadata={
+                    "task": task,
+                    "method": method,
+                    "seed": seed,
+                    "phase": "phase3"
+                }
+            )
+            artifact.add_dir(str(output_dir))
+            wandb.log_artifact(artifact)
+            logger.info(f"✅ Representations uploaded to WandB: {artifact.name}")
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to upload representations to WandB: {e}")
+    
     # Cleanup
     del model
     torch.cuda.empty_cache()
+    
+    # Finish WandB run
+    wandb.finish()
 
 
 def main():
