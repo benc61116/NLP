@@ -61,8 +61,9 @@ training:
   optim: "paged_adamw_8bit"         # 8-bit optimizer for large datasets
   
   # SPEED OPTIMIZATIONS for Phase 2
-  eval_strategy: 'no'               # PLATFORM FIX: Disable eval to prevent OOM (use single quotes to force string)
+  eval_strategy: "epoch"            # Evaluate at end of each epoch (only 2 times total)
   save_strategy: "epoch"            # Save only at end of epoch
+  load_best_model_at_end: true      # Select best model from 2 epoch checkpoints (proper methodology)
   logging_steps: 50                 # Keep reasonable logging (every 50 steps)
 
 # Expected Memory Usage with Full Datasets:
