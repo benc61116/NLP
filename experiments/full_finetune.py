@@ -1598,7 +1598,7 @@ class FullFinetuneExperiment:
                 num_train_epochs=hyperparams.get('num_train_epochs', self.config['training']['num_train_epochs']),
                 per_device_train_batch_size=batch_size,
                 per_device_eval_batch_size=self.config['training']['per_device_eval_batch_size'],
-                gradient_accumulation_steps=self.config['training']['gradient_accumulation_steps'],
+                gradient_accumulation_steps=hyperparams.get('gradient_accumulation_steps', self.config['training']['gradient_accumulation_steps']),
                 eval_accumulation_steps=self.config['training'].get('eval_accumulation_steps'),  # Chunk eval for memory
                 
                 # Optimization
@@ -1938,6 +1938,7 @@ def main():
     parser.add_argument("--warmup-ratio", type=float, help="Override warmup ratio")
     parser.add_argument("--weight-decay", type=float, help="Override weight decay")
     parser.add_argument("--epochs", type=int, help="Override number of training epochs")
+    parser.add_argument("--gradient-accumulation-steps", type=int, help="Override gradient accumulation steps (for platform compliance)")
     parser.add_argument("--max-samples-train", type=int, help="Override max training samples")
     parser.add_argument("--max-samples-eval", type=int, help="Override max evaluation samples")
     parser.add_argument("--no-base-representations", action="store_true", 
@@ -2110,6 +2111,9 @@ def main():
             hyperparams['weight_decay'] = args.weight_decay
         if args.epochs:
             hyperparams['num_train_epochs'] = args.epochs
+        if args.gradient_accumulation_steps:
+            # DEEP SOLUTION: Override gradient accumulation for platform compliance
+            hyperparams['gradient_accumulation_steps'] = args.gradient_accumulation_steps
         
         # Override dataset sizes if specified (for VM1/VM2 validation)
         if args.max_samples_train:
