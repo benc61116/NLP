@@ -246,8 +246,11 @@ def extract_representations_from_model(
                 from peft import PeftModel
                 from transformers import AutoTokenizer
                 
-                # Load tokenizer to get pad_token_id
+                # Load tokenizer and setup padding (same as training)
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if tokenizer.pad_token is None:
+                    tokenizer.pad_token = tokenizer.eos_token
+                    tokenizer.pad_token_id = tokenizer.eos_token_id
                 
                 base_model = SquadV2QuestionAnsweringModel(
                     model_name=model_name,
@@ -273,8 +276,11 @@ def extract_representations_from_model(
                 from peft import PeftModel
                 from transformers import AutoTokenizer
                 
-                # Load tokenizer to get pad_token_id
+                # Load tokenizer and setup padding (same as training)
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
+                if tokenizer.pad_token is None:
+                    tokenizer.pad_token = tokenizer.eos_token
+                    tokenizer.pad_token_id = tokenizer.eos_token_id
                 
                 base_model = AutoModelForSequenceClassification.from_pretrained(
                     model_name,
