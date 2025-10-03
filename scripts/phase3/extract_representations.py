@@ -143,7 +143,7 @@ def extract_representations_from_model(
             "seed": seed,
             "phase": "phase3"
         },
-        reinit=True  # Allow multiple init calls in same script
+        settings=wandb.Settings(start_method="thread")  # Fix deprecation warning
     )
     
     # Load optimal config
@@ -207,6 +207,11 @@ def extract_representations_from_model(
             method=f"{method}_seed{seed}"
         )
     else:
+        # LoRARepresentationExtractor needs the full experiment config, not RepresentationConfig
+        # Add required attributes to rep_config for LoRA extraction
+        rep_config.save_adapter_weights = False  # Don't save adapter weights during extraction
+        rep_config.analyze_rank_utilization = False  # Don't analyze rank during extraction
+        
         extractor = LoRARepresentationExtractor(
             config=rep_config,
             output_dir=output_dir,

@@ -4,12 +4,12 @@
 # Model Configuration
 model:
   name: "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"  # 1.1B Llama-2 architecture, no auth needed
-  max_length: 512
+  max_length: 384  # Standard across all phases for consistency
   device_map: "auto"
   dtype: "bfloat16"  # Use bfloat16 for better gradient stability
   max_memory_percent: 95  # Use 95% of GPU memory - balanced efficiency
-  classification_max_length: 512
-  qa_max_length: 768
+  classification_max_length: 384  # Consistent with max_length
+  qa_max_length: 384  # Consistent across all tasks
 
 # LoRA Configuration
 lora:
