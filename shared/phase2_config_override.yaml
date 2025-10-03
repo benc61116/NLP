@@ -45,9 +45,9 @@ model:
 training:
   # Batch sizes optimized for full dataset training with memory fixes applied
   per_device_train_batch_size: 2    # Increased from 1 (memory fixes enabled)
-  per_device_eval_batch_size: 2     # INCREASED: faster evals with reduced eval sets
-  gradient_accumulation_steps: 8    # Maintain effective batch size = 16
-  eval_accumulation_steps: 4        # REDUCED: faster with smaller eval sets
+  per_device_eval_batch_size: 1     # MEMORY FIX: Reduce to 1 to avoid OOM during eval prep
+  gradient_accumulation_steps: 8    # MUST stay at 8 to keep steps under 10k platform limit
+  eval_accumulation_steps: 8        # MEMORY FIX: Increase to chunk eval into smaller pieces
 
   # Representation extraction DISABLED for Phase 2 (extracted in Phase 3)
   extract_representations_every_steps: null
