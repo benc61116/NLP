@@ -1316,6 +1316,29 @@ class LoRAExperiment:
             adapter_save_path = output_dir / "final_adapter"
             model.save_pretrained(str(adapter_save_path))
             
+            # Upload adapter to WandB as artifact for safe storage
+            if wandb.run is not None:
+                logger.info(f"📦 Uploading LoRA adapter to WandB as artifact...")
+                try:
+                    artifact = wandb.Artifact(
+                        name=f"lora_adapter_{task_name}_seed{seed}",
+                        type="model",
+                        description=f"LoRA adapter for {task_name} (seed {seed})",
+                        metadata={
+                            "task": task_name,
+                            "method": "lora",
+                            "seed": seed,
+                            "rank": self.lora_config.rank,
+                            "alpha": self.lora_config.alpha,
+                            "target_modules": self.lora_config.target_modules_standard
+                        }
+                    )
+                    artifact.add_dir(str(adapter_save_path))
+                    wandb.log_artifact(artifact)
+                    logger.info(f"✅ LoRA adapter uploaded to WandB: {artifact.name}")
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to upload adapter to WandB: {e}")
+            
             # Mark experiment as completed
             self.checkpoint_manager.save_experiment_progress(
                 task_name, "lora", seed, "completed", str(adapter_save_path)
@@ -1401,13 +1424,12 @@ class LoRAExperiment:
             if not skip_wandb_init:
                 wandb.finish()
             
-            # Auto-cleanup after each completed LoRA task+seed run to prevent disk space issues
+            # SAFE cleanup: Only remove intermediate checkpoints, NEVER touch final_adapter
             try:
                 import subprocess
                 import shutil
                 
-                # Always cleanup LoRA adapters from THIS run (keep only final checkpoint)
-                logger.info(f"🧹 Cleaning LoRA adapters from completed run: {task_name} seed {seed}")
+                logger.info(f"🧹 Cleaning intermediate checkpoints (keeping final_adapter)...")
                 
                 # Find the current LoRA experiment directory (most recent)
                 results_dirs = sorted([d for d in Path("results").glob("lora_finetune_*") if d.is_dir()], 
@@ -1415,34 +1437,27 @@ class LoRAExperiment:
                 
                 if results_dirs:
                     current_experiment = results_dirs[0]
-                    cleanup_cmd = [
-                        'python', 'scripts/cleanup_experiment.py', 
-                        '--experiment', str(current_experiment),
-                        '--mode', 'checkpoints'  # Clean intermediate checkpoints but keep final
-                    ]
-                    result = subprocess.run(cleanup_cmd, cwd=Path.cwd(), capture_output=True, text=True)
-                    if result.returncode == 0:
-                        logger.info("✅ Post-LoRA cleanup completed successfully")
-                    else:
-                        logger.warning(f"LoRA cleanup warning: {result.stderr}")
+                    
+                    # SAFE: Only clean intermediate checkpoints, never final_adapter
+                    for checkpoint_dir in current_experiment.rglob("checkpoint-*"):
+                        if checkpoint_dir.is_dir():
+                            shutil.rmtree(checkpoint_dir)
+                            logger.info(f"  Removed intermediate checkpoint: {checkpoint_dir.name}")
+                    
+                    logger.info("✅ Safe cleanup completed (final_adapter preserved)")
                 
-                # Check disk usage and cleanup if needed
+                # Check disk usage and warn if needed
                 total, used, free = shutil.disk_usage('/')
                 usage_percent = (used / total) * 100
-                logger.info(f"💾 Disk usage after LoRA cleanup: {usage_percent:.1f}%")
+                logger.info(f"💾 Disk usage: {usage_percent:.1f}%")
                 
-                if usage_percent > 70:  # Cleanup older experiments if still high
-                    logger.info(f"🧹 Disk usage still high ({usage_percent:.1f}%), cleaning older experiments...")
-                    old_cleanup_cmd = [
-                        'python', 'scripts/auto_cleanup.py', 
-                        '--task', task_name,
-                        '--results-dir', 'results'
-                    ]
-                    subprocess.run(old_cleanup_cmd, cwd=Path.cwd(), capture_output=True)
-                    logger.info("✅ Additional LoRA cleanup completed")
+                if usage_percent > 80:
+                    logger.warning(f"⚠️  Disk usage high ({usage_percent:.1f}%)")
+                    logger.warning(f"   Models are backed up in WandB - you can manually clean old experiments")
+                    logger.warning(f"   Use: python scripts/download_wandb_models.py to restore if needed")
                     
             except Exception as e:
-                logger.warning(f"LoRA auto-cleanup failed (non-critical): {e}")
+                logger.warning(f"Cleanup failed (non-critical): {e}")
     
     def run_hyperparameter_sweep(self, task_name: str) -> List[Dict[str, Any]]:
         """Run hyperparameter sweep for LoRA as specified in requirements."""
