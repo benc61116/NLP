@@ -194,7 +194,11 @@ with open('$OPTIMAL_CONFIG') as f:
     if 'weight_decay' in hp:
         args.append(f'--weight-decay {hp[\"weight_decay\"]}')
     if 'num_train_epochs' in hp:
-        args.append(f'--epochs {hp[\"num_train_epochs\"]}')
+        # PLATFORM FIX: Reduce epochs from 3 to 2 to stay under step limit
+        # 3 epochs × 4072 steps = 12,216 steps (exceeds ~10k platform limit)
+        # 2 epochs × 4072 steps = 8,144 steps (under limit)
+        epochs = 2  # Override for platform step limit
+        args.append(f'--epochs {epochs}')
     if 'lora_r' in hp:
         args.append(f'--lora-r {hp[\"lora_r\"]}')
     if 'lora_alpha' in hp:

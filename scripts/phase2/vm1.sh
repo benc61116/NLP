@@ -178,13 +178,20 @@ with open('$OPTIMAL_CONFIG') as f:
     if 'learning_rate' in hp:
         args.append(f'--learning-rate {hp[\"learning_rate\"]}')
     if 'per_device_train_batch_size' in hp:
-        args.append(f'--batch-size {hp[\"per_device_train_batch_size\"]}')
+        # PLATFORM FIX: Increase batch size from 2 to 4 to reduce step count
+        # Original value preserved in analysis file (Phase 1 result)
+        batch_size = 4  # Override for platform step limit
+        args.append(f'--batch-size {batch_size}')
     if 'warmup_ratio' in hp:
         args.append(f'--warmup-ratio {hp[\"warmup_ratio\"]}')
     if 'weight_decay' in hp:
         args.append(f'--weight-decay {hp[\"weight_decay\"]}')
     if 'num_train_epochs' in hp:
-        args.append(f'--epochs {hp[\"num_train_epochs\"]}')
+        # PLATFORM FIX: Reduce epochs from 4 to 2 to stay under step limit
+        # 4 epochs × 8144 steps = 32,576 steps (exceeds ~10k platform limit)
+        # 2 epochs × 4072 steps = 8,144 steps (under limit)
+        epochs = 2  # Override for platform step limit
+        args.append(f'--epochs {epochs}')
     # PHASE 2 FIX: Add configuration override for full dataset
     args.append(f'--config-override $PHASE2_CONFIG_OVERRIDE')
     print(' '.join(args))

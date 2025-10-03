@@ -61,9 +61,9 @@ training:
   optim: "paged_adamw_8bit"         # 8-bit optimizer for large datasets
   
   # SPEED OPTIMIZATIONS for Phase 2
-  eval_strategy: "epoch"            # Eval only at end of epoch (not every N steps)
+  eval_strategy: 'no'               # PLATFORM FIX: Disable eval to prevent OOM (use single quotes to force string)
   save_strategy: "epoch"            # Save only at end of epoch
-  logging_steps: 500                # Reduce logging overhead (was 100)
+  logging_steps: 50                 # Keep reasonable logging (every 50 steps)
 
 # Expected Memory Usage with Full Datasets:
 # - Squad v2: ~8-12GB (130K samples, batch_size=2, eval=2K samples)
