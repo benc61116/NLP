@@ -198,13 +198,20 @@ def extract_representations_from_model(
             method=f"{method}_seed{seed}"
         )
     
-    # Set validation examples
+    # Set validation examples (convert to proper format)
+    num_samples = min(len(eval_dataset), 750)
     eval_examples = {
-        'input_ids': torch.stack([torch.tensor(ex['input_ids']) for ex in eval_dataset[:750]]),
-        'attention_mask': torch.stack([torch.tensor(ex['attention_mask']) for ex in eval_dataset[:750]])
+        'input_ids': torch.tensor(eval_dataset['input_ids'][:num_samples]),
+        'attention_mask': torch.tensor(eval_dataset['attention_mask'][:num_samples])
     }
-    if 'labels' in eval_dataset[0]:
-        eval_examples['labels'] = torch.stack([torch.tensor(ex['labels']) for ex in eval_dataset[:750]])
+    
+    # Add task-specific labels
+    if task == "squad_v2":
+        eval_examples['start_positions'] = torch.tensor(eval_dataset['start_positions'][:num_samples])
+        eval_examples['end_positions'] = torch.tensor(eval_dataset['end_positions'][:num_samples])
+        eval_examples['answerability_labels'] = torch.tensor(eval_dataset['answerability_labels'][:num_samples])
+    else:
+        eval_examples['labels'] = torch.tensor(eval_dataset['labels'][:num_samples])
     
     extractor.set_validation_examples(eval_examples)
     
