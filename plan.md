@@ -251,25 +251,29 @@ All experiments compared against appropriate baselines to frame results meaningf
 
 ### ⏳ Remaining Work
 
-**Note**: All Phases 0-3 are complete for the three classification tasks (MRPC, SST-2, RTE). Only Phase 4 (final analysis and report generation) remains.
+**Note**: All Phases 0-3 are complete for the three classification tasks (MRPC, SST-2, RTE). Phase 4A (RQ1 analysis) is complete. Only Phase 4B (RQ2 deployment analysis) remains.
 
 #### Phase 4: Comprehensive Analysis & Research Question Synthesis
 
 **Purpose**: Analyze all data from Phases 0-3 to definitively answer both research questions with statistical rigor.
 
-**Phase 4A: Research Question 1 - Representational Drift Analysis** ❌ NOT STARTED
+**Phase 4A: Research Question 1 - Representational Drift Analysis** ✅ COMPLETED
 - **Question**: Does LoRA preserve model internal representations better than full fine-tuning?
 - **Data sources**: Base representations (Phase 0) + Fine-tuned representations (Phase 3)
 - **Analysis tasks**:
-  - ❌ **CKA computation**: Layer-wise centered kernel alignment between base and fine-tuned models
-  - ❌ **Cosine similarity**: Alternative drift metric for validation
-  - ❌ **Cross-task comparison**: Compare drift across 3 classification tasks (MRPC, SST-2, RTE)
-  - ❌ **LoRA vs Full FT comparison**: Quantify drift reduction percentage
-  - ❌ **Statistical testing**: Permutation tests with Bonferroni correction
-  - ❌ **Hypothesis validation**: Test if LoRA shows ≥20% less drift than Full FT
-  - ❌ **Visualization**: Layer-wise heatmaps, drift trajectories, task comparisons
-- **Scripts**: `scripts/phase3/analyze_drift.py`, `visualize_drift.py`
-- **Output**: Detailed analysis section in final report answering RQ1
+  - ✅ **CKA computation**: Layer-wise centered kernel alignment between base and fine-tuned models
+  - ✅ **Cosine similarity**: Dual-metric analysis for complementary drift measurement
+  - ✅ **Cross-task comparison**: Compared drift across 3 classification tasks (MRPC, SST-2, RTE)
+  - ✅ **LoRA vs Full FT comparison**: Quantified drift reduction (SST-2: 29%, MRPC/RTE: ~0%)
+  - ✅ **Statistical testing**: Paired t-tests with Bonferroni correction, effect sizes
+  - ✅ **Hypothesis validation**: Task-dependent findings - SST-2 shows significant drift reduction, MRPC/RTE do not
+  - ✅ **Visualization**: Layer-wise drift plots, cosine similarity profiles, performance-drift analysis
+- **Deliverable**: `research_question_1_representational_drift.ipynb` (2500+ lines)
+- **Key Findings**:
+  - LoRA preserves representations better on large simple tasks (SST-2: 29% less drift, p<0.001)
+  - No preservation advantage on small complex tasks (MRPC, RTE)
+  - Dual-level preservation: direction (cosine ~0.9999) + structure (CKA, task-dependent)
+  - Findings compared to existing literature with proper scope limitations (TinyLlama-1.1B, rank-8, classification only)
 
 **Phase 4B: Research Question 2 - Deployment Efficiency Analysis** ❌ NOT STARTED
 - **Question**: What is the real-world latency penalty for multi-adapter deployments vs merged models?
@@ -612,7 +616,7 @@ python scripts/phase4/generate_analysis_report.py \
 
 ## Resource Requirements & Timeline
 
-**Total Estimated Runtime**: ~40-45 hours total (completed: ~35-40 hours, remaining: ~7-9 hours)
+**Total Estimated Runtime**: ~40-45 hours total (completed: ~38-42 hours, remaining: ~3-4 hours)
 
 **Hardware Requirements**:
 - L4 24GB GPU (or equivalent)
@@ -625,11 +629,11 @@ python scripts/phase4/generate_analysis_report.py \
 - **Phase 2**: Production Model Training (Classification) - ~20-24 hours - ✅ COMPLETED
 - **Phase 3**: Representation Extraction (Classification) - ~6-8 hours - ✅ COMPLETED
 - **Phase 4**: Comprehensive Analysis & Research Question Synthesis
-  - Phase 4A (RQ1 - Drift analysis): ~2-3 hours - ❌ NOT STARTED
+  - Phase 4A (RQ1 - Drift analysis): ~2-3 hours - ✅ COMPLETED
   - Phase 4B (RQ2 - Deployment benchmarking): ~3-4 hours - ❌ NOT STARTED
   - Final report synthesis: ~2 hours - ❌ NOT STARTED
 
-**Current Progress**: ~85% complete (Phases 0-3 fully done for classification tasks, only Phase 4 analysis remains)
+**Current Progress**: ~92% complete (Phases 0-3 and 4A complete, only Phase 4B deployment analysis remains)
 
 ## Key Methodological Features (Summary)
 
@@ -742,26 +746,29 @@ Upon completion, this research will produce:
 **Immediate priorities** (to complete the research):
 
 **Phases 0-3 Complete**: All model training and representation extraction done for 3 classification tasks (MRPC, SST-2, RTE).
+**Phase 4A Complete**: Research Question 1 analysis notebook with comprehensive drift analysis completed.
 
-**Phase 4 - Comprehensive Analysis & Report Generation** (ONLY REMAINING WORK):
+**Phase 4 - Remaining Work**:
 
-1. **Phase 4A - Drift Analysis**: ~2-3 hours
-   - Compute CKA metrics across all layers (22 layers × 3 tasks × 2 methods)
-   - Statistical tests (permutation tests, Bonferroni correction)
-   - Generate visualizations (heatmaps, drift comparisons)
-   - Write RQ1 analysis section answering: "Does LoRA preserve representations better for classification tasks?"
+1. **Phase 4A - Drift Analysis**: ✅ COMPLETED
+   - ✅ Computed CKA metrics across all layers (22 layers × 3 tasks × 2 methods)
+   - ✅ Statistical tests (paired t-tests, Bonferroni correction, effect sizes)
+   - ✅ Generated visualizations (layer-wise drift plots, cosine similarity profiles)
+   - ✅ Comprehensive RQ1 analysis in Jupyter notebook: "Does LoRA preserve representations better for classification tasks?"
+   - ✅ Key finding: Task-dependent preservation (SST-2: 29% less drift, MRPC/RTE: no advantage)
+   - ✅ Deliverable: `research_question_1_representational_drift.ipynb` (2500+ lines)
 
-2. **Phase 4B - Deployment Benchmarking**: ~3-4 hours
+2. **Phase 4B - Deployment Benchmarking**: ~3-4 hours ❌ NOT STARTED
    - vLLM setup and multi-adapter configuration
    - Measure latency/throughput (single, 2-adapter, 3-adapter, merged)
    - Statistical testing on overhead metrics
    - Write RQ2 analysis section answering: "What is the deployment penalty for multi-adapter?"
 
-3. **Final Synthesis - Analysis Report**: ~2 hours
-   - Generate ANALYSIS_REPORT.md combining 4A and 4B
+3. **Final Synthesis - Analysis Report**: ~2 hours ❌ NOT STARTED
+   - Generate ANALYSIS_REPORT.md integrating RQ1 findings with RQ2 results
    - Executive summary, statistical summary, limitations
    - Practical recommendations for LoRA in classification
-   - Explicitly scope findings to classification tasks
+   - Explicitly scope findings to classification tasks (TinyLlama-1.1B, rank-8)
    - Suggest future work on QA and generative tasks
 
-**Total remaining time**: ~7-9 hours (all on single machine, no parallel VMs needed)
+**Total remaining time**: ~3-4 hours (only deployment benchmarking remains)
