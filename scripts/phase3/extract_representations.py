@@ -41,26 +41,25 @@ def load_optimal_config(task: str, method: str) -> Dict:
 
 
 def find_saved_model(task: str, method: str, seed: int) -> Path:
-    """Find the saved model from Phase 2 - FIXED VERSION."""
+    """Find the saved model from Phase 2 - with WandB fallback."""
     results_dir = Path("results")
     
     logger.info(f"Searching for model: {task}/{method}/seed{seed}")
     
     # FIXED: Multiple search patterns for robust model detection
     search_patterns = [
-        # Pattern 1: Direct phase2 results
+        # Pattern 1: Downloaded models from WandB
+        f"downloaded_models/*{task}*seed{seed}*",
+        # Pattern 2: Direct phase2 results
         f"phase2/*{task}*{method}*seed{seed}*",
-        # Pattern 2: Experiment timestamp directories  
+        # Pattern 3: Experiment timestamp directories  
         f"{method}_*/*{task}*seed{seed}*/final_model",
         f"{method}_*/*{task}*seed{seed}*",
-        # Pattern 3: LoRA adapter directories
+        # Pattern 4: LoRA adapter directories
         f"{method}_*/*{task}*seed{seed}*/final_adapter",
-        # Pattern 4: Alternative naming patterns
+        # Pattern 5: Alternative naming patterns
         f"*{method}*{task}*{seed}*/final_model",
         f"*{method}*{task}*{seed}*/final_adapter",
-        # Pattern 5: Fallback - any model directory with matching method
-        f"{method}_*/final_model",
-        f"{method}_*/final_adapter"
     ]
     
     found_models = []
@@ -76,10 +75,41 @@ def find_saved_model(task: str, method: str, seed: int) -> Path:
                     logger.info(f"Found model with pattern '{pattern}': {match}")
     
     if not found_models:
+        # Try downloading from WandB
+        logger.warning(f"Model not found locally for {task}/{method}/seed{seed}")
+        logger.info("Attempting to download from WandB...")
+        
+        try:
+            import subprocess
+            
+            artifact_name = f"full_finetune_model_{task}_seed{seed}" if method == "full_finetune" else f"lora_adapter_{task}_seed{seed}"
+            
+            download_cmd = [
+                'python', 'scripts/download_wandb_models.py',
+                '--entity', 'galavny-tel-aviv-university',
+                '--project', 'NLP-Phase2',
+                '--artifact', artifact_name,
+                '--output-dir', 'results/downloaded_models'
+            ]
+            
+            result = subprocess.run(download_cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                logger.info("✅ Model downloaded from WandB, retrying search...")
+                # Retry search in downloaded_models
+                downloaded_path = results_dir / "downloaded_models" / artifact_name
+                if downloaded_path.exists():
+                    return downloaded_path
+            else:
+                logger.error(f"Failed to download from WandB: {result.stderr}")
+        
+        except Exception as e:
+            logger.error(f"WandB download attempt failed: {e}")
+        
         # List available directories for debugging
         available_dirs = [d.name for d in results_dir.glob("*") if d.is_dir()]
         logger.error(f"Available directories: {available_dirs}")
-        raise FileNotFoundError(f"No saved model found for {task}/{method}/seed{seed}")
+        raise FileNotFoundError(f"No saved model found for {task}/{method}/seed{seed} (local or WandB)")
     
     # Return the first valid match
     best_match = found_models[0][1]

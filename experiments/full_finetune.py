@@ -1715,6 +1715,27 @@ class FullFinetuneExperiment:
             model_save_path = output_dir / "final_model"
             trainer.save_model(str(model_save_path))
             
+            # Upload model to WandB as artifact for safe storage
+            if wandb.run is not None:
+                logger.info(f"📦 Uploading trained model to WandB as artifact...")
+                try:
+                    artifact = wandb.Artifact(
+                        name=f"full_finetune_model_{task_name}_seed{seed}",
+                        type="model",
+                        description=f"Full fine-tuned model for {task_name} (seed {seed})",
+                        metadata={
+                            "task": task_name,
+                            "method": "full_finetune",
+                            "seed": seed,
+                            "total_parameters": sum(p.numel() for p in model.parameters())
+                        }
+                    )
+                    artifact.add_dir(str(model_save_path))
+                    wandb.log_artifact(artifact)
+                    logger.info(f"✅ Model uploaded to WandB: {artifact.name}")
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to upload model to WandB: {e}")
+            
             # Mark experiment as completed
             self.checkpoint_manager.save_experiment_progress(
                 task_name, "full_finetune", seed, "completed", str(model_save_path)
