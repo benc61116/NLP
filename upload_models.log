@@ -1,0 +1,379 @@
+2025-10-03 07:17:38,344 - INFO - ================================================================================
+2025-10-03 07:17:38,344 - INFO - UPLOADING EXISTING MODELS TO WANDB
+2025-10-03 07:17:38,344 - INFO - ================================================================================
+2025-10-03 07:17:38,344 - INFO - 
+📦 Finding Full Fine-tune Models...
+2025-10-03 07:17:38,345 - INFO - 
+📤 Uploading: mrpc/full_finetune/seed42 (1.93GB)
+wandb: Currently logged in as: benc6116 (galavny-tel-aviv-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_071738-hcv2sm87
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_mrpc_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/hcv2sm87
+2025-10-03 07:17:39,298 - INFO - Creating artifact: full_finetune_model_mrpc_seed42
+2025-10-03 07:17:39,318 - INFO -   Adding directory: results/full_finetune_20251001_164324/full_ft_mrpc_seed42/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251001_164324/full_ft_mrpc_seed42/final_model)... Done. 22.4s
+2025-10-03 07:18:01,753 - INFO -   Uploading to WandB...
+2025-10-03 07:18:01,958 - INFO - ✅ Successfully uploaded: full_finetune_model_mrpc_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_mrpc_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/hcv2sm87
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_071738-hcv2sm87/logs
+2025-10-03 07:18:30,783 - INFO - 
+📤 Uploading: mrpc/full_finetune/seed1337 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_071830-41kc4uii
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_mrpc_seed1337
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/41kc4uii
+2025-10-03 07:18:31,229 - INFO - Creating artifact: full_finetune_model_mrpc_seed1337
+2025-10-03 07:18:31,234 - INFO -   Adding directory: results/full_finetune_20251001_173755/full_ft_mrpc_seed1337/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251001_173755/full_ft_mrpc_seed1337/final_model)... Done. 22.0s
+2025-10-03 07:18:53,283 - INFO -   Uploading to WandB...
+2025-10-03 07:18:53,493 - INFO - ✅ Successfully uploaded: full_finetune_model_mrpc_seed1337
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_mrpc_seed1337 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/41kc4uii
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_071830-41kc4uii/logs
+2025-10-03 07:19:21,349 - INFO - 
+📤 Uploading: mrpc/full_finetune/seed2024 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_071921-8t7ibqrf
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_mrpc_seed2024
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/8t7ibqrf
+2025-10-03 07:19:21,855 - INFO - Creating artifact: full_finetune_model_mrpc_seed2024
+2025-10-03 07:19:21,860 - INFO -   Adding directory: results/full_finetune_20251001_181529/full_ft_mrpc_seed2024/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251001_181529/full_ft_mrpc_seed2024/final_model)... Done. 22.0s
+2025-10-03 07:19:43,879 - INFO -   Uploading to WandB...
+2025-10-03 07:19:44,057 - INFO - ✅ Successfully uploaded: full_finetune_model_mrpc_seed2024
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_mrpc_seed2024 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/8t7ibqrf
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_071921-8t7ibqrf/logs
+2025-10-03 07:20:12,470 - INFO - 
+📤 Uploading: rte/full_finetune/seed2024 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072012-jtoua4rv
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_rte_seed2024
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/jtoua4rv
+2025-10-03 07:20:12,924 - INFO - Creating artifact: full_finetune_model_rte_seed2024
+2025-10-03 07:20:12,928 - INFO -   Adding directory: results/full_finetune_20251003_044300/full_ft_rte_seed2024/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251003_044300/full_ft_rte_seed2024/final_model)... Done. 14.1s
+2025-10-03 07:20:27,028 - INFO -   Uploading to WandB...
+2025-10-03 07:20:27,246 - INFO - ✅ Successfully uploaded: full_finetune_model_rte_seed2024
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_rte_seed2024 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/jtoua4rv
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072012-jtoua4rv/logs
+2025-10-03 07:20:53,728 - INFO - 
+📤 Uploading: mrpc/full_finetune/seed42 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072053-fit7o19z
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_mrpc_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/fit7o19z
+2025-10-03 07:20:54,176 - INFO - Creating artifact: full_finetune_model_mrpc_seed42
+2025-10-03 07:20:54,181 - INFO -   Adding directory: results/full_finetune_20251001_164533/full_ft_mrpc_seed42/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251001_164533/full_ft_mrpc_seed42/final_model)... Done. 25.6s
+2025-10-03 07:21:19,771 - INFO -   Uploading to WandB...
+2025-10-03 07:21:19,962 - INFO - ✅ Successfully uploaded: full_finetune_model_mrpc_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_mrpc_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/fit7o19z
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072053-fit7o19z/logs
+2025-10-03 07:21:21,622 - INFO - 
+📤 Uploading: sst2/full_finetune/seed1337 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072121-9pbbb23w
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_sst2_seed1337
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/9pbbb23w
+2025-10-03 07:21:22,129 - INFO - Creating artifact: full_finetune_model_sst2_seed1337
+2025-10-03 07:21:22,133 - INFO -   Adding directory: results/full_finetune_20251002_054948/full_ft_sst2_seed1337/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251002_054948/full_ft_sst2_seed1337/final_model)... Done. 21.6s
+2025-10-03 07:21:43,717 - INFO -   Uploading to WandB...
+2025-10-03 07:21:43,989 - INFO - ✅ Successfully uploaded: full_finetune_model_sst2_seed1337
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_sst2_seed1337 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/9pbbb23w
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072121-9pbbb23w/logs
+2025-10-03 07:22:12,401 - INFO - 
+📤 Uploading: rte/full_finetune/seed1337 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072212-jydp14l8
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_rte_seed1337
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/jydp14l8
+2025-10-03 07:22:13,030 - INFO - Creating artifact: full_finetune_model_rte_seed1337
+2025-10-03 07:22:13,033 - INFO -   Adding directory: results/full_finetune_20251003_041630/full_ft_rte_seed1337/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251003_041630/full_ft_rte_seed1337/final_model)... Done. 25.3s
+2025-10-03 07:22:38,301 - INFO -   Uploading to WandB...
+2025-10-03 07:22:38,497 - INFO - ✅ Successfully uploaded: full_finetune_model_rte_seed1337
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_rte_seed1337 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/jydp14l8
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072212-jydp14l8/logs
+2025-10-03 07:23:09,240 - INFO - 
+📤 Uploading: rte/full_finetune/seed42 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072309-4t5c7wik
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_rte_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/4t5c7wik
+2025-10-03 07:23:09,735 - INFO - Creating artifact: full_finetune_model_rte_seed42
+2025-10-03 07:23:09,739 - INFO -   Adding directory: results/full_finetune_20251003_034934/full_ft_rte_seed42/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251003_034934/full_ft_rte_seed42/final_model)... Done. 22.0s
+2025-10-03 07:23:31,706 - INFO -   Uploading to WandB...
+2025-10-03 07:23:31,929 - INFO - ✅ Successfully uploaded: full_finetune_model_rte_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_rte_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/4t5c7wik
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072309-4t5c7wik/logs
+2025-10-03 07:24:13,016 - INFO - 
+📤 Uploading: sst2/full_finetune/seed2024 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072413-8ebysa9y
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_sst2_seed2024
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/8ebysa9y
+2025-10-03 07:24:13,502 - INFO - Creating artifact: full_finetune_model_sst2_seed2024
+2025-10-03 07:24:13,508 - INFO -   Adding directory: results/full_finetune_20251002_165023/full_ft_sst2_seed2024/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251002_165023/full_ft_sst2_seed2024/final_model)... Done. 22.9s
+2025-10-03 07:24:36,456 - INFO -   Uploading to WandB...
+2025-10-03 07:24:36,810 - INFO - ✅ Successfully uploaded: full_finetune_model_sst2_seed2024
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_sst2_seed2024 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/8ebysa9y
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072413-8ebysa9y/logs
+2025-10-03 07:25:06,714 - INFO - 
+📤 Uploading: sst2/full_finetune/seed42 (1.93GB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072506-glufu0ms
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_full_finetune_sst2_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/glufu0ms
+2025-10-03 07:25:07,340 - INFO - Creating artifact: full_finetune_model_sst2_seed42
+2025-10-03 07:25:07,343 - INFO -   Adding directory: results/full_finetune_20251001_185252/full_ft_sst2_seed42/final_model
+wandb: Adding directory to artifact (results/full_finetune_20251001_185252/full_ft_sst2_seed42/final_model)... Done. 22.0s
+2025-10-03 07:25:29,355 - INFO -   Uploading to WandB...
+2025-10-03 07:25:29,538 - INFO - ✅ Successfully uploaded: full_finetune_model_sst2_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_full_finetune_sst2_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/glufu0ms
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072506-glufu0ms/logs
+2025-10-03 07:25:56,679 - INFO - 
+📦 Finding LoRA Adapters...
+2025-10-03 07:25:56,680 - INFO - 
+📤 Uploading: rte/lora/seed2024 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072556-hnrdvmnh
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_rte_seed2024
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/hnrdvmnh
+2025-10-03 07:25:57,177 - INFO - Creating artifact: lora_adapter_rte_seed2024
+2025-10-03 07:25:57,180 - INFO -   Adding directory: results/lora_finetune_20251003_063818/lora_rte_manual_seed2024/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_063818/lora_rte_manual_seed2024/final_adapter)... Done. 0.0s
+2025-10-03 07:25:57,198 - INFO -   Uploading to WandB...
+2025-10-03 07:25:57,402 - INFO - ✅ Successfully uploaded: lora_adapter_rte_seed2024
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_rte_seed2024 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/hnrdvmnh
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072556-hnrdvmnh/logs
+2025-10-03 07:25:59,527 - INFO - 
+📤 Uploading: rte/lora/seed42 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072559-812eaoit
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_rte_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/812eaoit
+2025-10-03 07:25:59,972 - INFO - Creating artifact: lora_adapter_rte_seed42
+2025-10-03 07:25:59,974 - INFO -   Adding directory: results/lora_finetune_20251003_062934/lora_rte_manual_seed42/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_062934/lora_rte_manual_seed42/final_adapter)... Done. 0.0s
+2025-10-03 07:26:00,019 - INFO -   Uploading to WandB...
+2025-10-03 07:26:00,271 - INFO - ✅ Successfully uploaded: lora_adapter_rte_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_rte_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/812eaoit
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072559-812eaoit/logs
+2025-10-03 07:26:02,279 - INFO - 
+📤 Uploading: sst2/lora/seed2024 (4.32MB)
+wandb: creating run
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072602-eg4bkvcg
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_sst2_seed2024
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/eg4bkvcg
+2025-10-03 07:26:03,507 - INFO - Creating artifact: lora_adapter_sst2_seed2024
+2025-10-03 07:26:03,510 - INFO -   Adding directory: results/lora_finetune_20251003_060613/lora_sst2_manual_seed2024/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_060613/lora_sst2_manual_seed2024/final_adapter)... Done. 0.4s
+2025-10-03 07:26:03,944 - INFO -   Uploading to WandB...
+2025-10-03 07:26:04,154 - INFO - ✅ Successfully uploaded: lora_adapter_sst2_seed2024
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_sst2_seed2024 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/eg4bkvcg
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072602-eg4bkvcg/logs
+2025-10-03 07:26:06,317 - INFO - 
+📤 Uploading: mrpc/lora/seed1337 (4.32MB)
+wandb: creating run
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072606-rri293my
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_mrpc_seed1337
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/rri293my
+2025-10-03 07:26:07,163 - INFO - Creating artifact: lora_adapter_mrpc_seed1337
+2025-10-03 07:26:07,166 - INFO -   Adding directory: results/lora_finetune_20251003_051211/lora_mrpc_manual_seed1337/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_051211/lora_mrpc_manual_seed1337/final_adapter)... Done. 0.4s
+2025-10-03 07:26:07,582 - INFO -   Uploading to WandB...
+2025-10-03 07:26:07,784 - INFO - ✅ Successfully uploaded: lora_adapter_mrpc_seed1337
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_mrpc_seed1337 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/rri293my
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072606-rri293my/logs
+2025-10-03 07:26:09,821 - INFO - 
+📤 Uploading: sst2/lora/seed42 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072609-xccqveri
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_sst2_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/xccqveri
+2025-10-03 07:26:10,271 - INFO - Creating artifact: lora_adapter_sst2_seed42
+2025-10-03 07:26:10,277 - INFO -   Adding directory: results/lora_finetune_20251003_051709/lora_sst2_manual_seed42/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_051709/lora_sst2_manual_seed42/final_adapter)... Done. 0.0s
+2025-10-03 07:26:10,295 - INFO -   Uploading to WandB...
+2025-10-03 07:26:10,517 - INFO - ✅ Successfully uploaded: lora_adapter_sst2_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_sst2_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/xccqveri
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072609-xccqveri/logs
+2025-10-03 07:26:12,511 - INFO - 
+📤 Uploading: rte/lora/seed1337 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072612-cu18o4t8
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_rte_seed1337
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/cu18o4t8
+2025-10-03 07:26:13,050 - INFO - Creating artifact: lora_adapter_rte_seed1337
+2025-10-03 07:26:13,054 - INFO -   Adding directory: results/lora_finetune_20251003_063355/lora_rte_manual_seed1337/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_063355/lora_rte_manual_seed1337/final_adapter)... Done. 0.0s
+2025-10-03 07:26:13,072 - INFO -   Uploading to WandB...
+2025-10-03 07:26:13,262 - INFO - ✅ Successfully uploaded: lora_adapter_rte_seed1337
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_rte_seed1337 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/cu18o4t8
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072612-cu18o4t8/logs
+2025-10-03 07:26:15,380 - INFO - 
+📤 Uploading: mrpc/lora/seed2024 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072615-rk9itt2y
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_mrpc_seed2024
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/rk9itt2y
+2025-10-03 07:26:15,897 - INFO - Creating artifact: lora_adapter_mrpc_seed2024
+2025-10-03 07:26:15,900 - INFO -   Adding directory: results/lora_finetune_20251003_051440/lora_mrpc_manual_seed2024/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_051440/lora_mrpc_manual_seed2024/final_adapter)... Done. 0.0s
+2025-10-03 07:26:15,918 - INFO -   Uploading to WandB...
+2025-10-03 07:26:16,098 - INFO - ✅ Successfully uploaded: lora_adapter_mrpc_seed2024
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_mrpc_seed2024 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/rk9itt2y
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072615-rk9itt2y/logs
+2025-10-03 07:26:18,084 - INFO - 
+📤 Uploading: sst2/lora/seed1337 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072618-ckunn6mi
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_sst2_seed1337
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/ckunn6mi
+2025-10-03 07:26:18,585 - INFO - Creating artifact: lora_adapter_sst2_seed1337
+2025-10-03 07:26:18,591 - INFO -   Adding directory: results/lora_finetune_20251003_054133/lora_sst2_manual_seed1337/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_054133/lora_sst2_manual_seed1337/final_adapter)... Done. 0.0s
+2025-10-03 07:26:18,610 - INFO -   Uploading to WandB...
+2025-10-03 07:26:18,787 - INFO - ✅ Successfully uploaded: lora_adapter_sst2_seed1337
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_sst2_seed1337 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/ckunn6mi
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072618-ckunn6mi/logs
+2025-10-03 07:26:20,741 - INFO - 
+📤 Uploading: mrpc/lora/seed42 (4.32MB)
+wandb: Tracking run with wandb version 0.22.0
+wandb: Run data is saved locally in /home/benc6116/workspace/NLP/wandb/run-20251003_072620-dfro5246
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upload_lora_mrpc_seed42
+wandb: ⭐️ View project at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: 🚀 View run at https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/dfro5246
+2025-10-03 07:26:21,183 - INFO - Creating artifact: lora_adapter_mrpc_seed42
+2025-10-03 07:26:21,187 - INFO -   Adding directory: results/lora_finetune_20251003_050941/lora_mrpc_manual_seed42/final_adapter
+wandb: Adding directory to artifact (results/lora_finetune_20251003_050941/lora_mrpc_manual_seed42/final_adapter)... Done. 0.0s
+2025-10-03 07:26:21,205 - INFO -   Uploading to WandB...
+2025-10-03 07:26:21,376 - INFO - ✅ Successfully uploaded: lora_adapter_mrpc_seed42
+wandb: updating run metadata
+wandb: 🚀 View run upload_lora_mrpc_seed42 at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2/runs/dfro5246
+wandb: ⭐️ View project at: https://wandb.ai/galavny-tel-aviv-university/NLP-Phase2
+wandb: Synced 5 W&B file(s), 0 media file(s), 4 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20251003_072620-dfro5246/logs
+2025-10-03 07:26:23,460 - INFO - 
+================================================================================
+2025-10-03 07:26:23,460 - INFO - UPLOAD SUMMARY
+2025-10-03 07:26:23,460 - INFO - ================================================================================
+2025-10-03 07:26:23,460 - INFO - ✅ Successfully uploaded: 19
+2025-10-03 07:26:23,460 - INFO -   - mrpc/full_finetune/seed42
+2025-10-03 07:26:23,460 - INFO -   - mrpc/full_finetune/seed1337
+2025-10-03 07:26:23,460 - INFO -   - mrpc/full_finetune/seed2024
+2025-10-03 07:26:23,460 - INFO -   - rte/full_finetune/seed2024
+2025-10-03 07:26:23,461 - INFO -   - mrpc/full_finetune/seed42
+2025-10-03 07:26:23,461 - INFO -   - sst2/full_finetune/seed1337
+2025-10-03 07:26:23,461 - INFO -   - rte/full_finetune/seed1337
+2025-10-03 07:26:23,461 - INFO -   - rte/full_finetune/seed42
+2025-10-03 07:26:23,461 - INFO -   - sst2/full_finetune/seed2024
+2025-10-03 07:26:23,461 - INFO -   - sst2/full_finetune/seed42
+2025-10-03 07:26:23,461 - INFO -   - rte/lora/seed2024
+2025-10-03 07:26:23,461 - INFO -   - rte/lora/seed42
+2025-10-03 07:26:23,461 - INFO -   - sst2/lora/seed2024
+2025-10-03 07:26:23,461 - INFO -   - mrpc/lora/seed1337
+2025-10-03 07:26:23,461 - INFO -   - sst2/lora/seed42
+2025-10-03 07:26:23,461 - INFO -   - rte/lora/seed1337
+2025-10-03 07:26:23,461 - INFO -   - mrpc/lora/seed2024
+2025-10-03 07:26:23,461 - INFO -   - sst2/lora/seed1337
+2025-10-03 07:26:23,461 - INFO -   - mrpc/lora/seed42
+2025-10-03 07:26:23,461 - INFO - 
+🎉 All models uploaded successfully to WandB!
+2025-10-03 07:26:23,461 - INFO - You can now safely clean up local models.
