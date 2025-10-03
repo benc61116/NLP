@@ -277,6 +277,28 @@ def extract_representations_from_model(
     
     logger.info(f"✅ Representations extracted and saved to {output_dir}")
     
+    # Upload to WandB as artifact for safe storage
+    try:
+        import wandb
+        if wandb.run is not None:
+            logger.info(f"📦 Uploading representations to WandB as artifact...")
+            artifact = wandb.Artifact(
+                name=f"representations_{method}_{task}_seed{seed}",
+                type="representations",
+                description=f"Extracted representations for {task}/{method}/seed{seed}",
+                metadata={
+                    "task": task,
+                    "method": method,
+                    "seed": seed,
+                    "phase": "phase3"
+                }
+            )
+            artifact.add_dir(str(output_dir))
+            wandb.log_artifact(artifact)
+            logger.info(f"✅ Representations uploaded to WandB: {artifact.name}")
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to upload representations to WandB: {e}")
+    
     # Cleanup
     del model
     torch.cuda.empty_cache()
