@@ -1,0 +1,13 @@
+{
+  "research_question": "Does LoRA preserve model internal representations better than full fine-tuning on text classification tasks?",
+  "answer": "Task-dependent: Strong evidence for large datasets (SST-2), no evidence for small datasets (MRPC, RTE)",
+  "overall_drift_reduction_percent": 9.865313625064008,
+  "tasks_analyzed": 3,
+  "statistically_significant_tasks": 1,
+  "key_insight": "LoRA representation preservation benefits emerge at scale (67K+ samples)",
+  "visualization_files": [
+    "results/drift_analysis/drift_reduction_by_task.png",
+    "results/drift_analysis/layer_wise_drift_all_tasks.png",
+    "results/drift_analysis/drift_difference_heatmap.png"
+  ]
+}

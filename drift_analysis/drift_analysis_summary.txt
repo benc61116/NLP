@@ -1,0 +1,34 @@
+================================================================================
+COMPREHENSIVE DRIFT ANALYSIS REPORT
+LoRA vs Full Fine-tuning Representational Preservation
+================================================================================
+
+OVERALL RESULTS:
+  Mean drift reduction: 9.87%
+  Tasks supporting hypothesis (>20%): 1/3
+  Overall hypothesis supported: False
+
+TASK-BY-TASK RESULTS:
+----------------------------------------
+MRPC:
+  Drift reduction: 0.34% ± 0.34%
+  Statistical significance: p=0.1491 ❌
+  Hypothesis (>20%): ❌
+  Valid comparisons: 3/3
+
+SST2:
+  Drift reduction: 29.29% ± 1.45%
+  Statistical significance: p=0.0006 ✅
+  Hypothesis (>20%): ✅
+  Valid comparisons: 3/3
+
+RTE:
+  Drift reduction: -0.03% ± 0.58%
+  Statistical significance: p=0.5224 ❌
+  Hypothesis (>20%): ❌
+  Valid comparisons: 3/3
+
+================================================================================
+RESEARCH CONCLUSIONS:
+❌ HYPOTHESIS NOT SUPPORTED: LoRA does not show consistent representation preservation advantage
+================================================================================

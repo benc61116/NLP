@@ -1,0 +1,44 @@
+{
+  "mrpc": {
+    "lora": {
+      "primary_metric_name": "f1",
+      "primary_metric_mean": 0.795958713991138,
+      "primary_metric_std": 0.008571973146158074,
+      "accuracy_mean": 0.687908496732026,
+      "accuracy_std": 0.014773808267994388,
+      "f1_mean": 0.795958713991138,
+      "f1_std": 0.008571973146158074,
+      "eval_loss_mean": 0.6039501627286276,
+      "eval_loss_std": 0.005551097371561175,
+      "num_seeds": 3
+    }
+  },
+  "sst2": {
+    "lora": {
+      "primary_metric_name": "accuracy",
+      "primary_metric_mean": 0.8874999999999998,
+      "primary_metric_std": 0.0037499999999999756,
+      "accuracy_mean": 0.8874999999999998,
+      "accuracy_std": 0.0037499999999999756,
+      "f1_mean": null,
+      "f1_std": null,
+      "eval_loss_mean": 0.28501824537913006,
+      "eval_loss_std": 0.00551620115025655,
+      "num_seeds": 3
+    }
+  },
+  "rte": {
+    "lora": {
+      "primary_metric_name": "accuracy",
+      "primary_metric_mean": 0.6233453670276775,
+      "primary_metric_std": 0.002084297000684535,
+      "accuracy_mean": 0.6233453670276775,
+      "accuracy_std": 0.002084297000684535,
+      "f1_mean": null,
+      "f1_std": null,
+      "eval_loss_mean": 0.6731509367624918,
+      "eval_loss_std": 0.0034924376084691493,
+      "num_seeds": 3
+    }
+  }
+}
