@@ -748,6 +748,11 @@ class LoRAExperiment:
         # Apply LoRA
         model = get_peft_model(base_model, lora_config)
         
+        # CRITICAL FIX: Enable gradient flow to LoRA adapters when using gradient checkpointing
+        # Without this, frozen base model layers don't pass gradients to LoRA adapters
+        model.enable_input_require_grads()
+        logger.info("✓ Enabled input gradients for LoRA adapters (required for gradient checkpointing)")
+        
         # CRITICAL FIX: Comprehensive dtype conversion for ALL components
         target_dtype = getattr(torch, self.config['model']['dtype'])
         
