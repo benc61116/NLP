@@ -6,8 +6,8 @@
   "statistically_significant_tasks": 1,
   "key_insight": "LoRA representation preservation benefits emerge at scale (67K+ samples)",
   "visualization_files": [
-    "results/drift_analysis/drift_reduction_by_task.png",
-    "results/drift_analysis/layer_wise_drift_all_tasks.png",
-    "results/drift_analysis/drift_difference_heatmap.png"
+    "drift_analysis/drift_reduction_by_task.png",
+    "drift_analysis/layer_wise_drift_all_tasks.png",
+    "drift_analysis/drift_difference_heatmap.png"
   ]
 }
