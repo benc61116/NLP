@@ -124,21 +124,36 @@ def list_available_artifacts(entity: str, project: str = "NLP-Phase2"):
     
     try:
         api = wandb.Api()
-        artifacts = api.artifacts(type_name="model", project_name=f"{entity}/{project}")
+        
+        # Use the correct API method for wandb 0.22.0+
+        # Get all runs from the project and collect their artifacts
+        runs = api.runs(f"{entity}/{project}")
         
         logger.info("\n" + "="*80)
         logger.info("AVAILABLE MODEL ARTIFACTS")
         logger.info("="*80)
         
+        artifacts_found = set()
         count = 0
-        for artifact in artifacts:
-            count += 1
-            logger.info(f"\n{count}. {artifact.name}")
-            logger.info(f"   Type: {artifact.type}")
-            logger.info(f"   Size: {artifact.size / (1024**3):.2f} GB")
-            logger.info(f"   Created: {artifact.created_at}")
-            if artifact.metadata:
-                logger.info(f"   Metadata: {artifact.metadata}")
+        
+        for run in runs:
+            # Get artifacts logged by this run
+            for artifact in run.logged_artifacts():
+                if artifact.type == "model":
+                    # Avoid duplicates
+                    artifact_id = f"{artifact.name}:{artifact.version}"
+                    if artifact_id not in artifacts_found:
+                        artifacts_found.add(artifact_id)
+                        count += 1
+                        logger.info(f"\n{count}. {artifact.name}:{artifact.version}")
+                        logger.info(f"   Type: {artifact.type}")
+                        logger.info(f"   Size: {artifact.size / (1024**3):.2f} GB" if artifact.size else "   Size: N/A")
+                        logger.info(f"   Created: {artifact.created_at}")
+                        if artifact.metadata:
+                            task = artifact.metadata.get('task', 'N/A')
+                            method = artifact.metadata.get('method', 'N/A')
+                            seed = artifact.metadata.get('seed', 'N/A')
+                            logger.info(f"   Task: {task}, Method: {method}, Seed: {seed}")
         
         if count == 0:
             logger.warning("No model artifacts found in WandB project")
@@ -149,6 +164,8 @@ def list_available_artifacts(entity: str, project: str = "NLP-Phase2"):
         
     except Exception as e:
         logger.error(f"❌ Failed to list artifacts: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return 0
 
 
