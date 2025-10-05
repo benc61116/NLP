@@ -4,27 +4,27 @@ LoRA vs Full Fine-tuning Representational Preservation
 ================================================================================
 
 OVERALL RESULTS:
-  Mean drift reduction: 9.87%
+  Mean drift reduction: 10.11%
   Tasks supporting hypothesis (>20%): 1/3
   Overall hypothesis supported: False
 
 TASK-BY-TASK RESULTS:
 ----------------------------------------
 MRPC:
-  Drift reduction: 0.34% ± 0.34%
-  Statistical significance: p=0.1491 ❌
+  Drift reduction: 1.57% ± 0.52%
+  Statistical significance: p=0.0254 ✅
   Hypothesis (>20%): ❌
   Valid comparisons: 3/3
 
 SST2:
-  Drift reduction: 29.29% ± 1.45%
-  Statistical significance: p=0.0006 ✅
+  Drift reduction: 28.63% ± 1.24%
+  Statistical significance: p=0.0005 ✅
   Hypothesis (>20%): ✅
   Valid comparisons: 3/3
 
 RTE:
-  Drift reduction: -0.03% ± 0.58%
-  Statistical significance: p=0.5224 ❌
+  Drift reduction: 0.13% ± 0.63%
+  Statistical significance: p=0.3996 ❌
   Hypothesis (>20%): ❌
   Valid comparisons: 3/3
 

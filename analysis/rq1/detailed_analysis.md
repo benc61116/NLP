@@ -17,7 +17,7 @@
 
 **Supporting Evidence for Representation Preservation:**
 - "LoRA has been observed to forget less of the source domain compared to full fine-tuning" (LinkedIn/Industry Analysis, 2024)
-- Our CKA analysis confirms: 29% less representational drift in SST-2
+- Our CKA analysis confirms: **28.63% less representational drift in SST-2** (statistically significant, p=0.0005)
 - Aligns with continual learning literature on catastrophic forgetting prevention
 
 ### 9.2 Task Complexity Analysis
@@ -35,7 +35,7 @@
 1. **SST-2 (Simple + Large):**
    - Lowest complexity: Binary sentiment classification
    - Largest dataset: 67K examples
-   - LoRA WINS: Better performance (88.75% vs 86.70%) AND less drift (29%)
+   - LoRA WINS: Better performance (88.75% vs 86.70%) AND less drift (**28.63% ± 1.24%**, p=0.0005 ✅)
    - **Hypothesis**: Simple tasks benefit from LoRA's regularization effect at scale
    - Base model already has strong sentiment understanding; LoRA fine-tunes efficiently
 
@@ -43,14 +43,14 @@
    - Medium complexity: Semantic paraphrase detection
    - Small dataset: 3.7K examples
    - Full FT WINS on performance (86.58% vs 69.11% F1)
-   - NO drift advantage for LoRA (0.34% reduction, not significant)
+   - MINIMAL drift advantage for LoRA (**1.57% ± 0.52%**, p=0.0254, statistically significant but practically negligible)
    - **Hypothesis**: Complex sentence-pair task requires more parameters than LoRA provides with limited data
 
 3. **RTE (High complexity + Small):**
    - High complexity: Textual entailment reasoning
    - Smallest dataset: 2.5K examples
    - Mixed results: LoRA slightly worse on F1 but better on accuracy
-   - NO drift advantage (drift nearly identical)
+   - NO drift advantage (**0.13% ± 0.63%**, p=0.3996, not statistically significant)
    - **Hypothesis**: Task too complex for both methods with limited data
 
 ### 9.3 Synthesis: The "Sweet Spot" Hypothesis
