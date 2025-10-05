@@ -1,0 +1,68 @@
+{
+  "mrpc": {
+    "full_finetune": {
+      "primary_metric_name": "f1",
+      "primary_metric_mean": 0.8645970537825156,
+      "primary_metric_std": 0.030790580341531953,
+      "accuracy_mean": 0.7982026143790849,
+      "accuracy_std": 0.06776122316909794,
+      "f1_mean": 0.8645970537825156,
+      "f1_std": 0.030790580341531953,
+      "num_seeds": 3
+    },
+    "lora": {
+      "primary_metric_name": "f1",
+      "primary_metric_mean": 0.8813261763965622,
+      "primary_metric_std": 0.0016799225621630712,
+      "accuracy_mean": 0.829248366013072,
+      "accuracy_std": 0.0037439343913038257,
+      "f1_mean": 0.8813261763965622,
+      "f1_std": 0.0016799225621630712,
+      "num_seeds": 3
+    }
+  },
+  "sst2": {
+    "full_finetune": {
+      "primary_metric_name": "accuracy",
+      "primary_metric_mean": 0.8658256880733944,
+      "primary_metric_std": 0.031966421708179676,
+      "accuracy_mean": 0.8658256880733944,
+      "accuracy_std": 0.031966421708179676,
+      "f1_mean": 0.8656666349506082,
+      "f1_std": 0.03458852321766087,
+      "num_seeds": 3
+    },
+    "lora": {
+      "primary_metric_name": "accuracy",
+      "primary_metric_mean": 0.9495833333333333,
+      "primary_metric_std": 0.004018187817080439,
+      "accuracy_mean": 0.9495833333333333,
+      "accuracy_std": 0.004018187817080439,
+      "f1_mean": 0.9511882625957792,
+      "f1_std": 0.003920999557546035,
+      "num_seeds": 3
+    }
+  },
+  "rte": {
+    "full_finetune": {
+      "primary_metric_name": "accuracy",
+      "primary_metric_mean": 0.5607701564380264,
+      "primary_metric_std": 0.11474996764612627,
+      "accuracy_mean": 0.5607701564380264,
+      "accuracy_std": 0.11474996764612627,
+      "f1_mean": 0.6580575342439596,
+      "f1_std": 0.02103373275670129,
+      "num_seeds": 3
+    },
+    "lora": {
+      "primary_metric_name": "accuracy",
+      "primary_metric_mean": 0.7870036101083032,
+      "primary_metric_std": 0.03803485109333117,
+      "accuracy_mean": 0.7870036101083032,
+      "accuracy_std": 0.03803485109333117,
+      "f1_mean": 0.7708895227018894,
+      "f1_std": 0.0501123328454622,
+      "num_seeds": 3
+    }
+  }
+}
