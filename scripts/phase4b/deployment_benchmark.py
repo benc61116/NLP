@@ -302,6 +302,83 @@ class DeploymentBenchmark:
             cpu_mem=cpu_mem
         )
         
+    def benchmark_lora_merged(
+        self,
+        task: str,
+        seed: int,
+        test_samples: List[Tuple[str, int]]
+    ) -> BenchmarkResult:
+        """Benchmark merged LoRA adapter inference (adapter weights merged into base model)."""
+        config_name = f"lora_merged_{task}_seed{seed}"
+        logger.info(f"Benchmarking merged LoRA: {config_name}")
+        
+        # Reset memory tracking
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+            
+        # Load model
+        start_load = time.time()
+        
+        # Determine num_labels for the task
+        num_labels = 2  # All our tasks are binary classification
+        
+        base_model = AutoModelForSequenceClassification.from_pretrained(
+            self.base_model_name,
+            num_labels=num_labels,
+            torch_dtype=torch.bfloat16,
+            device_map=self.device
+        )
+        
+        adapter_path = self.models_dir / f"lora_adapter_{task}_seed{seed}"
+        peft_model = PeftModel.from_pretrained(base_model, str(adapter_path))
+        
+        # CRITICAL: Merge adapter weights into base model
+        # This eliminates the runtime adapter computation overhead
+        model = peft_model.merge_and_unload()
+        model.eval()
+        
+        load_time = time.time() - start_load
+        
+        # Warmup
+        logger.info(f"Warmup with {self.warmup_samples} samples...")
+        for text, _ in test_samples[:self.warmup_samples]:
+            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=384)
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            with torch.no_grad():
+                _ = model(**inputs)
+                
+        # Benchmark
+        logger.info(f"Running benchmark on {len(test_samples)} samples...")
+        latencies = []
+        
+        for text, _ in test_samples:
+            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=384)
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            start = time.time()
+            with torch.no_grad():
+                _ = model(**inputs)
+            latency_ms = (time.time() - start) * 1000
+            latencies.append(latency_ms)
+            
+        # Measure memory
+        gpu_mem, cpu_mem = self.measure_memory()
+        
+        # Clean up
+        del model
+        torch.cuda.empty_cache()
+        
+        return self._create_result(
+            config_name=config_name,
+            config_type="lora_merged",
+            num_adapters=0,  # Merged, so no separate adapter
+            task=task,
+            latencies=latencies,
+            load_time=load_time,
+            gpu_mem=gpu_mem,
+            cpu_mem=cpu_mem
+        )
+        
     def benchmark_multi_adapter(
         self,
         tasks: List[str],
@@ -482,9 +559,25 @@ class DeploymentBenchmark:
                 results.append(result)
                 logger.info(f"✓ {result.config_name}: {result.mean_latency_ms:.2f}ms mean latency")
                 
-        # 3. Benchmark multi-adapter (2 adapters)
+        # 3. Benchmark merged LoRA adapters (all 9)
         logger.info("\n" + "=" * 80)
-        logger.info("3. MULTI-ADAPTER BENCHMARK (2 adapters)")
+        logger.info("3. MERGED LORA ADAPTER BENCHMARKS (9 models)")
+        logger.info("=" * 80)
+        logger.info("Testing: LoRA adapters merged into base model (W = W_base + B×A)")
+        
+        for task in tasks:
+            for seed in seeds:
+                result = self.benchmark_lora_merged(
+                    task=task,
+                    seed=seed,
+                    test_samples=test_samples_dict[task]
+                )
+                results.append(result)
+                logger.info(f"✓ {result.config_name}: {result.mean_latency_ms:.2f}ms mean latency")
+                
+        # 4. Benchmark multi-adapter (2 adapters)
+        logger.info("\n" + "=" * 80)
+        logger.info("4. MULTI-ADAPTER BENCHMARK (2 adapters)")
         logger.info("=" * 80)
         
         # Use first 2 tasks, first seed
@@ -498,9 +591,9 @@ class DeploymentBenchmark:
         results.append(result)
         logger.info(f"✓ {result.config_name}: {result.mean_latency_ms:.2f}ms mean latency")
         
-        # 4. Benchmark multi-adapter (3 adapters)
+        # 5. Benchmark multi-adapter (3 adapters)
         logger.info("\n" + "=" * 80)
-        logger.info("4. MULTI-ADAPTER BENCHMARK (3 adapters)")
+        logger.info("5. MULTI-ADAPTER BENCHMARK (3 adapters)")
         logger.info("=" * 80)
         
         # Use all 3 tasks, first seed
@@ -558,6 +651,7 @@ class DeploymentBenchmark:
         # Group by config type
         single_lora = [r for r in results if r.config_type == "single_lora"]
         full_ft = [r for r in results if r.config_type == "full_ft"]
+        lora_merged = [r for r in results if r.config_type == "lora_merged"]
         multi_2 = [r for r in results if r.config_type == "multi_lora_2"]
         multi_3 = [r for r in results if r.config_type == "multi_lora_3"]
         
@@ -573,8 +667,9 @@ class DeploymentBenchmark:
             logger.info(f"  Throughput: {np.mean(mean_throughputs):.2f} ± {np.std(mean_throughputs):.2f} req/s")
             logger.info(f"  GPU Memory: {np.mean(mean_gpu_mem):.0f} ± {np.std(mean_gpu_mem):.0f} MB")
             
-        print_group_stats("Single LoRA Adapter", single_lora)
+        print_group_stats("Single LoRA Adapter (Separate)", single_lora)
         print_group_stats("Full Fine-Tuned Model", full_ft)
+        print_group_stats("Merged LoRA Adapter", lora_merged)
         print_group_stats("Multi-Adapter (2)", multi_2)
         print_group_stats("Multi-Adapter (3)", multi_3)
         
