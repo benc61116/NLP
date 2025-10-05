@@ -57,20 +57,22 @@ This study provides a comprehensive comparison of LoRA (Low-Rank Adaptation) ver
 
 | Task | LoRA Mean CKA | Full FT Mean CKA | Difference | p-value | Interpretation |
 |------|---------------|------------------|------------|---------|----------------|
-| **SST-2** | 0.905 ± 0.005 | 0.810 ± 0.012 | **+11.7%** | **<0.001** | **✅ Significant improvement** |
-| MRPC | 0.788 ± 0.003 | 0.792 ± 0.004 | -0.5% | 0.260 | No significant difference |
-| RTE | 0.809 ± 0.004 | 0.824 ± 0.011 | -1.8% | 0.110 | No significant difference |
+| **SST-2** | 0.359 ± 0.009 | 0.101 ± 0.018 | **+255%** | **<0.001** | **✅ Significant improvement** |
+| MRPC | 0.235 ± 0.003 | 0.223 ± 0.003 | +5.5% | 0.025 | Slight advantage |
+| RTE | 0.399 ± 0.003 | 0.398 ± 0.003 | +0.2% | 0.400 | No significant difference |
 
 **Key Insight:**  
-LoRA's representational advantage is **task-specific**, not universal. SST-2 (sentiment analysis) benefits significantly, while paraphrase detection (MRPC) and entailment (RTE) show no advantage.
+LoRA's representational advantage is **task-specific**, not universal. SST-2 (sentiment analysis) benefits dramatically (255% higher CKA), MRPC shows slight advantage (5.5%), while RTE shows virtually no difference.
+
+**Note on CKA interpretation:** Higher CKA values indicate stronger similarity to the base model (i.e., less drift). CKA ranges from 0 (completely different) to 1 (identical representations).
 
 #### 1.2 Directional Preservation (Cosine Similarity)
 
 | Task | LoRA Cosine | Full FT Cosine | Interpretation |
 |------|-------------|----------------|----------------|
-| MRPC | 0.985 | 0.987 | Both high, similar |
-| SST-2 | 0.975 | 0.774 | LoRA stronger preservation |
-| RTE | 0.996 | 0.990 | Both very high |
+| MRPC | 0.984 | 0.965 | Both high, LoRA slightly better |
+| SST-2 | 0.975 | 0.774 | LoRA much stronger preservation |
+| RTE | 0.996 | 0.995 | Both extremely high, nearly identical |
 
 **Average:** LoRA maintains 0.97-0.99 cosine similarity (8-14° angular deviation), indicating strong directional alignment with pretrained knowledge.
 
