@@ -6,7 +6,7 @@ This research project investigates two critical questions in parameter-efficient
 
 1. **Representational Drift Analysis**: Does LoRA preserve model internal representations better than full fine-tuning on text classification tasks? We will quantify this using centered-kernel alignment (CKA) and layer-wise cosine similarity metrics across all transformer layers on three diverse classification tasks.
 
-2. **Deployment Efficiency Trade-offs**: What is the real-world latency penalty when deploying multiple LoRA adapters side-by-side versus merging them in vLLM? This addresses a key production concern for multi-task classification systems.
+2. **Deployment Efficiency Trade-offs**: What are the inference latency trade-offs between different LoRA deployment strategies (separate adapters, merged adapters, and full fine-tuning)? This addresses key production concerns: Is the LoRA overhead fundamental or architectural? Can it be eliminated by merging? This guides multi-task deployment decisions.
 
 **Scientific Significance**: These questions address fundamental gaps in our understanding of efficient fine-tuning methods. While LoRA has gained widespread adoption, rigorous empirical analysis of its representation preservation claims and deployment overhead remains limited. Our findings will inform:
 - Continual learning strategies to mitigate catastrophic forgetting
@@ -506,17 +506,23 @@ python scripts/phase3/visualize_drift.py \
 
 #### Phase 4B: Research Question 2 - Deployment Efficiency Analysis
 
-**Research Question**: What is the real-world latency penalty when deploying multiple LoRA adapters side-by-side versus merging them?
+**Research Question**: What are the inference latency trade-offs between different LoRA deployment strategies?
+
+**Sub-Questions**:
+- 2a) How does LoRA (separate adapter) compare to full fine-tuning in inference speed?
+- 2b) What is the overhead of multi-adapter serving?
+- 2c) **Is the LoRA overhead architectural or fundamental?** (Can it be eliminated by merging?)
 
 **Data Sources**:
 - Trained LoRA adapters from Phase 2 (9 adapters: 3 tasks × 3 seeds)
-- Merged full fine-tuned models from Phase 2 (9 models)
+- Full fine-tuned models from Phase 2 (9 models)
 
-**Benchmark Scenarios**:
-1. **Baseline**: Single merged model per task
-2. **Single adapter**: One LoRA adapter loaded
-3. **2-adapter**: Two LoRA adapters loaded simultaneously (e.g., MRPC + SST-2)
-4. **3-adapter**: All three LoRA adapters loaded simultaneously (MRPC, SST-2, RTE)
+**Benchmark Scenarios** (29 total configurations):
+1. **Single LoRA (separate)**: One LoRA adapter loaded (9 configs: 3 tasks × 3 seeds)
+2. **Full fine-tuned**: Merged full fine-tuned models (9 configs: 3 tasks × 3 seeds)
+3. **Merged LoRA**: Adapter weights merged into base model using `merge_and_unload()` (9 configs)
+4. **Multi-adapter (2)**: Two LoRA adapters loaded simultaneously (MRPC + SST-2)
+5. **Multi-adapter (3)**: Three LoRA adapters loaded simultaneously (MRPC, SST-2, RTE)
 
 **Metrics to Measure**:
 - **Latency**: Mean inference time (ms/sample)
@@ -525,23 +531,27 @@ python scripts/phase3/visualize_drift.py \
 - **GPU memory**: Memory footprint for each configuration
 - **Batch scalability**: Performance across batch sizes (1, 2, 4, 8, 16)
 
-**Implementation** (vLLM multi-adapter support):
+**Implementation** (Hugging Face Transformers with PEFT):
    ```python
-# Pseudo-code for benchmarking
-1. Load base TinyLlama model
-2. For each configuration:
-   - Load adapters (if applicable)
-   - Warmup with 100 samples
-   - Benchmark with 1000 inference samples
-   - Measure latency, throughput, memory
-3. Compare configurations statistically
+# Three deployment strategies:
+1. Separate LoRA: Load adapter with PEFT, compute B×A at runtime
+2. Merged LoRA: Use merge_and_unload() to precompute W' = W + B×A
+3. Full FT: Load full fine-tuned model directly
+
+# Benchmarking procedure:
+For each configuration:
+  - Load model/adapter
+  - Warmup with 10 samples
+  - Benchmark with 500 samples
+  - Measure per-sample latency, throughput, GPU memory
 ```
 
 **Analysis Tasks**:
-- **Overhead computation**: `(multi_adapter_latency - merged_latency) / merged_latency × 100%`
-- **Statistical testing**: Bootstrap confidence intervals for overhead
-- **Memory efficiency**: Compare GPU memory usage
-- **Scalability analysis**: Overhead vs number of adapters (1, 2, 4)
+- **Overhead computation**: Compare separate vs merged vs Full FT latency
+- **Statistical testing**: Paired t-tests with Cohen's d effect size
+- **Source of overhead**: Prove if overhead is architectural (runtime B×A) or fundamental
+- **Memory efficiency**: Compare GPU memory across all strategies
+- **Multi-adapter overhead**: Measure adapter swapping cost
 - **Cost-benefit analysis**: Trade-offs between deployment flexibility and performance
 
 **Hypothesis Testing**:
