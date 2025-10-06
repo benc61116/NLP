@@ -215,7 +215,7 @@ Based solely on our empirical observations (n=3 tasks):
 
 ---
 
-## Research Question 2: Deployment Efficiency
+## Research Question 2: Deployment Efficiency (n=3 Tasks)
 
 ### Methodology
 
@@ -223,6 +223,7 @@ Based solely on our empirical observations (n=3 tasks):
 - 29 deployment configurations tested
 - 100 inference samples per configuration (warmup: 10)
 - Metrics: latency (mean, p50, p95, p99), throughput, GPU/CPU memory
+- **Scope**: 3 GLUE classification tasks (MRPC, SST-2, RTE) with TinyLlama-1.1B on NVIDIA L4 GPU
 
 **Configurations:**
 1. **Single LoRA Adapter** (9 configs: 3 tasks × 3 seeds) - separate adapters
@@ -248,34 +249,31 @@ Based solely on our empirical observations (n=3 tasks):
 
 **Verdict:** LoRA with **separate adapters** is significantly slower for inference than Full Fine-Tuning.
 
-#### 2.2 🔬 CRITICAL DISCOVERY: Merged LoRA Eliminates Overhead
+#### 2.2 Observation: Merged LoRA Substantially Reduces Overhead (n=3 Tasks)
 
 To determine if the overhead is fundamental or architectural, we added **merged LoRA benchmarks** where adapter weights are precomputed into the base model using `merge_and_unload()`.
 
 | Configuration | Mean Latency | vs Full FT | vs LoRA Separate |
 |---------------|--------------|------------|------------------|
 | **Full FT** | 25.51 ± 0.22 ms | Baseline | -27% faster |
-| **LoRA Merged** | **25.47 ± 0.22 ms** | **-0.2%** ✅ | **-27% faster** ✅ |
+| **LoRA Merged** | **25.47 ± 0.22 ms** | **-0.2%** | **-27% faster** |
 | **LoRA Separate** | 35.09 ± 0.58 ms | +37.5% | Baseline |
 
-**KEY INSIGHT: Merged LoRA matches Full FT speed!**
+**Observation (requires validation on more tasks): Merged LoRA matches Full FT speed in our study**
 
-This definitively proves:
-1. ✅ The 37% overhead comes from **runtime adapter computation** (forward pass through B×A matrices)
-2. ✅ When adapter weights are merged offline (W' = W + B×A), the overhead **disappears completely**
-3. ✅ The LoRA weights themselves are **not problematic** for inference
-4. ✅ **Deployment strategy**, not training method, determines inference speed
+This suggests:
+1. The 37% overhead appears to come from **runtime adapter computation** (forward pass through B×A matrices)
+2. When adapter weights are merged offline (W' = W + B×A), the overhead **is substantially reduced** (27.4%)
+3. The LoRA weights themselves do not appear to be **problematic** for inference in these tasks
+4. **Deployment strategy** may matter more than training method for inference speed
 
 **Statistical Validation:**
 - Merged LoRA vs Full FT: **No significant difference** (p > 0.05)
 - Merged LoRA vs Separate LoRA: **Highly significant** (p < 0.000001)
 
-**Practical Implication:**  
-Users can choose deployment strategy based on needs:
-- **Speed required?** → Merge adapters (25ms, same as Full FT)
-- **Flexibility needed?** → Keep separate (35ms, but can swap adapters on-the-fly)
+**Note:** These findings are based on 3 GLUE classification tasks. Controlled research with more diverse tasks, model sizes, and hardware configurations is needed to determine if this is a universal property of LoRA.
 
-#### 2.3 Multi-Adapter Overhead: Minimal (<1%)
+#### 2.3 Multi-Adapter Overhead: Minimal (<1%) (n=3 Tasks)
 
 | Configuration | Mean Latency | Overhead vs Single LoRA |
 |---------------|--------------|------------------------|
@@ -283,11 +281,16 @@ Users can choose deployment strategy based on needs:
 | Multi-Adapter (2) | 34.86 ms | **-0.7%** |
 | Multi-Adapter (3) | 34.73 ms | **-1.0%** |
 
-**Key Insight:**  
-Adapter swapping adds **negligible overhead** (<1%), making multi-task LoRA deployment efficient.
+**Observation (n=3 tasks):**  
+Adapter swapping adds **negligible overhead** (<1%) in our study, making multi-task LoRA deployment efficient. Validation on more diverse tasks needed to confirm generalization.
 
-**Correctness Validation:**
-Multi-adapter deployment produces **bitwise-identical predictions** to single-adapter deployment (validated on 50 samples × 3 tasks). The comparison is valid - outputs are functionally equivalent.
+**Correctness Validation (Critical Finding):**
+Multi-adapter deployment produces **bitwise-identical predictions** to single-adapter deployment (validated on 50 samples × 3 tasks):
+- **Predictions identical:** 100% match (0 mismatches)
+- **Logits identical:** 0.0 maximum difference
+- **Accuracy identical:** Exactly the same
+
+**Implication:** Multi-adapter latency comparison is valid for these tasks - the <1% overhead is purely computational, with no effect on model behavior or accuracy. This means flexibility comes essentially "for free" in multi-task deployment.
 
 #### 2.4 Per-Task Breakdown
 
@@ -315,15 +318,17 @@ LoRA (Separate Adapter):
 
 LoRA (Merged Adapter):
   Input → Forward Pass (merged weights W' = W + B×A) → Output
-  ✅ SAME SPEED AS FULL FT!
+  Matches Full FT speed in our study (n=3 tasks)
 ```
 
-**The 35% Overhead is ARCHITECTURAL, not Fundamental:**
+**The 37.5% Overhead Appears Architectural, Not Fundamental (n=3 tasks):**
 
-Our merged LoRA experiments **definitively prove** the overhead source:
-1. ❌ **NOT** from the LoRA weights themselves (merged LoRA = Full FT speed)
-2. ✅ **YES** from runtime computation of B×A product during forward pass
-3. ✅ Merging adapters offline **eliminates the overhead completely**
+Our merged LoRA experiments suggest the overhead source:
+1. The overhead does not appear to come from the LoRA weights themselves (merged LoRA matched Full FT speed in our study)
+2. The overhead appears to come from runtime computation of B×A product during forward pass
+3. Merging adapters offline substantially reduces the overhead (27.4%)
+
+**Note:** These observations are from 3 GLUE tasks. Controlled research needed to determine if this is universal across diverse tasks, model sizes, and hardware.
 
 **Three Deployment Strategies:**
 
@@ -337,31 +342,34 @@ Our merged LoRA experiments **definitively prove** the overhead source:
 - Runtime memory: ~2GB (all strategies comparable)
 - Storage: LoRA adapter ≈ 4MB vs Full model ≈ 2GB
 
-### Practical Implications
+### Preliminary Insights (n=3 tasks - requires further validation)
 
-**Updated Deployment Decision Framework:**
+**Observed Deployment Patterns:**
 
-**SINGLE-TASK DEPLOYMENT:**
-- **Need maximum speed?** 
-  - Option A: Merge LoRA adapter → 26ms (same as Full FT) ✅ **RECOMMENDED**
-  - Option B: Use Full FT model → 26ms
-  - ❌ Don't use separate adapter → 35ms (unnecessary overhead)
+**SINGLE-TASK DEPLOYMENT (observed in our study):**
+- **Best speed:** Merge LoRA adapter → ~26ms (matched Full FT)
+- **Alternative:** Full FT model → ~26ms
+- **Separate adapter:** ~35ms (+37.5% overhead)
 
-**MULTI-TASK DEPLOYMENT:**
-- **Need adapter swapping flexibility?**
-  - Keep adapters separate → 35ms per request (enables dynamic swapping) ✅
-- **Fixed set of tasks?**
-  - Merge all adapters → 26ms each (fast, but no swapping)
+**MULTI-TASK DEPLOYMENT (observed in our study):**
+- **Key finding:** Multi-adapter has <1% overhead vs single adapter (validated)
+- **Key finding:** Multi-adapter produces identical predictions (0 difference)
+- **For flexibility:** Load all adapters (~35ms/task, <1% overhead, swap anytime)
+  - Flexibility comes essentially "for free" - no accuracy trade-off
+- **For max speed:** Merge each adapter (~26ms/task, no swapping)
 
-**When to Use LoRA (Separate Adapters):**
-✅ Multi-task deployment (share base model, swap adapters)  
-✅ Dynamic task selection at runtime  
-✅ Frequent adapter updates
+**Observed Use Cases (in our study):**
 
-**When to Use LoRA (Merged) or Full FT:**
-✅ Single-task deployment with speed requirements  
-✅ Maximum throughput needed  
-✅ Fixed deployment (no adapter swapping)
+*LoRA (Separate Adapters):*
+- Multi-task deployment (share base model, swap adapters)
+- Dynamic task selection at runtime
+- Frequent adapter updates
+- Note: <1% overhead with identical predictions makes this attractive for flexibility
+
+*LoRA (Merged) or Full FT:*
+- Single-task deployment with speed requirements
+- Maximum throughput needed
+- Fixed deployment (no adapter swapping)
 
 **Trade-Off Summary (Updated):**
 
@@ -376,7 +384,14 @@ Our merged LoRA experiments **definitively prove** the overhead source:
 | Training Time | Faster | Faster | Slower | **LoRA** (both) |
 | Training Memory | Lower | Lower | Higher | **LoRA** (both) |
 
-**KEY TAKEAWAY:** Deployment strategy, not training method, determines inference speed!
+**Tentative Interpretation (requires validation):**  
+Deployment strategy may matter more than training method for inference speed in these tasks.
+
+**Critical Limitations:**
+- Only 3 GLUE classification tasks tested
+- Single model size (TinyLlama-1.1B)
+- Single hardware configuration (L4 GPU)
+- Controlled research needed to validate generalization across diverse tasks, model sizes, and hardware configurations
 
 ---
 
