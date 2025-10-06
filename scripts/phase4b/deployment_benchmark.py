@@ -91,7 +91,7 @@ class DeploymentBenchmark:
         self,
         base_model_name: str = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
         models_dir: str = "results/downloaded_models",
-        output_dir: str = "results/phase4b_deployment",
+        output_dir: str = "deployment",
         num_samples: int = 500,
         warmup_samples: int = 10,
         batch_size: int = 1,  # For classification tasks
@@ -683,7 +683,7 @@ def main():
     parser = argparse.ArgumentParser(description="Phase 4B Deployment Benchmark")
     parser.add_argument("--models-dir", type=str, default="results/downloaded_models",
                       help="Directory containing models")
-    parser.add_argument("--output-dir", type=str, default="results/phase4b_deployment",
+    parser.add_argument("--output-dir", type=str, default="deployment",
                       help="Output directory for results")
     parser.add_argument("--num-samples", type=int, default=500,
                       help="Number of samples to benchmark")

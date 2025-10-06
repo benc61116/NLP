@@ -1,0 +1,47 @@
+[
+  {
+    "task": "mrpc",
+    "seed": 42,
+    "num_samples": 50,
+    "num_adapters_loaded": 3,
+    "predictions_identical": true,
+    "prediction_mismatches": 0,
+    "prediction_mismatch_pct": 0.0,
+    "logits_close": true,
+    "max_logit_difference": 0.0,
+    "mean_logit_difference": 0.0,
+    "single_adapter_accuracy": 78.0,
+    "multi_adapter_accuracy": 78.0,
+    "accuracy_difference": 0.0
+  },
+  {
+    "task": "sst2",
+    "seed": 42,
+    "num_samples": 50,
+    "num_adapters_loaded": 3,
+    "predictions_identical": true,
+    "prediction_mismatches": 0,
+    "prediction_mismatch_pct": 0.0,
+    "logits_close": true,
+    "max_logit_difference": 0.0,
+    "mean_logit_difference": 0.0,
+    "single_adapter_accuracy": 100.0,
+    "multi_adapter_accuracy": 100.0,
+    "accuracy_difference": 0.0
+  },
+  {
+    "task": "rte",
+    "seed": 42,
+    "num_samples": 50,
+    "num_adapters_loaded": 3,
+    "predictions_identical": true,
+    "prediction_mismatches": 0,
+    "prediction_mismatch_pct": 0.0,
+    "logits_close": true,
+    "max_logit_difference": 0.0,
+    "mean_logit_difference": 0.0,
+    "single_adapter_accuracy": 0.0,
+    "multi_adapter_accuracy": 0.0,
+    "accuracy_difference": 0.0
+  }
+]

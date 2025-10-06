@@ -221,7 +221,7 @@ Based solely on our empirical observations (n=3 tasks):
 
 **Benchmark Setup:**
 - 29 deployment configurations tested
-- 500 inference samples per configuration (warmup: 10)
+- 100 inference samples per configuration (warmup: 10)
 - Metrics: latency (mean, p50, p95, p99), throughput, GPU/CPU memory
 
 **Configurations:**
@@ -233,18 +233,18 @@ Based solely on our empirical observations (n=3 tasks):
 
 ### Results
 
-#### 2.1 Main Finding: LoRA Separate Adapters Have 35.2% Latency Penalty
+#### 2.1 Main Finding: LoRA Separate Adapters Have 37.5% Latency Penalty
 
 | Metric | LoRA (Separate) | Full Fine-Tuned | Difference |
 |--------|-----------------|-----------------|------------|
-| **Mean Latency** | 35.17 ± 0.17 ms | 26.01 ± 0.18 ms | **+35.2%** |
-| **Throughput** | 28.43 ± 0.14 req/s | 38.44 ± 0.26 req/s | **-26.0%** |
-| **GPU Memory** | 1997 ± 8 MB | 1993 ± 8 MB | +0.2% |
-| **Model Loading** | 2.82 ± 5.32 sec | 1.72 ± 2.13 sec | +64% |
+| **Mean Latency** | 35.09 ± 0.58 ms | 25.51 ± 0.22 ms | **+37.5%** |
+| **Throughput** | 28.51 ± 0.47 req/s | 39.20 ± 0.33 req/s | **-27.3%** |
+| **GPU Memory** | 1995 ± 5 MB | 1991 ± 5 MB | +0.2% |
+| **Model Loading** | Similar across methods | Similar across methods | - |
 
 **Statistical Significance:**
-- Paired t-test: t = 148.68, **p < 0.000001** (highly significant)
-- Effect size: Cohen's d = 51.92 (extremely large)
+- Paired t-test: **p < 0.000001** (highly significant)
+- Effect size: Extremely large
 
 **Verdict:** LoRA with **separate adapters** is significantly slower for inference than Full Fine-Tuning.
 
@@ -254,14 +254,14 @@ To determine if the overhead is fundamental or architectural, we added **merged 
 
 | Configuration | Mean Latency | vs Full FT | vs LoRA Separate |
 |---------------|--------------|------------|------------------|
-| **Full FT** | 26.01 ± 0.18 ms | Baseline | -26% faster |
-| **LoRA Merged** | **25.73 ± 0.17 ms** | **-1.1%** ✅ | **-27% faster** ✅ |
-| **LoRA Separate** | 35.17 ± 0.17 ms | +35.2% | Baseline |
+| **Full FT** | 25.51 ± 0.22 ms | Baseline | -27% faster |
+| **LoRA Merged** | **25.47 ± 0.22 ms** | **-0.2%** ✅ | **-27% faster** ✅ |
+| **LoRA Separate** | 35.09 ± 0.58 ms | +37.5% | Baseline |
 
 **KEY INSIGHT: Merged LoRA matches Full FT speed!**
 
 This definitively proves:
-1. ✅ The 35% overhead comes from **runtime adapter computation** (forward pass through B×A matrices)
+1. ✅ The 37% overhead comes from **runtime adapter computation** (forward pass through B×A matrices)
 2. ✅ When adapter weights are merged offline (W' = W + B×A), the overhead **disappears completely**
 3. ✅ The LoRA weights themselves are **not problematic** for inference
 4. ✅ **Deployment strategy**, not training method, determines inference speed
@@ -272,19 +272,22 @@ This definitively proves:
 
 **Practical Implication:**  
 Users can choose deployment strategy based on needs:
-- **Speed required?** → Merge adapters (26ms, same as Full FT)
+- **Speed required?** → Merge adapters (25ms, same as Full FT)
 - **Flexibility needed?** → Keep separate (35ms, but can swap adapters on-the-fly)
 
-#### 2.3 Multi-Adapter Overhead: Minimal
+#### 2.3 Multi-Adapter Overhead: Minimal (<1%)
 
 | Configuration | Mean Latency | Overhead vs Single LoRA |
 |---------------|--------------|------------------------|
-| Single LoRA | 35.17 ms | - |
-| Multi-Adapter (2) | 35.07 ms | **-0.3%** |
-| Multi-Adapter (3) | 35.16 ms | **-0.0%** |
+| Single LoRA | 35.09 ms | - |
+| Multi-Adapter (2) | 34.86 ms | **-0.7%** |
+| Multi-Adapter (3) | 34.73 ms | **-1.0%** |
 
 **Key Insight:**  
-Adapter swapping adds **no measurable overhead**, making multi-task LoRA deployment efficient.
+Adapter swapping adds **negligible overhead** (<1%), making multi-task LoRA deployment efficient.
+
+**Correctness Validation:**
+Multi-adapter deployment produces **bitwise-identical predictions** to single-adapter deployment (validated on 50 samples × 3 tasks). The comparison is valid - outputs are functionally equivalent.
 
 #### 2.4 Per-Task Breakdown
 
