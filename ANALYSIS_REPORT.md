@@ -220,15 +220,16 @@ Based solely on our empirical observations (n=3 tasks):
 ### Methodology
 
 **Benchmark Setup:**
-- 20 deployment configurations tested
+- 29 deployment configurations tested
 - 500 inference samples per configuration (warmup: 10)
 - Metrics: latency (mean, p50, p95, p99), throughput, GPU/CPU memory
 
 **Configurations:**
-1. **Single LoRA Adapter** (9 configs: 3 tasks × 3 seeds)
+1. **Single LoRA Adapter** (9 configs: 3 tasks × 3 seeds) - separate adapters
 2. **Full Fine-Tuned Models** (9 configs: 3 tasks × 3 seeds)
-3. **Multi-Adapter (2 tasks)** (1 config: MRPC + SST-2)
-4. **Multi-Adapter (3 tasks)** (1 config: MRPC + SST-2 + RTE)
+3. **Merged LoRA Adapters** (9 configs: 3 tasks × 3 seeds) - adapters merged into base model
+4. **Multi-Adapter (2 tasks)** (1 config: MRPC + SST-2)
+5. **Multi-Adapter (3 tasks)** (1 config: MRPC + SST-2 + RTE)
 
 ### Results
 
