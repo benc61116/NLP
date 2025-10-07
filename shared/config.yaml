@@ -38,7 +38,6 @@ training:
   # Learning rates (reduced to prevent gradient explosion)
   learning_rate: 0.0002      # Higher for LoRA
   full_finetune_learning_rate_classification: [0.000003, 0.000005]  # Classification tasks (MRPC, SST-2, RTE) - REDUCED
-  full_finetune_learning_rate_qa: [0.00002, 0.00003]    # QA tasks (SQuAD v2) - LITERATURE ALIGNED (2e-5, 3e-5)
   full_finetune_learning_rate: 0.000005  # Default full fine-tuning LR - REDUCED
   
   # Optimization
@@ -95,14 +94,6 @@ tasks:
     metric: "accuracy"
     max_samples_train: null
     max_samples_eval: null
-    
-  squad_v2:
-    name: "SQuAD v2.0 Question Answering"
-    type: "question_answering"
-    num_labels: null
-    metric: "f1"
-    max_samples_train: 5000   # REDUCED for Phase 1 memory efficiency 
-    max_samples_eval: 500     # REDUCED proportionally
 
 # Sanity Check Configuration
 sanity_check:
@@ -117,7 +108,6 @@ sanity_check:
     mrpc: 4                # Simple paraphrase detection - ✅ CONFIRMED WORKING
     sst2: 0.5              # Sentiment classification - ULTRA CONSERVATIVE (even 0.0002 LR fails!)  
     rte: 0.5               # Textual entailment - ULTRA CONSERVATIVE (LoRA failing at 6x)
-    squad_v2: 1            # QA + answerability - MIDDLE GROUND (0.5 too low, 8 too high)
     
   # Fallback multiplier for unknown tasks
   default_multiplier: 4
@@ -128,21 +118,12 @@ sanity_check:
     mrpc: 4                # ✅ Works well at 0.0008 (4x base LoRA LR)
     sst2: 0.1              # 😱 EXTREME: Even 0.00005 exploding! Try 0.00002
     rte: 0.5               # ✅ Works at 0.0001 (ultra-conservative)
-    squad_v2: 1            # 🧪 TESTING: Base LoRA LR 2e-4 (literature-aligned)
     
   task_multipliers_fullft:
     mrpc: 4                # ✅ Works well (needs testing for optimization)
     sst2: 0.5              # ✅ Works well (conservative approach)
     rte: 0.5               # ✅ Works well (conservative approach)
-    squad_v2: 0.5          # 🔧 CONSERVATIVE: Reduce to 1e-5 (Full FT still increasing slightly)
-  
-  # Task-specific configurations for aggressive overfitting
-  task_specific:
-    squad_v2:
-      max_epochs: 8        # More epochs for true overfitting
-      num_samples: 3       # AGGRESSIVE: Only 3 samples for guaranteed overfitting
-      timeout: 600         # Extended timeout for QA tasks (10 minutes)
-  
+
 # Infrastructure Configuration
 infrastructure:
   gpu_memory_fraction: 0.9 # Use 90% of GPU memory
@@ -182,12 +163,12 @@ phases:
     
   phase2a:
     description: "LoRA fine-tuning on all tasks"
-    tasks: ["mrpc", "sst2", "rte", "squad_v2"]
+    tasks: ["mrpc", "sst2", "rte"]
     method: "lora"
     
   phase2b: 
     description: "Full fine-tuning on all tasks"
-    tasks: ["mrpc", "sst2", "rte", "squad_v2"] 
+    tasks: ["mrpc", "sst2", "rte"] 
     method: "full"
 
 # Resource Allocation (3 GPU VMs)
@@ -198,9 +179,9 @@ vm_allocation:
     description: "Classification tasks"
     
   vm2: 
-    tasks: ["rte", "squad_v2"]
+    tasks: ["rte"]
     gpu_memory: "24GB" 
-    description: "Entailment and QA tasks"
+    description: "Entailment task"
     
   vm3:
     tasks: ["sanity_check", "analysis"]

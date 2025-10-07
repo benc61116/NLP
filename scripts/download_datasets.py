@@ -23,10 +23,6 @@ def download_datasets():
     rte = load_dataset("glue", "rte")
     rte.save_to_disk("data/rte")
     
-    print("Downloading SQuAD v2...")
-    squad_v2 = load_dataset("squad_v2")
-    squad_v2.save_to_disk("data/squad_v2")
-    
     # Create a manifest file with dataset info
     manifest = {
         "datasets": {
@@ -50,12 +46,6 @@ def download_datasets():
                 "train_size": len(rte["train"]),
                 "validation_size": len(rte["validation"]),
                 "test_size": len(rte["test"])
-            },
-            "squad_v2": {
-                "name": "SQuAD v2.0",
-                "task": "question answering",
-                "train_size": len(squad_v2["train"]),
-                "validation_size": len(squad_v2["validation"])
             }
         }
     }

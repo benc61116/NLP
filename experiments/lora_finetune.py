@@ -68,81 +68,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-class QADataCollator:
-    """Custom data collator for QA tasks that handles start/end positions."""
-    
-    def __init__(self, tokenizer, padding=True):
-        self.tokenizer = tokenizer
-        self.padding = padding
-    
-    def __call__(self, features):
-        # ROOT CAUSE FIX: Ensure we never create None values that can be passed to _pad_across_processes
-        
-        # Extract each field with proper None handling
-        input_ids = [f["input_ids"] for f in features if f.get("input_ids") is not None]
-        attention_mask = [f["attention_mask"] for f in features if f.get("attention_mask") is not None]
-        
-        # Ensure we have valid features
-        if not input_ids or not attention_mask:
-            raise ValueError("No valid input_ids or attention_mask found in features")
-        
-        start_positions = []
-        end_positions = []
-        answerability_labels = []
-        
-        for f in features:
-            # Handle None values for unanswerable questions in SQuAD v2
-            start_pos = f.get("start_positions", 0)
-            end_pos = f.get("end_positions", 0)
-            answerability = f.get("answerability_labels", 0)
-            
-            # Convert None to 0 for consistent tensor creation
-            start_positions.append(0 if start_pos is None else start_pos)
-            end_positions.append(0 if end_pos is None else end_pos)
-            answerability_labels.append(0 if answerability is None else answerability)
-        
-        # Pad input_ids and attention_mask
-        max_length = max(len(ids) for ids in input_ids)
-        
-        padded_input_ids = []
-        padded_attention_mask = []
-        
-        for ids, mask in zip(input_ids, attention_mask):
-            padding_length = max_length - len(ids)
-            if padding_length > 0:
-                # Pad with tokenizer.pad_token_id
-                pad_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
-                # Ensure ids and mask are lists before concatenation
-                if isinstance(ids, torch.Tensor):
-                    ids = ids.tolist()
-                if isinstance(mask, torch.Tensor):
-                    mask = mask.tolist()
-                padded_input_ids.append(ids + [pad_id] * padding_length)
-                padded_attention_mask.append(mask + [0] * padding_length)
-            else:
-                # Ensure consistent format
-                if isinstance(ids, torch.Tensor):
-                    ids = ids.tolist()
-                if isinstance(mask, torch.Tensor):
-                    mask = mask.tolist()
-                padded_input_ids.append(ids)
-                padded_attention_mask.append(mask)
-        
-        # Create batch tensors - ensure all values are valid tensors, never None
-        batch = {
-            "input_ids": torch.tensor(padded_input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(padded_attention_mask, dtype=torch.long),
-            "start_positions": torch.tensor(start_positions, dtype=torch.long),
-            "end_positions": torch.tensor(end_positions, dtype=torch.long),
-        }
-        
-        # Add answerability_labels if present in features (for SQuAD v2)
-        if any("answerability_labels" in f for f in features):
-            batch["answerability_labels"] = torch.tensor(answerability_labels, dtype=torch.long)
-        
-        return batch
-
-
 # LoRA configuration now comes entirely from shared/config.yaml
 
 
@@ -704,43 +629,16 @@ class LoRAExperiment:
             max_memory = {0: max_memory_bytes}
             logger.info(f"Using {max_memory_percent}% of GPU memory: {max_memory_bytes / (1024**3):.1f}GB")
         
-        # Choose model type based on task
-        task_type = self.config['tasks'][task_name].get('type', 'classification')
-        if task_type in ['qa', 'question_answering']:
-            # For SQuAD v2, use model with answerability head
-            if task_name == 'squad_v2':
-                from models.squad_v2_qa_model import SquadV2QuestionAnsweringModel
-                base_model = SquadV2QuestionAnsweringModel(
-                    model_name,
-                    answerability_weight=1.0,
-                    dtype=self.config['model']['dtype']  # Pass dtype to avoid float32 → bfloat16 conversion spike
-                )
-                
-                # CRITICAL FIX: Enable gradient checkpointing on the model (not just TrainingArguments)
-                if self.config['training'].get('gradient_checkpointing', False):
-                    if hasattr(base_model, 'gradient_checkpointing_enable'):
-                        base_model.gradient_checkpointing_enable()
-                        logger.info('✅ Gradient checkpointing ENABLED on model (saves ~3-5GB activation memory)')
-                # Model already in correct dtype from __init__
-            else:
-                # For other QA tasks, use standard QA model
-                base_model = AutoModelForQuestionAnswering.from_pretrained(
-                    model_name,
-                    dtype=getattr(torch, self.config['model']['dtype']),
-                    device_map="auto" if torch.cuda.is_available() else None,
-                    max_memory=max_memory,
-                    trust_remote_code=True
-                )
-        else:  # classification tasks
-            num_labels = self.config['tasks'][task_name].get('num_labels', 2)
-            base_model = AutoModelForSequenceClassification.from_pretrained(
-                model_name,
-                num_labels=num_labels,
-                dtype=getattr(torch, self.config['model']['dtype']),
-                device_map="auto" if torch.cuda.is_available() else None,
-                max_memory=max_memory,
-                trust_remote_code=True
-            )
+        # Load classification model
+        num_labels = self.config['tasks'][task_name].get('num_labels', 2)
+        base_model = AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            num_labels=num_labels,
+            dtype=getattr(torch, self.config['model']['dtype']),
+            device_map="auto" if torch.cuda.is_available() else None,
+            max_memory=max_memory,
+            trust_remote_code=True
+        )
         
         # Create LoRA config
         lora_config = self.create_lora_config(target_modules, rank, alpha, task_name)
@@ -864,64 +762,15 @@ class LoRAExperiment:
                 logger.warning(f"No validation set for {task_name}, using subset of training data")
                 eval_dataset = train_dataset.select(range(min(500, len(train_dataset))))
         
-        elif task_config['type'] == 'question_answering':
-            # For SQuAD v2
-            train_data = self.data_loader.prepare_qa_data('train', task_config.get('max_samples_train'))
-            train_dataset = Dataset.from_dict({
-                "input_ids": train_data["input_ids"],
-                "attention_mask": train_data["attention_mask"],
-                "start_positions": train_data["start_positions"],
-                "end_positions": train_data["end_positions"],
-                "answerability_labels": train_data["answerability_labels"]
-            })
-            
-            try:
-                eval_data = self.data_loader.prepare_qa_data('validation', task_config.get('max_samples_eval'))
-                eval_dataset = Dataset.from_dict({
-                    "input_ids": eval_data["input_ids"],
-                    "attention_mask": eval_data["attention_mask"],
-                    "start_positions": eval_data["start_positions"],
-                    "end_positions": eval_data["end_positions"],
-                    "answerability_labels": eval_data["answerability_labels"]
-                })
-            except:
-                eval_dataset = train_dataset.select(range(min(500, len(train_dataset))))
-        
         logger.info(f"Training samples: {len(train_dataset)}")
         logger.info(f"Validation samples: {len(eval_dataset)}")
-        
-        # ROOT CAUSE FIX: Custom data collator that preserves answerability_labels AND handles padding
-        if task_config['type'] == 'question_answering':
-            import torch
-            from transformers import DataCollatorWithPadding
-            
-            # Create base padding collator
-            base_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
-            
-            def qa_data_collator(features):
-                # Use padding collator for variable-length sequences
-                batch = base_collator(features)
-                # Manually add answerability_labels that got filtered out by base collator
-                if features and 'answerability_labels' in features[0]:
-                    batch['answerability_labels'] = torch.tensor([f['answerability_labels'] for f in features])
-                return batch
-            self.qa_data_collator = qa_data_collator
-        else:
-            self.qa_data_collator = None
         
         return train_dataset, eval_dataset
     
     def create_compute_metrics_function(self, task_name: str):
         """Create compute_metrics function for evaluation."""
         task_config = self.config['tasks'][task_name]
-        
-        if task_config['type'] == 'classification':
-            return lambda eval_pred: compute_classification_metrics(eval_pred, task_config['metric'])
-        elif task_config['type'] == 'question_answering':
-            # FIXED: Use proper QA metrics that compute F1 and exact match
-            return lambda eval_pred: compute_qa_metrics(eval_pred)
-        else:
-            return None
+        return lambda eval_pred: compute_classification_metrics(eval_pred, task_config['metric'])
     
     def test_lora_merge_equivalence(self, model: torch.nn.Module, eval_dataset: Dataset) -> Dict[str, float]:
         """Test LoRA merge equivalence as required in validation."""
@@ -1195,15 +1044,8 @@ class LoRAExperiment:
             # Create compute metrics function
             compute_metrics = self.create_compute_metrics_function(task_name)
             
-            # Create task-appropriate data collator (simplified - HF Trainer handles dtype with bf16=True)
-            task_config = self.config['tasks'][task_name]
-            
-            if task_config['type'] in ['qa', 'question_answering']:
-                # Use our custom QA collator that preserves answerability_labels
-                data_collator = self.qa_data_collator if hasattr(self, 'qa_data_collator') and self.qa_data_collator else QADataCollator(tokenizer=self.tokenizer, padding=True)
-            else:
-                # For classification tasks, use standard padding collator
-                data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
+            # Create data collator for classification tasks
+            data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer, padding=True)
             
             # Create custom callback (skip for sanity checks to avoid adapter reset issues)  
             if (self.config['training'].get('eval_strategy') == 'no' or 
@@ -1503,7 +1345,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="LoRA fine-tuning experiments for Llama-2-1.3B")
-    parser.add_argument("--task", choices=["mrpc", "squad_v2", "sst2", "rte"], 
+    parser.add_argument("--task", choices=["mrpc", "sst2", "rte"], 
                        help="Task to run", required=True)
     parser.add_argument("--mode", choices=["single", "sweep", "ablation"], 
                        default="single", help="Experiment mode")

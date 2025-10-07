@@ -32,4 +32,4 @@ vllm==0.10.2
 # If you see TensorFlow errors, uninstall it: pip uninstall tensorflow tensorflow-gpu tf-keras -y
 
 optuna==4.5.0
-bitsandbytes  # For 8-bit optimizer (memory optimization - REQUIRED for SQuAD v2 on 22GB GPU)
+bitsandbytes  # For 8-bit optimizer (memory optimization - helps with full fine-tuning on 24GB GPU)

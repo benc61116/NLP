@@ -42,14 +42,6 @@ class TaskDataLoader:
             "label_key": "label",
             "num_labels": 2,
             "description": "Recognizing Textual Entailment"
-        },
-        "squad_v2": {
-            "path": "data/squad_v2",
-            "task_type": "qa",
-            "input_keys": ["context", "question"],
-            "label_key": "answers",
-            "num_labels": None,  # Variable for QA
-            "description": "Stanford Question Answering Dataset v2.0"
         }
     }
     
@@ -175,109 +167,6 @@ class TaskDataLoader:
             "num_samples": len(texts)
         }
     
-    def prepare_qa_data(self, split: str = "train", num_samples: Optional[int] = None) -> Dict:
-        """Prepare data for question answering task (SQuAD v2) with answerability labels.
-        
-        This implements the proper SQuAD v2 data preparation that prevents shortcut learning
-        by separating span extraction from answerability classification.
-        
-        Args:
-            split: Dataset split
-            num_samples: If provided, sample this many examples
-            
-        Returns:
-            Dictionary with tokenized inputs, answer positions, and answerability labels
-        """
-        task_name = "squad_v2"
-        
-        if num_samples:
-            dataset = self.get_sample_data(task_name, split, num_samples)
-        else:
-            dataset = self.datasets[task_name][split]
-        
-        input_ids_list = []
-        attention_mask_list = []
-        start_positions = []
-        end_positions = []
-        answerability_labels = []  # NEW: Separate answerability classification
-        
-        for example in dataset:
-            context = example["context"]
-            question = example["question"]
-            answers = example["answers"]
-            
-            # Tokenize question and context separately to get offsets
-            tokenized = self.tokenizer(
-                question,
-                context,
-                truncation=True,
-                max_length=self.max_length,
-                return_offsets_mapping=True,
-                padding=False  # We'll handle padding in the collator
-            )
-            
-            input_ids_list.append(tokenized["input_ids"])
-            attention_mask_list.append(tokenized["attention_mask"])
-            
-            # Determine answerability first
-            has_answer = answers["text"] and len(answers["text"]) > 0
-            
-            if has_answer:
-                # ANSWERABLE QUESTION: Extract span positions
-                answer_start_char = answers["answer_start"][0]
-                answer_text = answers["text"][0]
-                answer_end_char = answer_start_char + len(answer_text)
-                
-                # Find token positions that correspond to character positions
-                offset_mapping = tokenized["offset_mapping"]
-                start_token = None
-                end_token = None
-                
-                # Find start token
-                for i, (start_char, end_char) in enumerate(offset_mapping):
-                    if start_char <= answer_start_char < end_char:
-                        start_token = i
-                        break
-                
-                # Find end token (exclusive, so we want the token after the answer)
-                for i, (start_char, end_char) in enumerate(offset_mapping):
-                    if start_char < answer_end_char <= end_char:
-                        end_token = i
-                        break
-                
-                # Validation and proper handling
-                if start_token is not None and end_token is not None and start_token <= end_token:
-                    # Valid span found
-                    start_positions.append(start_token)
-                    end_positions.append(end_token)
-                    answerability_labels.append(1)  # 1 = answerable
-                else:
-                    # Could not map answer to tokens - treat as unanswerable 
-                    # (This is a fallback for rare tokenization edge cases)
-                    start_positions.append(0)  # CLS token (ignored during loss calculation)
-                    end_positions.append(0)
-                    answerability_labels.append(0)  # 0 = unanswerable
-            else:
-                # UNANSWERABLE QUESTION: No valid span exists
-                start_positions.append(0)  # CLS token (ignored during loss calculation) 
-                end_positions.append(0)
-                answerability_labels.append(0)  # 0 = unanswerable
-        
-        # Convert answerability_labels to is_impossible format (inverted)
-        is_impossible_list = [1 - label for label in answerability_labels]  # 1=answerable -> 0=not_impossible
-        
-        return {
-            "input_ids": input_ids_list,
-            "attention_mask": attention_mask_list,
-            "start_positions": torch.tensor(start_positions, dtype=torch.long),
-            "end_positions": torch.tensor(end_positions, dtype=torch.long),
-            "answerability_labels": torch.tensor(answerability_labels, dtype=torch.long),  # For training
-            "is_impossible": is_impossible_list,  # For baseline compatibility (inverted)
-            "answers": [example["answers"]["text"] for example in dataset],  # For baseline metrics
-            "task_name": task_name,
-            "num_samples": len(input_ids_list)
-        }
-    
     def get_all_task_samples(self, num_samples_per_task: int = 10, split: str = "train", seed: int = 42) -> Dict:
         """Get samples from all tasks for comprehensive testing.
         
@@ -300,13 +189,6 @@ class TaskDataLoader:
                 print(f"✓ Prepared {num_samples_per_task} samples for {task_name}")
             except Exception as e:
                 print(f"✗ Failed to prepare {task_name}: {e}")
-        
-        # QA task
-        try:
-            all_samples["squad_v2"] = self.prepare_qa_data(split, num_samples_per_task)
-            print(f"✓ Prepared {num_samples_per_task} samples for squad_v2")
-        except Exception as e:
-            print(f"✗ Failed to prepare squad_v2: {e}")
         
         return all_samples
     

@@ -39,11 +39,8 @@ def extract_base_representations_for_task(model, tokenizer, data_loader, task_na
     torch.cuda.empty_cache()
     
     try:
-        # Prepare validation data
-        if task_name == 'squad_v2':
-            eval_dataset = data_loader.prepare_qa_data('validation', num_samples=num_samples)
-        else:
-            eval_dataset = data_loader.prepare_classification_data(task_name, 'validation', num_samples=num_samples)
+        # Prepare validation data (classification tasks only)
+        eval_dataset = data_loader.prepare_classification_data(task_name, 'validation', num_samples=num_samples)
         
         # Create output directory (NOT in results/ - this is persistent!)
         output_dir = Path('base_representations')

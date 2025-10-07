@@ -1926,7 +1926,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Full fine-tuning experiments for Llama-2-1.3B")
-    parser.add_argument("--task", choices=["mrpc", "squad_v2", "sst2", "rte"], 
+    parser.add_argument("--task", choices=["mrpc", "sst2", "rte"], 
                        help="Task to run", required=True)
     parser.add_argument("--mode", choices=["single", "sweep", "demo"], 
                        default="single", help="Experiment mode")
